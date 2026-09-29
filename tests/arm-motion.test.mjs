@@ -4,62 +4,80 @@ import {ARM_STYLES} from '../src/arms.js';
 import {expressivePose} from '../src/arm-motion.js';
 import {DEFAULTS,FIXED_DT,sanitizeConfig} from '../src/config.js';
 import {Match} from '../src/engine.js';
+import {Renderer} from '../src/renderer.js';
 import {jumpProfile} from '../src/motion.js';
-const pose=(style='volley',extra={})=>expressivePose({spec:ARM_STYLES[style],config:DEFAULTS,kind:'drive',...extra});
+const pose=(extra={})=>expressivePose({spec:ARM_STYLES.whip,config:DEFAULTS,kind:'drive',...extra});
+// Canvas DOMPoint exposes inherited getters, not enumerable own x/y properties.
+class CanvasPoint{#x;#y;constructor(x,y){this.#x=x;this.#y=y;}get x(){return this.#x;}get y(){return this.#y;}}
 
-test('original styles keep their own renderer; new styles and animation settings roundtrip',()=>{
- for(const id of ['classic','compact','soft','mittens'])assert.equal(ARM_STYLES[id].motion,undefined);
- for(const armStyle of ['volley','whip','windmill','propeller']){
-  const c=sanitizeConfig(JSON.parse(JSON.stringify({...DEFAULTS,armStyle,armWindup:.12,armFlourish:0,armJumpMotion:1.4})));
-  assert.equal(c.armStyle,armStyle);assert.equal(c.armWindup,.12);assert.equal(c.armFlourish,0);assert.equal(c.armJumpMotion,1.4);
+test('a Canvas DOMPoint produces finite spike targets and preserves its exact coordinates',()=>{
+ const point=new CanvasPoint(13,-43);assert.deepEqual({...point},{});
+ for(const age of [0,.03,.13,.27,.5]){
+  const p=pose({swing:{hit:true,age,power:1},contactPoint:point});
+  for(const v of [...p.wrists,...p.elbows])assert.ok(Number.isFinite(v.x)&&Number.isFinite(v.y));
+  if(age===0)assert.deepEqual(p.wrists[1],{x:13,y:-43});
  }
 });
-test('charge deepens the windup, release accents it, and a real contact reaches the ball immediately',()=>{
- const weak=pose('whip',{charge:{age:.12,power:.2}}),strong=pose('whip',{charge:{age:.12,power:1}});
+
+test('whip is the only style; old saves migrate while preserving physics and animation tuning',()=>{
+ assert.deepEqual(Object.keys(ARM_STYLES),['whip']);assert.equal(DEFAULTS.armStyle,'whip');
+ for(const armStyle of ['classic','compact','soft','mittens','volley','windmill','propeller','whip']){
+  const c=sanitizeConfig(JSON.parse(JSON.stringify({...DEFAULTS,armStyle,armWindup:.12,armFlourish:1,gravity:12})));
+  assert.equal(c.armStyle,'whip');assert.equal(c.armWindup,.12);assert.equal(c.gravity,12);assert.equal('armFlourish' in c,false);
+ }
+});
+test('charge deepens the windup, release accents it and contact reaches the ball immediately',()=>{
+ const weak=pose({charge:{age:.12,power:.2}}),strong=pose({charge:{age:.12,power:1}});
  assert.ok(strong.wrists[1].x<weak.wrists[1].x);
- const release=pose('whip',{swing:{power:1,age:.03,hit:false}});
- assert.ok(release.wrists[1].x<strong.wrists[1].x);
- const hit=pose('whip',{swing:{power:1,age:0,hit:true},contactPoint:{x:13,y:-43}});
+ assert.ok(pose({swing:{power:1,age:.03,hit:false}}).wrists[1].x<strong.wrists[1].x);
+ const hit=pose({swing:{power:1,age:0,hit:true},contactPoint:{x:13,y:-43}});
  assert.equal(hit.snap,true);assert.deepEqual(hit.wrists[1],{x:13,y:-43});
- const soft=pose('volley',{swing:{power:.2,age:.12,hit:true}}),hard=pose('volley',{swing:{power:1,age:.12,hit:true}});
+ const soft=pose({swing:{power:.2,age:.12,hit:true}}),hard=pose({swing:{power:1,age:.12,hit:true}});
  assert.ok(hard.wrists[1].y>soft.wrists[1].y);
 });
-test('comic rotations require a strong successful hit and can be disabled',()=>{
- for(const style of ['windmill','propeller']){
-  assert.ok(pose(style,{swing:{power:1,age:.3,hit:true}}).spin>.5);
-  assert.equal(pose(style,{swing:{power:.7,age:.3,hit:true}}).spin,0);
-  assert.equal(pose(style,{swing:{power:1,age:.3,hit:false}}).spin,0);
-  assert.equal(pose(style,{swing:{power:1,age:0,hit:true}}).spin,0);
-  assert.equal(pose(style,{swing:{power:1,age:.3,hit:true},config:{...DEFAULTS,armFlourish:0}}).spin,0);
+test('all wrists, elbows and palm angles return to the same rest pose after hit or miss, at every size and power',()=>{
+ for(const armScale of [.65,1,1.3])for(const power of [.08,.5,1])for(const kind of ['low','loft','drive'])for(const hit of [true,false]){
+  const config={...DEFAULTS,armScale},rest=pose({config,kind:null});
+  const returned=pose({config,kind,swing:{hit,power,age:.5},contactPoint:{x:25,y:-45}});
+  assert.deepEqual(returned.wrists,rest.wrists);assert.deepEqual(returned.elbows,rest.elbows);assert.equal(returned.cup,0);assert.equal(returned.stage,'Покой');assert.equal(returned.power,rest.power);
  }
 });
-test('overhead preparation forms a cup with elbows outside the wrists',()=>{
- for(const style of ['volley','whip','windmill','propeller']){
-  const p=pose(style,{kind:'loft',charge:{power:.5,age:.1}});
-  assert.equal(p.cup,true);assert.ok(p.wrists.every(w=>w.y<-30));
-  assert.ok(p.elbows[0].x<p.wrists[0].x);assert.ok(p.elbows[1].x>p.wrists[1].x);
+test('overhead cup and wide elbows blend away during recovery rather than sticking until the marker expires',()=>{
+ const ready=pose({kind:'loft',charge:{power:1,age:.1}});
+ assert.equal(ready.cup,1);assert.ok(ready.elbows[0].x<ready.wrists[0].x);assert.ok(ready.elbows[1].x>ready.wrists[1].x);
+ const recovering=pose({kind:'loft',swing:{power:1,age:.27,hit:true}});
+ assert.ok(recovering.cup>0&&recovering.cup<1);
+ assert.notDeepEqual(recovering.elbows,ready.elbows);
+});
+test('a spike sweeps downward and returns without an extended hold; recovery blends into the jump pose',()=>{
+ const stroke=pose({swing:{hit:true,power:1,age:.13},contactPoint:{x:24,y:-44}});
+ assert.ok(stroke.wrists[1].x<27);assert.ok(stroke.wrists[1].y>-20);
+ const profile=jumpProfile(DEFAULTS),jump={profile,time:profile.windup+profile.rise};
+ assert.deepEqual(pose({kind:'drive',jump,swing:{hit:true,power:1,age:.5}}).wrists,pose({kind:null,jump}).wrists);
+ const up=pose({kind:null,jump}),early=pose({kind:null,jump:{profile,time:.04}});
+ assert.ok(up.wrists[0].y<early.wrists[0].y-15);
+});
+test('renderer anchors a contact to the player once, then both joints settle at 30/60/120 FPS',()=>{
+ for(const fps of [30,60,120]){
+  let offset=0;
+  const ctx=new Proxy({getTransform:()=>({inverse:()=>({transformPoint:p=>new CanvasPoint(p.x-offset,p.y)})})},{get:(o,k)=>k in o?o[k]:()=>{}});
+  const renderer=Object.create(Renderer.prototype);renderer.ctx=ctx;renderer.armRigs=new Map();renderer.project=(x,y)=>({x,y});
+  const m=new Match(),p=m.players[0];m.phase='rally';p.armSwing={kind:'drive',power:1,age:0,hit:true,at:1,x:13,y:-43};
+  renderer.drawArms(p,m,1/fps,0);const rig=renderer.armRigs.get(p.id);
+  assert.deepEqual(rig.contactPoint,{x:13,y:-43});assert.equal(rig.wrists[1].x,13);
+  offset=100;
+  for(let frame=1;frame<fps*2;frame++){p.armSwing.age=frame/fps;renderer.drawArms(p,m,1/fps,0);}
+  assert.deepEqual(rig.contactPoint,{x:13,y:-43});
+  const rest=pose({kind:null});
+  for(const key of ['wrists','elbows'])for(let i=0;i<2;i++){assert.ok(Math.abs(rig[key][i].x-rest[key][i].x)<.02);assert.ok(Math.abs(rig[key][i].y-rest[key][i].y)<.02);}
+  p.armSwing={kind:'loft',power:.6,age:0,hit:true,at:2,x:110,y:-41};renderer.drawArms(p,m,1/fps,0);assert.deepEqual(rig.contactPoint,{x:10,y:-41});
  }
 });
-test('jump arms sweep upward and settle on descent; animation amount zero disables this sweep',()=>{
- const profile=jumpProfile(DEFAULTS),early=pose('volley',{kind:null,jump:{profile,time:.04}}),up=pose('volley',{kind:null,jump:{profile,time:profile.windup+profile.rise}}),down=pose('volley',{kind:null,jump:{profile,time:profile.windup+profile.rise+profile.hang+profile.fall}});
- assert.ok(up.wrists[0].y<early.wrists[0].y-15);assert.ok(down.wrists[0].y>up.wrists[0].y+10);
- assert.deepEqual(pose('volley',{kind:null,jump:{profile,time:.2},config:{...DEFAULTS,armJumpMotion:0}}).wrists,pose('volley',{kind:null}).wrists);
-});
-test('every style has identical manual contact timing and ball flight; cosmetic follow-through cannot hit again',()=>{
+test('animation tuning does not delay contacts, change flight or create additional hits',()=>{
  let baseline;
- for(const armStyle of Object.keys(ARM_STYLES)){
-  const m=new Match({...DEFAULTS,armStyle});m.startDrill('set');
-  Object.assign(m.ball,{x:-3.7,y:2.1,vy:0});m.tick(FIXED_DT,{loft:true});m.tick();
-  assert.equal(m.contacts,1);assert.equal(m.active().team,0);
-  const striker=m.players[1];assert.equal(striker.armSwing.hit,true);
-  const result=[m.ball.x,m.ball.y,m.ball.vx,m.ball.vy,m.contacts];
-  if(baseline)assert.deepEqual(result,baseline);else baseline=result;
-  for(let i=0;i<95;i++)m.tick();assert.equal(striker.armSwing,null);assert.equal(m.contacts,1);
- }
-});
-test('all expressive poses remain finite across slider extremes and the full motion cycle',()=>{
- for(const style of ['volley','whip','windmill','propeller'])for(const power of [0,.71,1])for(const scale of [.65,1.3])for(const kind of ['low','loft','drive'])for(let age=0;age<.75;age+=.025){
-  const p=pose(style,{kind,swing:{hit:true,power,age},config:{...DEFAULTS,armScale:scale,armBend:1.5,armPowerMotion:1.5,armFlourish:1.5}});
-  for(const point of [...p.wrists,...p.elbows])assert.ok(Number.isFinite(point.x)&&Number.isFinite(point.y));
+ for(const armPowerMotion of [0,1.5]){
+  const m=new Match({...DEFAULTS,armPowerMotion});m.startDrill('set');Object.assign(m.ball,{x:-3.7,y:2.1,vy:0});m.tick(FIXED_DT,{loft:true});m.tick();
+  assert.equal(m.contacts,1);const result=[m.ball.x,m.ball.y,m.ball.vx,m.ball.vy];if(baseline)assert.deepEqual(result,baseline);else baseline=result;
+  for(let i=0;i<95;i++)m.tick();assert.equal(m.players[1].armSwing,null);assert.equal(m.contacts,1);
  }
 });

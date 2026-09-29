@@ -1,6 +1,6 @@
 import { COURT } from './config.js';
 import { clamp, traceBall } from './physics.js';
-import { springPoint, elbowBetween, blockWindow } from './motion.js';
+import { springPoint, blockWindow } from './motion.js';
 import { ARM_STYLES } from './arms.js';
 import { expressivePose } from './arm-motion.js';
 export class Renderer {
@@ -72,72 +72,37 @@ export class Renderer {
     if(p.recovery>0){this.text('···',pos.x,pos.y-25,15,'#a27970','center');}
   }
   drawArms(p,m,dt,step){
-    if(ARM_STYLES[m.config.armStyle]?.motion){this.drawExpressiveArms(p,m,dt,step);return;}
-    const c=this.ctx,action=m.charge||m.pending,style=m.config.armStyle||'compact',spec=ARM_STYLES[style];
-    const preparing=action?.playerId===p.id?action.kind:null;
-    const kind=p.contact?.kind||(p.block>0?'block':preparing)||(m.phase==='serve-motion'&&p.id===m.selected[m.server]?m.serveAction?.kind:null);
-    let targets=[{x:-10-step,y:-12},{x:11+step,y:-12}];
-    if(kind==='low'||p.diving)targets=[{x:12,y:-11},{x:16,y:-11}];
-    if(kind==='loft')targets=[{x:-7,y:-41},{x:8,y:-41}];
-    if(kind==='drive')targets=[{x:12,y:-22},{x:-11,y:-38}];
-    if(kind==='block')targets=[{x:-11,y:-42},{x:12,y:-42}];
-    if(p.pose==='crouch')targets=[{x:-11,y:-10},{x:10,y:-10}];
-    if(style!=='classic'&&!kind)targets=[{x:-8-step*.5,y:-14},{x:8+step*.5,y:-14}];
-    for(let i=0;i<2;i++){const sx=i===0?-spec.shoulder:spec.shoulder;targets[i]={x:sx+(targets[i].x-sx)*spec.size*m.config.armScale,y:-20+(targets[i].y+20)*spec.size*m.config.armScale};}
-    const tracking=preparing&&m.canContact(p,preparing);
-    const serving=m.phase==='serve-motion'&&p.id===m.selected[m.server];
-    const contact=p.contact;
-    if(contact||tracking||serving){
-      const point=contact||m.ball,screen=this.project(point.x,point.y);
-      const local=c.getTransform().inverse().transformPoint({x:screen.x,y:screen.y});
-      const follow=contact?Math.max(0,.15-contact.life)*35:0;
-      if(kind==='low')targets=[{x:local.x+1+follow,y:local.y+4-follow},{x:local.x+5+follow,y:local.y+4-follow}];
-      else if(kind==='drive')targets=[{x:12,y:-24},{x:local.x+follow,y:local.y+2+follow}];
-      else targets=[{x:local.x-5,y:local.y+3-follow},{x:local.x+5,y:local.y+3-follow}];
-    }
-    let rig=this.armRigs.get(p.id);
-    if(!rig||rig.player!==p||rig.style!==style){rig={player:p,style,wrists:targets.map(t=>({...t,vx:0,vy:0})),contactAt:null};this.armRigs.set(p.id,rig);}
-    // The actual collision frame reaches the ball immediately, then the spring follows through.
-    const newContact=contact&&contact.at!==rig.contactAt;
-    if(newContact)rig.contactAt=contact.at;
-    const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';
-    for(let i=0;i<2;i++){
-      const wrist=rig.wrists[i];
-      if(newContact)Object.assign(wrist,targets[i],{vx:0,vy:0});else springPoint(wrist,targets[i],dt,spec.spring*m.config.armSpring,spec.damping*Math.sqrt(m.config.armSpring));
-      const shoulder={x:i===0?-spec.shoulder:spec.shoulder,y:-20};
-      const bend=(i===0?1:-1)*Math.sign(wrist.y-shoulder.y||1);
-      const elbow=style==='classic'?elbowBetween(shoulder,wrist,bend*m.config.armBend):{x:(shoulder.x+wrist.x)/2+(i===0?-1:1)*3*m.config.armBend,y:(shoulder.y+wrist.y)/2+2*m.config.armBend};
-      c.lineCap=style==='classic'?'square':'round';c.lineJoin='round';c.lineWidth=spec.width*m.config.armScale;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);
-      if(style==='soft')c.quadraticCurveTo(elbow.x,elbow.y,wrist.x,wrist.y);else{if(style!=='mittens')c.lineTo(elbow.x,elbow.y);c.lineTo(wrist.x,wrist.y);}c.stroke();
-      c.lineWidth=Math.max(1,spec.width*m.config.armScale-2);c.strokeStyle=contact&&contact.life>.17?'#fff7dc':'#f4cfac';c.stroke();
-      const hand=spec.hand*m.config.armScale,activeBlock=kind==='block'&&blockWindow(p,m.config);
-      this.rect(wrist.x-hand/2,wrist.y-1,hand,hand*.7,activeBlock?'#f8da75':tint);this.rect(wrist.x-hand*.4,wrist.y-hand*.55,hand*.8,hand*.65,'#f4cfac');
-    }
-  }
-  drawExpressiveArms(p,m,dt,step){
-    const c=this.ctx,style=m.config.armStyle,spec=ARM_STYLES[style];
+    const c=this.ctx,spec=ARM_STYLES.whip;
     const charge=m.charge?.playerId===p.id?m.charge:null;
     const serving=m.phase==='serve-motion'&&p.id===m.selected[m.server];
     const swing=p.armSwing,kind=p.block>0?'block':charge?.kind||(serving?m.serveAction?.kind:null)||swing?.kind||(p.diving?'low':null);
-    let contactPoint=null;
-    if(swing?.hit){const screen=this.project(swing.x,swing.y);contactPoint=c.getTransform().inverse().transformPoint(screen);}
-    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',step,contactPoint});
     let rig=this.armRigs.get(p.id);
-    if(!rig||rig.player!==p||rig.style!==style){rig={player:p,style,wrists:pose.wrists.map(w=>({...w,vx:0,vy:0})),history:[[],[]]};this.armRigs.set(p.id,rig);}
+    if(!rig||rig.player!==p){rig={player:p,wrists:null,elbows:null,contactKey:null,contactPoint:null};this.armRigs.set(p.id,rig);}
+    const newContact=swing?.hit&&rig.contactKey!==(swing.at??swing);
+    if(newContact){
+      const screen=this.project(swing.x,swing.y);
+      const local=c.getTransform().inverse().transformPoint(screen);
+      // DOMPoint coordinates live on its prototype; object spread drops them.
+      rig.contactPoint={x:local.x,y:local.y};
+      rig.contactKey=swing.at??swing;
+    }
+    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',step,contactPoint:swing?.hit?rig.contactPoint:null});
+    if(!rig.wrists){rig.wrists=pose.wrists.map(w=>({...w,vx:0,vy:0}));rig.elbows=pose.elbows.map(w=>({...w,vx:0,vy:0}));}
+    rig.stage=pose.stage;
     const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';
     for(let i=0;i<2;i++){
       const wrist=rig.wrists[i],target=pose.wrists[i];
-      if(pose.snap)Object.assign(wrist,target,{vx:0,vy:0});else springPoint(wrist,target,dt,spec.spring*m.config.armSpring*(1+pose.power*.3),spec.damping*Math.sqrt(m.config.armSpring));
-      const history=rig.history[i];if(dt>0){history.push({...wrist});if(history.length>5)history.shift();}
-      if(pose.spin>.15){c.save();c.globalAlpha=.15*pose.spin;c.strokeStyle=tint;c.lineWidth=3;c.beginPath();history.forEach((w,j)=>j?c.lineTo(w.x,w.y):c.moveTo(w.x,w.y));c.stroke();c.restore();}
-      const shoulder={x:i?spec.shoulder:-spec.shoulder,y:-20},elbow=pose.elbows[i];
+      if(newContact&&pose.snap)Object.assign(wrist,target,{vx:0,vy:0});else springPoint(wrist,target,dt,spec.spring*m.config.armSpring*(1+pose.power*.3),spec.damping*Math.sqrt(m.config.armSpring));
+      const shoulder={x:i?spec.shoulder:-spec.shoulder,y:-20},elbow=rig.elbows[i];
+      springPoint(elbow,pose.elbows[i],dt,spec.spring*m.config.armSpring*1.35,spec.damping*Math.sqrt(m.config.armSpring)*1.2);
       c.lineCap='round';c.lineJoin='round';c.lineWidth=spec.width*m.config.armScale;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);
-      if(spec.motion==='whip')c.quadraticCurveTo(elbow.x,elbow.y,wrist.x,wrist.y);else{c.lineTo(elbow.x,elbow.y);c.lineTo(wrist.x,wrist.y);}c.stroke();
+      c.quadraticCurveTo(elbow.x,elbow.y,wrist.x,wrist.y);c.stroke();
       c.lineWidth=Math.max(1,spec.width*m.config.armScale-2);c.strokeStyle=pose.snap?'#fff7dc':'#f4cfac';c.stroke();
       const hand=spec.hand*m.config.armScale;
       c.save();c.translate(wrist.x,wrist.y);
       // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
-      c.rotate(pose.cup?(i?-.55:.55):Math.atan2(wrist.y-elbow.y,wrist.x-elbow.x)+Math.PI/2);
+      const neutralAngle=Math.atan2(wrist.y-elbow.y,wrist.x-elbow.x)+Math.PI/2;
+      c.rotate(neutralAngle*(1-pose.cup)+(i?-.55:.55)*pose.cup);
       this.rect(-hand/2,0,hand,2,kind==='block'&&blockWindow(p,m.config)?'#f8da75':tint);
       this.rect(-hand/2,-hand*.8,hand,hand*.8,'#665d62');this.rect(-hand/2+.6,-hand*.8,hand-1.2,hand*.8,'#f4cfac');
       if(pose.cup){this.rect(-hand/2,-hand*1.15,1.3,hand*.5,'#f4cfac');this.rect(hand/2-1.3,-hand*1.15,1.3,hand*.5,'#f4cfac');}

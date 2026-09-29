@@ -41,5 +41,5 @@ test('front-player selection, windup and manual spike complete the new drill',()
 });
 test('all arm choices and physics controls survive JSON roundtrip and validation',()=>{
  for(const armStyle of Object.keys(ARM_STYLES)){const config=sanitizeConfig(JSON.parse(JSON.stringify({...DEFAULTS,armStyle,releaseWindow:.2,jumpWindup:.12,armScale:.75,blockWindow:.09})));assert.equal(config.armStyle,armStyle);assert.equal(config.releaseWindow,.2);assert.equal(config.jumpWindup,.12);assert.equal(config.armScale,.75);assert.equal(config.blockWindow,.09);}
- assert.equal(sanitizeConfig({armStyle:'unknown'}).armStyle,'compact');assert.equal(sanitizeConfig({releaseWindow:-5}).releaseWindow,0);const capped=sanitizeConfig({chargeSeconds:.9,maxHold:.2});assert.ok(capped.maxHold>=.9*.92+.05);
+ assert.equal(sanitizeConfig({armStyle:'unknown'}).armStyle,'whip');assert.equal(sanitizeConfig({releaseWindow:-5}).releaseWindow,0);const capped=sanitizeConfig({chargeSeconds:.9,maxHold:.2});assert.ok(capped.maxHold>=.9*.92+.05);
 });

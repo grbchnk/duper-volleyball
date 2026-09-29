@@ -139,7 +139,7 @@ export class Match {
   tryPending(){const a=this.pending,p=this.players[a.playerId];if(!this.canContact(p,a.kind))return false;this.pending=null;return this.makeContact(p,a.kind,a.power,shotImpulse(this.ball,p,a.kind,a.power,a.aim,this.players,this.config));}
   recordContact(p,kind,power){
     p.contact={kind,power,x:this.ball.x,y:this.ball.y,life:.24,at:this.time};
-    p.armSwing={kind,power,age:0,hit:true,x:this.ball.x,y:this.ball.y};
+    p.armSwing={kind,power,age:0,hit:true,at:this.time,x:this.ball.x,y:this.ball.y};
     p.pose=p.diving?'dive':SHOTS[kind]?.pose||'block';p.animation=.24;
   }
   makeContact(p,kind,power,impulse){

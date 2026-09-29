@@ -5,7 +5,6 @@ import { DEFAULTS, FIXED_DT, LIMITS, TEAMS, sanitizeConfig } from './config.js';
 import { InputBuffer, GAME_KEYS } from './input.js';
 import { GUIDE_HTML } from './guide.js';
 import { SHOTS } from './moves.js';
-import { ARM_STYLES } from './arms.js';
 import { createArmLab } from './arm-lab.js';
 const $=id=>document.getElementById(id),storageKey='super-volley-club.config.v2';
 let config={...DEFAULTS};try{const data=localStorage.getItem(storageKey);if(data)config=sanitizeConfig(JSON.parse(data));}catch{}
@@ -32,12 +31,12 @@ const physicsFields={
  releaseWindow:['Допуск после отпускания',.01,'с','Точность и замах','0 — строго в момент отпускания. Больше — проще попасть по мячу.'],chargeSeconds:['Время набора силы',.01,'с','Точность и замах'],maxHold:['Предельное удержание',.01,'с','Точность и замах','После лимита замах отменяется. Не меньше времени полного заряда + 0.05 с.'],chargeMove:['Бег при подготовке',.05,'×','Точность и замах'],
  jumpWindup:['Приседание до отталкивания',.005,'с','Фазы прыжка'],jumpRise:['Длительность подъёма',.01,'×','Фазы прыжка'],jumpHang:['Пауза на вершине',.005,'с','Фазы прыжка'],jumpFall:['Длительность падения',.01,'×','Фазы прыжка'],
  blockWindow:['Рабочее окно блока',.01,'с','Блок','Только возле вершины прыжка. В середине окна блок сильнее, по краям — смягчение.'],blockReach:['Досягаемость рук блока',.01,'м','Блок'],blockCooldown:['Восстановление блока',.05,'с','Блок'],blockDeflect:['Скорость отскока от блока',.05,'×','Блок'],
- armScale:['Размер рук',.05,'×','Внешний вид рук','Меняет позу и толщину, но не игровые зоны контакта.'],armSpring:['Упругость кистей',.05,'×','Внешний вид рук'],armBend:['Выраженность локтей',.05,'×','Внешний вид рук'],armWindup:['Быстрая подготовка',.005,'с','Анимации 05–08','Только движение рук. Не добавляет задержку к игровому касанию.'],armPowerMotion:['Влияние силы на замах',.05,'×','Анимации 05–08'],armJumpMotion:['Взмах рук в прыжке',.05,'×','Анимации 05–08'],armFlourish:['Размах мельницы',.05,'×','Анимации 05–08','Для 07–08 после удара сильнее 70%. Ноль отключает вращение.'],targetScore:['Очков до победы в сете',1,'','Счёт'],
+ armScale:['Размер рук',.05,'×','Внешний вид рук','Меняет позу и толщину, но не игровые зоны контакта.'],armSpring:['Упругость кистей',.05,'×','Внешний вид рук'],armBend:['Выраженность локтей',.05,'×','Внешний вид рук'],armWindup:['Быстрая подготовка',.005,'с','Анимация рук','Только движение рук. Не добавляет задержку к игровому касанию.'],armPowerMotion:['Влияние силы на замах',.05,'×','Анимация рук'],armJumpMotion:['Взмах рук в прыжке',.05,'×','Анимация рук'],targetScore:['Очков до победы в сете',1,'','Счёт'],
 };
-const drawArmLab=createArmLab($('arms-dialog'),()=>config,style=>applyConfig({...config,armStyle:style}));
+const drawArmLab=createArmLab($('arms-dialog'),()=>config);
 function formatPhysics(key,value){return value.toFixed(key==='targetScore'?0:physicsFields[key][1]<.01?3:2)+' '+physicsFields[key][2];}
 function syncSettings(){
-  $('speed').value=config.gameSpeed;$('speed-value').textContent=config.gameSpeed.toFixed(2)+'×';$('assist').checked=config.assist;$('trajectory').checked=config.trajectory;$('difficulty').value=config.difficulty;$('scoring').value=config.scoring;$('arm-style').value=config.armStyle;
+  $('speed').value=config.gameSpeed;$('speed-value').textContent=config.gameSpeed.toFixed(2)+'×';$('assist').checked=config.assist;$('trajectory').checked=config.trajectory;$('difficulty').value=config.difficulty;$('scoring').value=config.scoring;
   for(const key of Object.keys(physicsFields)){const el=$('physics-'+key);if(el){el.value=config[key];$('value-'+key).textContent=formatPhysics(key,config[key]);}}
 }
 function setPaused(value){paused=value;clearActions();accumulator=0;$('pause-overlay').hidden=!value||!started||match.phase==='finished'||modalOpen();$('pause').textContent=value?'▶':'Ⅱ';$('pause').setAttribute('aria-label',value?'Продолжить':'Пауза');}
@@ -77,8 +76,6 @@ function frame(time){
 }
 for(const id of ['home-team','away-team'])for(const team of TEAMS){const option=document.createElement('option');option.value=team.id;option.textContent=team.name;$(id).append(option);}
 $('home-team').value=teams[0].id;$('away-team').value=teams[1].id;
-for(const [id,spec]of Object.entries(ARM_STYLES)){const option=document.createElement('option');option.value=id;option.textContent=spec.name;$('arm-style').append(option);}
-$('arm-style').onchange=e=>{applyConfig({...config,armStyle:e.target.value});$('game').focus({preventScroll:true});};
 $('arms-button').onclick=()=>openDialog('arms-dialog');
 $('start').onclick=$('new-match').onclick=$('rematch').onclick=()=>startGame();
 for(const mode of ['match','practice','demo'])$(mode+'-mode').onclick=()=>startGame(mode);
