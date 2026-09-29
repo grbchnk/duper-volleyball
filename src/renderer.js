@@ -2,6 +2,7 @@ import { COURT } from './config.js';
 import { clamp, traceBall } from './physics.js';
 import { springPoint, elbowBetween, blockWindow } from './motion.js';
 import { ARM_STYLES } from './arms.js';
+import { expressivePose } from './arm-motion.js';
 export class Renderer {
   constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.camera=0;this.particles=[];this.impacts=[];this.armRigs=new Map();this.shake=0;this.background=document.createElement('canvas');this.background.width=960;this.background.height=540;this.makeBackground();}
   rect(x,y,w,h,color,ctx=this.ctx){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));}
@@ -71,6 +72,7 @@ export class Renderer {
     if(p.recovery>0){this.text('···',pos.x,pos.y-25,15,'#a27970','center');}
   }
   drawArms(p,m,dt,step){
+    if(ARM_STYLES[m.config.armStyle]?.motion){this.drawExpressiveArms(p,m,dt,step);return;}
     const c=this.ctx,action=m.charge||m.pending,style=m.config.armStyle||'compact',spec=ARM_STYLES[style];
     const preparing=action?.playerId===p.id?action.kind:null;
     const kind=p.contact?.kind||(p.block>0?'block':preparing)||(m.phase==='serve-motion'&&p.id===m.selected[m.server]?m.serveAction?.kind:null);
@@ -110,6 +112,36 @@ export class Renderer {
       c.lineWidth=Math.max(1,spec.width*m.config.armScale-2);c.strokeStyle=contact&&contact.life>.17?'#fff7dc':'#f4cfac';c.stroke();
       const hand=spec.hand*m.config.armScale,activeBlock=kind==='block'&&blockWindow(p,m.config);
       this.rect(wrist.x-hand/2,wrist.y-1,hand,hand*.7,activeBlock?'#f8da75':tint);this.rect(wrist.x-hand*.4,wrist.y-hand*.55,hand*.8,hand*.65,'#f4cfac');
+    }
+  }
+  drawExpressiveArms(p,m,dt,step){
+    const c=this.ctx,style=m.config.armStyle,spec=ARM_STYLES[style];
+    const charge=m.charge?.playerId===p.id?m.charge:null;
+    const serving=m.phase==='serve-motion'&&p.id===m.selected[m.server];
+    const swing=p.armSwing,kind=p.block>0?'block':charge?.kind||(serving?m.serveAction?.kind:null)||swing?.kind||(p.diving?'low':null);
+    let contactPoint=null;
+    if(swing?.hit){const screen=this.project(swing.x,swing.y);contactPoint=c.getTransform().inverse().transformPoint(screen);}
+    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',step,contactPoint});
+    let rig=this.armRigs.get(p.id);
+    if(!rig||rig.player!==p||rig.style!==style){rig={player:p,style,wrists:pose.wrists.map(w=>({...w,vx:0,vy:0})),history:[[],[]]};this.armRigs.set(p.id,rig);}
+    const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';
+    for(let i=0;i<2;i++){
+      const wrist=rig.wrists[i],target=pose.wrists[i];
+      if(pose.snap)Object.assign(wrist,target,{vx:0,vy:0});else springPoint(wrist,target,dt,spec.spring*m.config.armSpring*(1+pose.power*.3),spec.damping*Math.sqrt(m.config.armSpring));
+      const history=rig.history[i];if(dt>0){history.push({...wrist});if(history.length>5)history.shift();}
+      if(pose.spin>.15){c.save();c.globalAlpha=.15*pose.spin;c.strokeStyle=tint;c.lineWidth=3;c.beginPath();history.forEach((w,j)=>j?c.lineTo(w.x,w.y):c.moveTo(w.x,w.y));c.stroke();c.restore();}
+      const shoulder={x:i?spec.shoulder:-spec.shoulder,y:-20},elbow=pose.elbows[i];
+      c.lineCap='round';c.lineJoin='round';c.lineWidth=spec.width*m.config.armScale;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);
+      if(spec.motion==='whip')c.quadraticCurveTo(elbow.x,elbow.y,wrist.x,wrist.y);else{c.lineTo(elbow.x,elbow.y);c.lineTo(wrist.x,wrist.y);}c.stroke();
+      c.lineWidth=Math.max(1,spec.width*m.config.armScale-2);c.strokeStyle=pose.snap?'#fff7dc':'#f4cfac';c.stroke();
+      const hand=spec.hand*m.config.armScale;
+      c.save();c.translate(wrist.x,wrist.y);
+      // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
+      c.rotate(pose.cup?(i?-.55:.55):Math.atan2(wrist.y-elbow.y,wrist.x-elbow.x)+Math.PI/2);
+      this.rect(-hand/2,0,hand,2,kind==='block'&&blockWindow(p,m.config)?'#f8da75':tint);
+      this.rect(-hand/2,-hand*.8,hand,hand*.8,'#665d62');this.rect(-hand/2+.6,-hand*.8,hand-1.2,hand*.8,'#f4cfac');
+      if(pose.cup){this.rect(-hand/2,-hand*1.15,1.3,hand*.5,'#f4cfac');this.rect(hand/2-1.3,-hand*1.15,1.3,hand*.5,'#f4cfac');}
+      c.restore();
     }
   }
   drawNet(){const c=this.ctx,x=480,top=450-COURT.netHeight*42;this.rect(x-4,top,8,111,'#718b83');this.rect(x-2,top,3,113,'#f7f2dd');this.rect(x-10,top,22,3,'#fffbee');this.rect(x+8,top-19,2,22,'#d3897c');for(let y=top+8;y<461;y+=8)this.rect(x-7,y,17,1,'#a9b9a7');this.rect(x-10,461,24,5,'#d29d82');}

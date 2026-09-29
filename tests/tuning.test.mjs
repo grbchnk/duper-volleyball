@@ -39,7 +39,7 @@ test('front-player selection, windup and manual spike complete the new drill',()
  const m=new Match();m.reset('practice');m.startDrill('spike');m.tick(FIXED_DT,{select:3});ticks(m,29);m.tick(FIXED_DT,{jump:true});ticks(m,7);ticks(m,30,{drive:true,axis:1});m.tick(FIXED_DT,{axis:1});
  assert.equal(m.stats.attacks[0],1);assert.equal(m.players[2].contact.kind,'drive');assert.ok(m.ball.vx>0);assert.ok(m.ball.vy<0);assert.equal(m.touches[0],3);
 });
-test('all four arm choices and physics controls survive JSON roundtrip and validation',()=>{
+test('all arm choices and physics controls survive JSON roundtrip and validation',()=>{
  for(const armStyle of Object.keys(ARM_STYLES)){const config=sanitizeConfig(JSON.parse(JSON.stringify({...DEFAULTS,armStyle,releaseWindow:.2,jumpWindup:.12,armScale:.75,blockWindow:.09})));assert.equal(config.armStyle,armStyle);assert.equal(config.releaseWindow,.2);assert.equal(config.jumpWindup,.12);assert.equal(config.armScale,.75);assert.equal(config.blockWindow,.09);}
  assert.equal(sanitizeConfig({armStyle:'unknown'}).armStyle,'compact');assert.equal(sanitizeConfig({releaseWindow:-5}).releaseWindow,0);const capped=sanitizeConfig({chargeSeconds:.9,maxHold:.2});assert.ok(capped.maxHold>=.9*.92+.05);
 });

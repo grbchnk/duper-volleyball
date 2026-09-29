@@ -27,7 +27,7 @@ export class Match {
     this.touches=[0,0];this.lastTouch=null;this.lastPlayer=null;this.shotSerial=0;this.cooldown=0;this.incomingShot='serve';
     this.charge=null;this.pending=null;this.chargeLock=false;this.serveAction=null;this.contactWindow=false;this.trail=[];this.aimPreview=null;this.cpuBlockPlan=null;
     this.selected=[0,TEAM_SIZE];this.cpuMiss=[false,false];this.lastAction='Выберите A, W или D и зажмите';this.assistLabel='Помощь только в направлении паса';
-    for(const p of this.players)Object.assign(p,{x:this.sign(p.team)*HOMES[p.id%TEAM_SIZE],y:0,vy:0,vx:0,pose:'idle',animation:0,block:0,recovery:0,diving:false,diveVelocity:0,blockCooldown:0,jumpProfile:null,jumpTime:0,contact:null,facing:-this.sign(p.team),blockUsed:false,swingCooldown:0});
+    for(const p of this.players)Object.assign(p,{x:this.sign(p.team)*HOMES[p.id%TEAM_SIZE],y:0,vy:0,vx:0,pose:'idle',animation:0,block:0,recovery:0,diving:false,diveVelocity:0,blockCooldown:0,jumpProfile:null,jumpTime:0,contact:null,facing:-this.sign(p.team),blockUsed:false,swingCooldown:0,armSwing:null});
     this.active(this.server).x=this.sign(this.server)*9.4;
     this.ball={x:this.active(this.server).x,y:1.3,z:4.5,vx:0,vy:0,vz:0,spin:0,angle:0};this.emit('serve-ready',{team:this.server});
   }
@@ -75,7 +75,7 @@ export class Match {
       const a=this.charge,p=this.players[a.playerId];a.aim=aimOf(input);a.age=(a.age||0)+dt;
       if(a.age>this.config.maxHold){this.charge=null;this.chargeLock=true;p.swingCooldown=.22;p.pose='whiff';p.animation=.18;this.label('Передержал! Отпусти кнопку и начни новый замах');}
       else if(input[a.kind])a.power=clamp(a.power+dt/this.config.chargeSeconds,.08,1);
-      else{this.charge=null;const action={...a,aim:{...a.aim},ttl:this.config.releaseWindow};if(this.phase==='serve')this.beginServe(action);else{this.pending=action;if(!this.tryPending()&&action.ttl<=0){this.pending=null;p.swingCooldown=.16;this.label('Мимо: касание только у мяча');}}}
+      else{this.charge=null;p.armSwing={kind:a.kind,power:a.power,age:0,hit:false};const action={...a,aim:{...a.aim},ttl:this.config.releaseWindow};if(this.phase==='serve')this.beginServe(action);else{this.pending=action;if(!this.tryPending()&&action.ttl<=0){this.pending=null;p.swingCooldown=.16;this.label('Мимо: касание только у мяча');}}}
     }
     else if(!this.pending&&!this.chargeLock){const kind=Object.keys(SHOTS).find(press),p=this.active(0);if(kind&&p.recovery<=0&&p.swingCooldown<=0&&p.block<=0)this.charge={kind,power:.08,age:0,aim:aimOf(input),playerId:p.id};}
     const preparing=this.charge||this.pending;
@@ -112,6 +112,7 @@ export class Match {
     for(const p of this.players){
       p.animation=Math.max(0,p.animation-dt);p.block=Math.max(0,p.block-dt);p.blockCooldown=Math.max(0,p.blockCooldown-dt);p.recovery=Math.max(0,p.recovery-dt);
       p.swingCooldown=Math.max(0,(p.swingCooldown||0)-dt);
+      if(p.armSwing){p.armSwing.age+=dt;if(p.armSwing.age>.75)p.armSwing=null;}
       if(p.contact){p.contact.life-=dt;if(p.contact.life<=0)p.contact=null;}
       if(p.jumpProfile){p.jumpTime+=dt;Object.assign(p,sampleJump(p.jumpProfile,p.jumpTime));if(p.jumpTime>=jumpDuration(p.jumpProfile)){p.jumpProfile=null;p.y=0;p.vy=0;p.block=0;p.pose='land';p.animation=.12;}}
       else if(p.y>0||p.vy>0){p.y=Math.max(0,p.y+p.vy*dt-.5*this.config.gravity*dt*dt);p.vy-=this.config.gravity*dt;if(p.diving)p.x+=p.diveVelocity*dt;
@@ -138,6 +139,7 @@ export class Match {
   tryPending(){const a=this.pending,p=this.players[a.playerId];if(!this.canContact(p,a.kind))return false;this.pending=null;return this.makeContact(p,a.kind,a.power,shotImpulse(this.ball,p,a.kind,a.power,a.aim,this.players,this.config));}
   recordContact(p,kind,power){
     p.contact={kind,power,x:this.ball.x,y:this.ball.y,life:.24,at:this.time};
+    p.armSwing={kind,power,age:0,hit:true,x:this.ball.x,y:this.ball.y};
     p.pose=p.diving?'dive':SHOTS[kind]?.pose||'block';p.animation=.24;
   }
   makeContact(p,kind,power,impulse){
