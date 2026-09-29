@@ -24,6 +24,6 @@ test('trajectory solver lands at its target with drag and spin',()=>{
 });
 test('untrusted configuration is bounded and rejects non-objects',()=>{
   const c=sanitizeConfig({gravity:-100,gameSpeed:Infinity,hitPower:99,scoring:'bogus',assist:'false'});
-  assert.equal(c.gravity,5);assert.equal(c.hitPower,1.4);assert.equal(c.gameSpeed,1);assert.equal(c.scoring,'sideout');assert.equal(c.assist,true);
+  assert.equal(c.gravity,5);assert.equal(c.hitPower,1.4);assert.equal(c.gameSpeed,DEFAULTS.gameSpeed);assert.equal(c.scoring,'sideout');assert.equal(c.assist,true);
   assert.throws(()=>sanitizeConfig(null));assert.throws(()=>sanitizeConfig([]));
 });

@@ -3,86 +3,91 @@ import assert from 'node:assert/strict';
 import { Match } from '../src/engine.js';
 import { awardRally } from '../src/rules.js';
 import { DEFAULTS, FIXED_DT } from '../src/config.js';
-import { receptionChoice, setChoice, serveChoice } from '../src/moves.js';
+import { SHOTS, shotImpulse } from '../src/moves.js';
+import { InputBuffer } from '../src/input.js';
+const tick=(m,n,input={})=>{for(let i=0;i<n;i++)m.tick(FIXED_DT,input);};
+function rally(){const m=new Match();m.phase='rally';m.lastTouch=1;m.lastPlayer=4;m.possession=0;m.teamPhases=['defense','defense'];m.players[0].x=-7;m.ball={x:-7,y:1.5,z:4.5,vx:0,vy:0,vz:0,spin:0,angle:0};return m;}
 const state=(more={})=>({score:[0,0],sets:[0,0],server:0,...more});
-test('sideout only scores for the serving team',()=>{
-  const s=state();assert.equal(awardRally(s,1,DEFAULTS).scored,false);assert.deepEqual(s.score,[0,0]);assert.equal(s.server,1);
-  assert.equal(awardRally(s,1,DEFAULTS).scored,true);assert.deepEqual(s.score,[0,1]);
+test('sideout, deuce ceiling and fifth-set rally scoring',()=>{
+ const s=state();assert.equal(awardRally(s,1,DEFAULTS).scored,false);assert.deepEqual(s.score,[0,0]);assert.equal(awardRally(s,1,DEFAULTS).scored,true);
+ assert.equal(awardRally(state({score:[14,13]}),0,DEFAULTS).setWon,true);assert.equal(awardRally(state({score:[14,14]}),0,DEFAULTS).setWon,false);
+ assert.equal(awardRally(state({score:[16,16]}),0,DEFAULTS).setWon,true);assert.equal(awardRally(state({score:[13,14],sets:[2,2]}),1,DEFAULTS).matchWon,true);
 });
-test('15 with a two point lead wins; deuce has hard cap at 17',()=>{
-  const a=state({score:[14,13]});assert.equal(awardRally(a,0,DEFAULTS).setWon,true);
-  const b=state({score:[14,14]});assert.equal(awardRally(b,0,DEFAULTS).setWon,false);
-  const c=state({score:[16,16]});assert.equal(awardRally(c,0,DEFAULTS).setWon,true);assert.deepEqual(c.score,[17,16]);
+test('no human contact without input, including the setter',()=>{
+ const m=rally();tick(m,45);assert.equal(m.contacts,0);assert.equal(m.stats.passes[0],0);
+ const s=rally();s.selected[0]=3;s.lastTouch=0;s.lastPlayer=0;s.touches[0]=1;s.ball.x=s.active().x;s.ball.y=2.2;tick(s,45);assert.equal(s.contacts,0);
 });
-test('fifth set scores every rally, third set win ends the match',()=>{
-  const s=state({score:[13,14],sets:[2,2]});const result=awardRally(s,1,DEFAULTS);
-  assert.equal(result.scored,true);assert.equal(result.matchWon,true);assert.deepEqual(s.sets,[2,3]);
+test('holding a shot only charges; releasing performs one contact',()=>{
+ const m=rally();tick(m,25,{low:true});assert.equal(m.contacts,0);assert.ok(m.charge.power>.2);m.tick();assert.equal(m.contacts,1);assert.equal(m.pending,null);assert.equal(m.charge,null);
+ tick(m,20);m.ball={...m.ball,x:m.active().x,y:1.5,vx:0,vy:0};tick(m,10);assert.equal(m.contacts,1);
 });
-test('manual attack table maps receive and set inputs',()=>{
-  assert.equal(receptionChoice({up:true}),'open');assert.equal(receptionChoice({down:true}),'quick');
-  assert.equal(setChoice('quick',true),'delayed');assert.equal(setChoice('open',true),'back');assert.equal(setChoice('normal',true),'normal');
-  assert.equal(serveChoice({axis:1}),'jump');assert.equal(serveChoice({axis:-1}),'over');assert.equal(serveChoice({up:true,axis:0}),'under');
+for(const kind of Object.keys(SHOTS))test(`${kind} is a manually released contact`,()=>{
+ const m=rally();m.ball.y=7;tick(m,25,{[kind]:true});m.ball.y=kind==='loft'?2.1:1.4;m.ball.vy=0;m.tick();assert.equal(m.contacts,1);assert.ok(m.events.some(e=>e.type==='hit'&&e.kind===kind&&e.team===0));
 });
-test('four active roles per side, held serve button does not make the second contact',()=>{
-  const m=new Match();assert.equal(m.players.length,8);
-  assert.deepEqual(m.players.filter(p=>p.team===0).map(p=>p.role),['receiver','setter','quick','open']);
-  for(let i=0;i<200;i++)m.tick(FIXED_DT,{a:true});
-  assert.equal(m.stats.serves[0],0);assert.equal(m.server,1);assert.equal(m.pointReason,'ОШИБКА ПОДАЧИ');
+test('expired release does not hit a later ball',()=>{
+ const m=rally();m.ball.x=-2;m.ball.y=6;m.tick(FIXED_DT,{low:true});m.tick();tick(m,45);assert.equal(m.pending,null);m.ball.x=m.active().x;m.ball.y=1.5;m.ball.vy=0;tick(m,3);assert.equal(m.contacts,0);
 });
-test('separate timed press serves and an opponent receives',()=>{
-  const m=new Match();m.tick(FIXED_DT,{a:true});for(let i=0;i<91;i++)m.tick(FIXED_DT,{});
-  m.tick(FIXED_DT,{a:true});assert.equal(m.stats.serves[0],1);
-  for(let i=0;i<240;i++)m.tick(FIXED_DT,{});assert.ok(m.contacts>0);assert.equal(m.lastTouch,1);
+test('charge length increases impulse and late modifiers change direction',()=>{
+ const m=rally(),p=m.active();const base={axis:1,up:false,down:false};
+ const weak=shotImpulse(m.ball,p,'drive',.15,base,m.players,{...DEFAULTS,assist:false});const strong=shotImpulse(m.ball,p,'drive',.9,base,m.players,{...DEFAULTS,assist:false});assert.ok(Math.hypot(strong.vx,strong.vy)>Math.hypot(weak.vx,weak.vy));
+ m.ball.y=7;tick(m,15,{low:true,axis:1});tick(m,15,{low:true,axis:-1,up:true});m.ball.y=1.4;m.ball.vy=0;m.tick(FIXED_DT,{axis:-1,up:true});assert.ok(m.ball.vx<0);assert.ok(m.ball.vy>0);
 });
-test('special serves consume one slot per set, high and diving serves differ',()=>{
-  for(const down of [false,true]){
-    const m=new Match();m.tick(FIXED_DT,{a:true,b:true,up:true});for(let i=0;i<75;i++)m.tick(FIXED_DT,{});
-    m.tick(FIXED_DT,{a:true,b:true,up:!down,down});assert.equal(m.specialUsed[0],true);
-    const event=m.events.find(e=>e.type==='hit');assert.equal(event.kind,down?'thunder':'sky');
-    assert.equal(m.ball.special,down?'thunder':null);
-  }
+test('assist ignores wrong direction and severe overpowering',()=>{
+ const m=rally(),p=m.active();const wrong=shotImpulse(m.ball,p,'low',.5,{axis:-1},m.players,DEFAULTS);assert.equal(wrong.assisted,false);assert.ok(wrong.vx<0);
+ const tooMuch=shotImpulse(m.ball,p,'low',1,{axis:1,down:true},m.players,DEFAULTS);assert.equal(tooMuch.assisted,false);
+ let assisted=false;for(let q=.1;q<=.8;q+=.05)if(shotImpulse(m.ball,p,'low',q,{axis:1},m.players,DEFAULTS).assisted)assisted=true;assert.ok(assisted);
 });
-test('double block raises two front players on a single B press',()=>{
-  const m=new Match();m.phase='attack';m.possession=1;m.lastTouch=1;m.touches=2;m.ball={x:3,y:5,z:4.5,vx:-3,vy:0,vz:0,spin:0};
-  m.tick(FIXED_DT,{b:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,2);
+test('human server and teammates never chase or hit autonomously',()=>{
+ const m=new Match();tick(m,40,{low:true});m.tick();tick(m,40);const xs=m.players.filter(p=>p.team===0).map(p=>p.x);tick(m,100);assert.deepEqual(m.players.filter(p=>p.team===0).map(p=>p.x),xs);assert.equal(m.stats.passes[0],0);
 });
-test('long CPU match has receptions, sets, attacks, blocks, points and no invalid state',()=>{
-  const m=new Match({...DEFAULTS,targetScore:5},1991);m.reset('demo');
-  const kinds=new Set();let pointCount=0;
-  for(let i=0;i<120*600&&m.phase!=='finished';i++){
-    m.tick(FIXED_DT);
-    assert.ok(Number.isFinite(m.ball.x)&&Number.isFinite(m.ball.y));
-    assert.ok(m.players.every(p=>Number.isFinite(p.x)&&p.y>=0));
-    for(const e of m.events.splice(0)){if(e.kind)kinds.add(e.kind);if(e.type==='point')pointCount++;}
-  }
-  for(const kind of ['receive','set','normal','open','quick'])assert.ok(kinds.has(kind),kind);
-  assert.ok(m.stats.blocks[0]+m.stats.blocks[1]>0);assert.ok(pointCount>10);assert.equal(m.phase,'finished');
+test('normal human and CPU jumps forbid horizontal movement',()=>{
+ const m=rally();m.ball.y=12;const p=m.active(),x=p.x;m.tick(FIXED_DT,{jump:true,axis:1});tick(m,40,{axis:-1});assert.ok(p.y>0);assert.equal(p.x,x);
+ const cpu=m.players[5];const cx=cpu.x;m.jump(cpu);tick(m,25);assert.ok(cpu.y>0);assert.equal(cpu.x,cx);
 });
-test('seeded fixed-step simulation is reproducible',()=>{
-  const a=new Match(DEFAULTS,42),b=new Match(DEFAULTS,42);a.reset('demo');b.reset('demo');
-  for(let i=0;i<3600;i++){a.tick(FIXED_DT);b.tick(FIXED_DT);}assert.deepEqual(a.ball,b.ball);assert.deepEqual(a.score,b.score);
+test('one block press jumps one player; held K does not repeat; next edge jumps next player',()=>{
+ const m=rally();m.ball={...m.ball,x:6,y:12,vx:0,vy:0};m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);
+ tick(m,10,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);m.tick();m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,2);
+ const xs=m.players.filter(p=>p.block>0).map(p=>p.x);tick(m,12,{axis:-1});assert.deepEqual(m.players.filter(p=>p.block>0).map(p=>p.x),xs);
 });
-
-// Exercise actual reception -> set -> attack contacts, not only the selector table.
-for(const variant of ['normal','quick','open','delayed','back','dump','dink','super']){
-  test(`human input completes the ${variant} combination`,()=>{
-    const m=new Match();m.phase='receive';m.possession=0;m.lastTouch=1;m.server=1;
-    m.ball={x:-6,y:3,z:4.5,vx:-1,vy:-2,vz:0,spin:0,angle:0};
-    m.player(0,'receiver').x=-7;
-    const hitEvents=[];
-    for(let i=0;i<120*8&&!['point','set-end'].includes(m.phase);i++){
-      let input={};
-      if(m.possession===0){
-        if(m.phase==='receive')input={a:true,up:['open','back','dump'].includes(variant),down:['quick','delayed'].includes(variant)};
-        if(m.phase==='set')input={b:['delayed','back'].includes(variant),a:variant==='dump',axis:variant==='dump'?1:0};
-        if(m.phase==='attack')input={a:true,up:variant==='dink',down:variant==='super',b:variant==='super'};
-      }
-      m.tick(FIXED_DT,input);
-      for(const e of m.events.splice(0))if(e.type==='hit'&&e.team===0)hitEvents.push(e.kind);
-      if(hitEvents.includes(variant))break;
-    }
-    assert.ok(hitEvents.includes('receive'),JSON.stringify(hitEvents));
-    if(variant!=='dump')assert.ok(hitEvents.includes('set'),JSON.stringify(hitEvents));
-    assert.ok(hitEvents.includes(variant),`${variant}: ${JSON.stringify(hitEvents)}`);
-  });
-}
+test('a block on the attacker side resets contacts and allows a fresh forearm reception',()=>{
+ const m=rally();m.touches=[3,0];m.lastTouch=0;m.lastPlayer=3;m.incomingShot='drive';m.ball={...m.ball,x:-.05,y:3,vx:10,vy:0};const blocker=m.players[7];blocker.x=.5;blocker.y=.7;blocker.block=.5;
+ assert.equal(m.tryBlocks(),true);assert.deepEqual(m.touches,[0,0]);assert.equal(m.lastTouch,1);assert.equal(m.lastPlayer,null);assert.ok(m.ball.vx<0);
+ m.cooldown=0;m.ball={...m.ball,x:m.active().x,y:1.3,vx:0,vy:0};m.tick(FIXED_DT,{low:true});m.tick();assert.equal(m.contacts,1);assert.equal(m.touches[0],1);assert.equal(m.lastTouch,0);
+});
+test('dive commits its direction, needs a manual hit, lands on belly and recovers',()=>{
+ const m=rally();m.ball.y=12;m.tick(FIXED_DT,{dive:true,axis:1});const x=m.active().x;tick(m,12,{axis:-1});assert.ok(m.active().x>x);assert.equal(m.contacts,0);
+ tick(m,50);assert.equal(m.active().pose,'belly');assert.ok(m.active().recovery>0);const landedX=m.active().x;tick(m,20,{axis:1,jump:true});assert.equal(m.active().x,landedX);tick(m,120);assert.equal(m.active().recovery,0);
+});
+test('diving forearms can reach a low ball; overhead cannot',()=>{
+ const m=rally();m.dive(m.active(),1);m.active().y=.2;m.ball={...m.ball,x:-6,y:.35};assert.equal(m.canContact(m.active(),'low'),true);assert.equal(m.canContact(m.active(),'loft'),false);
+});
+for(const kind of ['low','loft','drive'])test(`${kind} serve waits for release then launches once`,()=>{
+ const m=new Match();tick(m,40,{[kind]:true});assert.equal(m.phase,'serve');assert.equal(m.stats.serves[0],0);m.tick();assert.equal(m.phase,'serve-motion');tick(m,40);assert.equal(m.stats.serves[0],1);assert.ok(m.ball.vx>0);
+});
+test('practice retries without changing score',()=>{
+ const m=new Match();m.reset('practice');m.startDrill('receive');m.point(1,'TEST');assert.deepEqual(m.score,[0,0]);tick(m,290);assert.equal(m.phase,'rally');assert.equal(m.lastTouch,1);
+});
+test('all three neutral serves land in court at the documented beginner power',()=>{
+ for(const kind of ['low','loft','drive'])for(const power of [.45,.5,.55]){
+  const m=new Match();m.beginServe({kind,power,aim:{axis:1}});tick(m,34);
+  for(const p of m.players)p.recovery=100;
+  for(let i=0;i<600&&m.phase==='rally';i++)m.tick();
+  assert.equal(m.pointReason,'МЯЧ КОСНУЛСЯ ПЛОЩАДКИ',`${kind} ${power}`);assert.equal(m.pointWinner,0);
+ }
+});
+test('switching cannot replace the server but works after the serve',()=>{
+ const m=new Match();m.tick(FIXED_DT,{switch:true});assert.equal(m.selected[0],0);
+ m.phase='rally';m.ball.y=10;m.tick();m.tick(FIXED_DT,{switch:true});assert.equal(m.selected[0],1);
+});
+test('fast keyboard taps are retained for a tick, key repeat does not create extra edges',()=>{
+ const b=new InputBuffer();b.down('KeyJ');b.up('KeyJ');assert.equal(b.read().low,true);b.consume();assert.equal(b.read().low,false);
+ b.down('KeyK');b.consume();b.down('KeyK',true);assert.equal(b.pressed.size,0);assert.equal(b.read().block,true);b.clear();assert.equal(b.read().block,false);
+ b.down('KeyC');assert.equal(b.read().loft,true);b.clear();b.down('Space');assert.equal(b.read().jump,true);assert.equal(b.read().low,false);
+});
+test('CPU does not attempt a block on every attack and cannot spam within one shot',()=>{
+ const m=rally();let plans=0;for(let i=0;i<200;i++){m.ball={...m.ball,x:-2,y:3.1,vx:10,vy:1};m.shotSerial++;m.scheduleCPUBlock(1);if(m.cpuBlockPlan)plans++;}assert.ok(plans>5&&plans<100,plans);
+});
+test('seeded CPU match scores and finishes, with all three contact types',()=>{
+ const m=new Match({...DEFAULTS,targetScore:5,scoring:'rally'},42);m.reset('demo');const hits=new Set();for(let i=0;i<120*2400&&m.phase!=='finished';i++){m.tick();assert.ok(Number.isFinite(m.ball.x)&&Number.isFinite(m.ball.y));for(const e of m.events.splice(0))if(e.type==='hit')hits.add(e.kind);}
+ assert.ok(m.rallies>10);assert.equal(m.phase,'finished');assert.deepEqual([...hits].sort(),['drive','loft','low']);
+});

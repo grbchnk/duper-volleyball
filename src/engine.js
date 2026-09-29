@@ -1,311 +1,174 @@
 import { DEFAULTS, COURT, FIXED_DT, sanitizeConfig } from './config.js';
 import { integrateBall, launchTo, predictAtHeight, collideNet, isInside, clamp } from './physics.js';
-import { ATTACKS, SERVES, receptionChoice, setChoice, serveChoice } from './moves.js';
+import { SHOTS, SERVES, CHARGE_SECONDS, RELEASE_WINDOW, shotImpulse } from './moves.js';
 import { awardRally } from './rules.js';
-
-const HOME = { receiver: 7, setter: 0.95, quick: 1.85, open: 3.15 };
-const ROLES = Object.keys(HOME);
-const EMPTY_INPUT = Object.freeze({ axis: 0, a: false, b: false, up: false, down: false });
-
+const HOMES=[7,4.6,2.5,.7], ROLES=['receiver','open','quick','setter'];
+export const EMPTY_INPUT=Object.freeze({axis:0,up:false,down:false,low:false,loft:false,drive:false,block:false,jump:false,dive:false,switch:false});
+const aimOf=i=>({axis:i.axis,up:i.up,down:i.down});
+const grounded=p=>p.y<=0&&p.vy<=0&&p.recovery<=0&&!p.diving;
 export class Match {
-  constructor(config = DEFAULTS, seed = 1991) {
-    this.config = sanitizeConfig(config);
-    this.seed = seed;
-    this.mode = 'match';
-    this.events = [];
-    this.reset();
+  constructor(config=DEFAULTS,seed=2026){this.config=sanitizeConfig(config);this.seed=seed;this.events=[];this.mode='match';this.reset();}
+  random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}
+  sign(team){return team===0?-1:1;}
+  isHuman(team){return team===0&&this.mode!=='demo';}
+  player(team,role){return this.players.find(p=>p.team===team&&p.role===role);}
+  active(team=0){return this.players[this.selected[team]];}
+  emit(type,data={}){this.events.push({type,time:this.time,...data});if(this.events.length>80)this.events.shift();}
+  label(text,duration=1.6){this.notice=text;this.noticeTime=duration;}
+  updateConfig(config){this.config=sanitizeConfig(config);}
+  reset(mode=this.mode){
+    this.mode=mode;this.time=0;this.rallies=0;this.contacts=0;this.server=0;this.score=[0,0];this.sets=[0,0];this.events=[];
+    this.players=[0,1].flatMap(team=>ROLES.map((role,i)=>({id:team*4+i,team,role,number:i+1,x:this.sign(team)*HOMES[i],z:4.5,y:0,vy:0,vx:0,pose:'idle',animation:0,block:0,recovery:0,diving:false,diveVelocity:0,blockCooldown:0})));
+    this.stats={serves:[0,0],attacks:[0,0],blocks:[0,0],passes:[0,0]};this.selected=[0,4];this.previousInput={...EMPTY_INPUT};this.label('Ваш маленький большой матч');this.startServe();
   }
-  random() { this.seed = (Math.imul(this.seed, 1664525) + 1013904223) >>> 0; return this.seed / 4294967296; }
-  emit(type, data = {}) { this.events.push({ type, time: this.time, ...data }); if (this.events.length > 80) this.events.shift(); }
-  reset(mode = this.mode) {
-    this.mode = mode;
-    this.score = [0, 0]; this.sets = [0, 0]; this.server = 0;
-    this.time = 0; this.rallies = 0; this.contacts = 0; this.specialUsed = [false, false];
-    this.stats = { serves: [0, 0], attacks: [0, 0], blocks: [0, 0] };
-    this.players = [0, 1].flatMap(team => ROLES.map((role, index) => ({
-      team, role, number: index + 1, x: (team ? 1 : -1) * HOME[role], z: 4.5,
-      y: 0, vy: 0, vx: 0, pose: 'idle', animation: 0, block: 0, stun: 0,
-    })));
-    this.previousInput = { ...EMPTY_INPUT };
-    this.notice = 'Подача вашей команды'; this.noticeTime = 2;
-    this.startServe();
+  startServe(){
+    this.phase='serve';this.phaseTime=0;this.possession=this.server;this.teamPhases=['defense','defense'];this.teamPhases[this.server]='attack';
+    this.touches=[0,0];this.lastTouch=null;this.lastPlayer=null;this.shotSerial=0;this.cooldown=0;this.incomingShot='serve';
+    this.charge=null;this.pending=null;this.serveAction=null;this.contactWindow=false;this.trail=[];this.aimPreview=null;this.cpuBlockPlan=null;
+    this.selected=[0,4];this.cpuMiss=[false,false];this.lastAction='Выберите J, L или I и зажмите';this.assistLabel='Помощь только в направлении паса';
+    for(const p of this.players)Object.assign(p,{x:this.sign(p.team)*HOMES[p.id%4],y:0,vy:0,vx:0,pose:'idle',animation:0,block:0,recovery:0,diving:false,diveVelocity:0,blockCooldown:0});
+    this.active(this.server).x=this.sign(this.server)*9.4;
+    this.ball={x:this.active(this.server).x,y:1.3,z:4.5,vx:0,vy:0,vz:0,spin:0,angle:0};this.emit('serve-ready',{team:this.server});
   }
-  player(team, role) { return this.players.find(p => p.team === team && p.role === role); }
-  sign(team) { return team === 0 ? -1 : 1; }
-  isHuman(team) { return team === 0 && this.mode !== 'demo'; }
-  startServe() {
-    this.phase = 'serve'; this.phaseTime = 0;
-    this.possession = this.server; this.touches = 0; this.lastTouch = this.server;
-    this.lastPlayer = null; this.cooldown = 0; this.attack = 'normal';
-    this.setModifier = false; this.dumpRequested = false; this.incomingShot = 'serve';
-    this.contactWindow = false; this.trail = []; this.aBuffer = 0;
-    for (const p of this.players) Object.assign(p, { x: this.sign(p.team) * HOME[p.role], y: 0, vy: 0, vx: 0, block: 0, stun: 0, pose: 'idle' });
-    const server = this.player(this.server, 'receiver'); server.x = this.sign(this.server) * 9.45;
-    this.ball = { x: server.x, y: 1.8, z: 4.5, vx: 0, vy: 0, vz: 0, spin: 0, angle: 0 };
-    this.activeRole = 'receiver';
-    this.emit('serve-ready', { team: this.server });
-  }
-  updateConfig(config) { this.config = sanitizeConfig(config); }
-  tick(dt = FIXED_DT, rawInput = EMPTY_INPUT) {
-    const input = { ...EMPTY_INPUT, ...rawInput };
-    input.aPressed = input.a && !this.previousInput.a;
-    input.bPressed = input.b && !this.previousInput.b;
-    this.previousInput = { ...input };
-    if (this.phase === 'finished') return;
-    this.time += dt; this.phaseTime += dt;
-    this.noticeTime = Math.max(0, this.noticeTime - dt);
-    this.cooldown = Math.max(0, this.cooldown - dt);
-    this.aBuffer = input.aPressed ? 0.2 : Math.max(0, this.aBuffer - dt);
-    this.contactWindow = false;
+  tick(dt=FIXED_DT,raw={}){
+    const input={...EMPTY_INPUT,...raw},press=key=>input[key]&&!this.previousInput[key];
+    if(this.phase==='finished'){this.previousInput=input;return;}
+    this.time+=dt;this.phaseTime+=dt;this.cooldown=Math.max(0,this.cooldown-dt);this.noticeTime=Math.max(0,this.noticeTime-dt);this.contactWindow=false;
     this.animatePlayers(dt);
-    if (this.phase === 'point' || this.phase === 'set-end') {
-      if (this.phaseTime > (this.phase === 'set-end' ? 3.5 : 2.2)) {
-        if (this.phase === 'set-end') { this.score = [0, 0]; this.specialUsed = [false, false]; }
-        this.startServe();
+    if(['point','set-end'].includes(this.phase)){if(this.phaseTime>2.3){if(this.phase==='set-end')this.score=[0,0];if(this.mode==='practice')this.startDrill(this.drill);else this.startServe();}this.previousInput=input;return;}
+    if(this.isHuman(0)){
+      if(press('switch')&&this.phase==='rally'&&!this.charge&&!this.pending)this.switchPlayer();
+      if(press('block')&&this.phase==='rally'&&this.teamPhases[0]==='defense')this.requestBlock(0);
+      if(press('jump')&&this.phase==='rally')this.jump(this.active(0));
+      if(press('dive')&&this.phase==='rally')this.dive(this.active(0),input.axis);
+      this.updateCharge(dt,input,press);
+    }
+    if(this.phase==='serve'){
+      if(!this.isHuman(this.server)&&this.phaseTime>1.3)this.beginServe({kind:['low','loft','drive'][Math.floor(this.random()*3)],power:.54,aim:{axis:-this.sign(this.server),up:false,down:false}});
+      this.updatePreview();this.previousInput=input;return;
+    }
+    if(this.phase==='serve-motion'){
+      const p=this.active(this.server);this.ball.x=p.x;this.ball.y=1.4+p.y+Math.min(.5,this.phaseTime*3);
+      if(this.phaseTime>=.27)this.executeServe();this.previousInput=input;return;
+    }
+    const previous={...this.ball};integrateBall(this.ball,dt,this.config);
+    if(collideNet(this.ball,previous,this.config.restitution)){this.emit('net');this.label('Мяч от сетки — ещё можно спасти');}
+    this.trail.push({x:this.ball.x,y:this.ball.y});if(this.trail.length>15)this.trail.shift();
+    if(this.ball.y<=COURT.ballRadius){this.ball.y=COURT.ballRadius;const inside=isInside(this.ball),side=this.ball.x<0?0:1;this.point(inside?1-side:1-(this.lastTouch??this.server),inside?'МЯЧ КОСНУЛСЯ ПЛОЩАДКИ':this.incomingShot==='block'?'АУТ ОТ БЛОКА':'АУТ');this.previousInput=input;return;}
+    if(Math.abs(this.ball.x)>16||this.ball.y>28){this.point(1-(this.lastTouch??this.server),'АУТ');this.previousInput=input;return;}
+    this.possession=this.ball.x<0?0:1;this.prediction=predictAtHeight(this.ball,1.4,this.config);
+    this.movePlayers(dt,input);this.updateCPU();this.tryBlocks();
+    if(this.pending&&this.cooldown<=0)this.tryPending();
+    for(const team of [0,1])if(!this.isHuman(team)&&this.cooldown<=0)this.tryCPUContact(team);
+    if(this.pending){this.pending.ttl-=dt;if(this.pending.ttl<=0){this.pending=null;this.label('Мимо: отпускайте кнопку ближе к мячу',1.2);}}
+    const action=this.charge||this.pending;
+    this.contactWindow=action?this.canContact(this.players[action.playerId],action.kind):Object.keys(SHOTS).some(k=>this.canContact(this.active(0),k));
+    this.updatePreview();this.previousInput=input;
+  }
+  updateCharge(dt,input,press){
+    if(this.phase==='serve'&&this.server!==0)return;if(!['serve','rally'].includes(this.phase))return;
+    if(this.charge){this.charge.aim=aimOf(input);if(input[this.charge.kind])this.charge.power=clamp(this.charge.power+dt/CHARGE_SECONDS,.08,1);else{const action={...this.charge,aim:{...this.charge.aim},ttl:RELEASE_WINDOW};this.charge=null;if(this.phase==='serve')this.beginServe(action);else this.pending=action;}}
+    else if(!this.pending){const kind=Object.keys(SHOTS).find(press);if(kind&&this.active(0).recovery<=0)this.charge={kind,power:.08,aim:aimOf(input),playerId:this.active(0).id};}
+  }
+  beginServe(action){this.serveAction=action;this.phase='serve-motion';this.phaseTime=0;const p=this.active(this.server);if(action.kind==='drive')this.jump(p);p.pose=action.kind==='low'?'bump':'set';p.animation=.38;this.emit('toss');this.label(SERVES[action.kind].name);}
+  startDrill(drill='receive'){
+    this.drill=drill;this.server=0;this.startServe();if(drill==='serve')return;
+    this.phase='rally';this.lastTouch=1;this.lastPlayer=4;this.teamPhases=['defense','defense'];this.players[0].x=-7;
+    if(drill==='set'){this.selected[0]=1;this.teamPhases[0]='attack';Object.assign(this.ball,{x:-4.6,y:4.5,vx:0,vy:0});}
+    else if(drill==='block'){Object.assign(this.ball,{x:3.2,y:3.6});launchTo(this.ball,{x:-5,y:.2,z:4.5},1.15,this.config);this.incomingShot='drive';this.selected[0]=2;}
+    else{Object.assign(this.ball,{x:5,y:5});launchTo(this.ball,{x:-7,y:.9,z:4.5},2.1,this.config);this.incomingShot='serve';}
+    this.label('РАЗМИНКА · каждый контакт — ваш');
+  }
+  executeServe(){
+    const p=this.active(this.server),a=this.serveAction;Object.assign(this.ball,shotImpulse(this.ball,p,a.kind,a.power,a.aim,this.players,this.config,true));
+    this.phase='rally';this.phaseTime=0;this.lastTouch=this.server;this.lastPlayer=p.id;this.touches=[0,0];this.cooldown=.2;this.incomingShot='serve';this.stats.serves[this.server]++;
+    this.teamPhases=['defense','defense'];p.pose=a.kind==='low'?'bump':'spike';p.animation=.35;this.shotSerial++;this.autoSelect(1-this.server);
+    this.lastAction=`${SERVES[a.kind].name} · ${Math.round(a.power*100)}%`;this.emit('hit',{kind:a.kind,power:a.power,team:this.server,serve:true});this.serveAction=null;this.aimPreview=null;
+  }
+  switchPlayer(){const current=this.selected[0];for(let i=1;i<=4;i++){const next=(current+i)%4;if(this.players[next].recovery<=0){this.selected[0]=next;return;}}}
+  autoSelect(team,preferred=null){
+    if(team===0&&(this.charge||this.pending))return;
+    if(!this.isHuman(team)&&this.lastTouch!==team)this.cpuMiss[team]=this.random()<{easy:.18,normal:.09,hard:.035}[this.config.difficulty];
+    if(preferred!==null&&this.players[preferred].team===team){this.selected[team]=preferred;return;}
+    const target=predictAtHeight(this.ball,1.45,this.config),players=this.players.filter(p=>p.team===team);
+    players.sort((a,b)=>(Math.abs(a.x-target.x)+a.recovery*4+a.y)-(Math.abs(b.x-target.x)+b.recovery*4+b.y));this.selected[team]=players[0].id;
+  }
+  jump(p,block=false){if(!grounded(p))return false;p.vy=this.config.jumpSpeed;p.vx=0;p.pose=block?'block':'jump';p.animation=.18;if(block){p.block=2*this.config.jumpSpeed/this.config.gravity;p.blockCooldown=1.5;}return true;}
+  requestBlock(team){const front=this.players.filter(p=>p.team===team&&Math.abs(p.x)<3.25&&grounded(p)&&p.blockCooldown<=0).sort((a,b)=>Math.abs(a.x)-Math.abs(b.x));if(!front.length)return false;this.jump(front[0],true);this.emit('jump',{team,playerId:front[0].id});return true;}
+  dive(p,axis){if(!grounded(p))return false;p.diving=true;p.vy=2.3;p.diveVelocity=(axis||Math.sign(this.ball.x-p.x)||-this.sign(p.team))*6.5;p.vx=p.diveVelocity;p.pose='dive';p.animation=.5;return true;}
+  animatePlayers(dt){
+    for(const p of this.players){
+      p.animation=Math.max(0,p.animation-dt);p.block=Math.max(0,p.block-dt);p.blockCooldown=Math.max(0,p.blockCooldown-dt);p.recovery=Math.max(0,p.recovery-dt);
+      if(p.y>0||p.vy>0){p.y=Math.max(0,p.y+p.vy*dt-.5*this.config.gravity*dt*dt);p.vy-=this.config.gravity*dt;if(p.diving)p.x+=p.diveVelocity*dt;
+        if(p.y===0){p.vy=0;p.block=0;if(p.diving){p.diving=false;p.recovery=.92;p.pose='belly';p.animation=.92;p.diveVelocity=0;}else{p.pose='land';p.animation=.14;}}}
+      if(p.recovery>0)p.pose=p.recovery>.32?'belly':'getup';else if(!p.animation)p.pose=p.diving?'dive':p.block>0?'block':p.y>0?'jump':Math.abs(p.vx)>.1?'run':'idle';
+      p.x=clamp(p.x,p.team===0?-10.5:.32,p.team===0?-.32:10.5);
+    }
+  }
+  movePlayers(dt,input){
+    for(const p of this.players){if(!grounded(p)){if(!p.diving)p.vx=0;continue;}const old=p.x;
+      if(this.isHuman(p.team)){if(p.id===this.selected[0]&&!this.charge&&!this.pending)p.x+=input.axis*this.config.playerSpeed*dt;}
+      else{let target=this.sign(p.team)*HOMES[p.id%4];if(this.possession===p.team&&this.ball.vy<4&&this.active(p.team).id===p.id)target=this.prediction.x;p.x+=clamp(target-p.x,-this.config.playerSpeed*dt,this.config.playerSpeed*dt);}
+      p.x=clamp(p.x,p.team===0?-10.5:.32,p.team===0?-.32:10.5);p.vx=(p.x-old)/dt;
+    }
+  }
+  canContact(p,kind){
+    if(!p||p.recovery>0||p.block>0||this.phase!=='rally'||this.cooldown>0)return false;
+    if((this.ball.x<-.08&&p.team!==0)||(this.ball.x>.08&&p.team!==1))return false;
+    if(this.lastPlayer===p.id&&this.lastTouch===p.team)return false;
+    const shot=SHOTS[kind];let min=shot.min+p.y,max=shot.max+p.y,reach=shot.reach;
+    if(p.diving){if(kind!=='low')return false;min=.12;max=1.2;reach=1.65;}
+    return Math.abs(this.ball.x-p.x)<=reach&&this.ball.y>=min&&this.ball.y<=max;
+  }
+  tryPending(){const a=this.pending,p=this.players[a.playerId];if(!this.canContact(p,a.kind))return false;this.pending=null;return this.makeContact(p,a.kind,a.power,shotImpulse(this.ball,p,a.kind,a.power,a.aim,this.players,this.config));}
+  makeContact(p,kind,power,impulse){
+    const team=p.team;if(this.lastTouch!==team)this.touches[team]=0;
+    if(this.lastTouch===team&&this.lastPlayer===p.id){this.point(1-team,'ДВА КАСАНИЯ ОДНОГО ИГРОКА');return false;}
+    this.touches[team]++;if(this.touches[team]>3){this.point(1-team,'ЧЕТВЁРТОЕ КАСАНИЕ');return false;}
+    this.lastTouch=team;this.lastPlayer=p.id;this.contacts++;this.cooldown=.13;this.incomingShot=kind;this.shotSerial++;
+    Object.assign(this.ball,impulse);p.pose=p.diving?'dive':SHOTS[kind].pose;p.animation=.32;
+    const landing=predictAtHeight(this.ball,.15,this.config),crosses=landing.x*this.sign(team)<0;
+    this.teamPhases[team]=crosses?'defense':'attack';this.teamPhases[1-team]='defense';
+    if(kind==='drive')this.stats.attacks[team]++;else this.stats.passes[team]++;
+    this.lastAction=`${SHOTS[kind].name} · ${Math.round(power*100)}%`;this.assistLabel=impulse.assisted?'Пас слегка скорректирован':'Свободная траектория';this.label(this.lastAction);
+    if(crosses){this.autoSelect(1-team);this.scheduleCPUBlock(1-team);}
+    else{const candidates=this.players.filter(other=>other.team===team&&other.id!==p.id).sort((a,b)=>Math.abs(a.x-landing.x)-Math.abs(b.x-landing.x));this.autoSelect(team,impulse.targetId??candidates[0]?.id);this.cpuBlockPlan=null;}
+    this.emit('hit',{kind,power,team,assisted:impulse.assisted});this.aimPreview=null;return true;
+  }
+  scheduleCPUBlock(team){
+    this.cpuBlockPlan=null;if(this.isHuman(team)||this.random()>{easy:.15,normal:.32,hard:.52}[this.config.difficulty])return;
+    const b={...this.ball};let crossing=null;for(let n=1;n<240;n++){const old=b.x;integrateBall(b,FIXED_DT,this.config);if(old*b.x<=0){crossing={t:n*FIXED_DT,y:b.y};break;}}
+    if(crossing&&crossing.y>2.35&&crossing.y<3.7)this.cpuBlockPlan={team,at:this.time+Math.max(.08,crossing.t-.3),serial:this.shotSerial};
+  }
+  updateCPU(){
+    if(this.cpuBlockPlan&&this.time>=this.cpuBlockPlan.at){const plan=this.cpuBlockPlan;this.cpuBlockPlan=null;if(plan.serial===this.shotSerial)this.requestBlock(plan.team);}
+    for(const team of [0,1]){if(this.isHuman(team)||this.possession!==team)continue;const p=this.active(team);if(this.touches[team]>=2&&this.lastTouch===team){const target=predictAtHeight(this.ball,3,this.config);if(target.time<.33&&this.ball.vy<2&&Math.abs(p.x-target.x)<.6)this.jump(p);}}
+  }
+  tryCPUContact(team){
+    if(this.possession!==team)return;const p=this.active(team),count=this.lastTouch===team?this.touches[team]:0,kind=count>=2?'drive':count===1?'loft':'low';
+    if(!this.canContact(p,kind)||this.ball.vy>0.2||(count===0&&this.cpuMiss[team]))return;
+    const s=this.sign(team);let target,seconds;
+    if(count===0){target={x:this.player(team,'setter').x,y:2.2,z:4.5};seconds=1.25;}
+    else if(count===1){target={x:this.player(team,'open').x,y:3,z:4.5};seconds=1.25;}
+    else{target={x:-s*(4+this.random()*4),y:.15,z:4.5};seconds=1.15;}
+    const shot={...this.ball};launchTo(shot,target,seconds,this.config,count===2?.3:0);
+    this.makeContact(p,kind,.55,{vx:shot.vx,vy:shot.vy,vz:0,spin:shot.spin,assisted:false,targetId:count===0?this.player(team,'setter').id:count===1?this.player(team,'open').id:null});
+  }
+  tryBlocks(){
+    if(this.cooldown>0||this.incomingShot==='serve')return false;
+    for(const p of this.players){if(p.team===this.lastTouch||p.block<=0||p.y<.1)continue;
+      if(Math.abs(this.ball.x-p.x)<.65&&this.ball.y>2.2&&this.ball.y<p.y+2.65){
+        const attacker=1-p.team;this.ball.vx=-this.sign(p.team)*Math.max(3.5,Math.abs(this.ball.vx)*.57);this.ball.vy=-.65;
+        // Opponent contact resets the touch sequence even without a centre crossing.
+        this.lastTouch=p.team;this.lastPlayer=null;this.touches=[0,0];this.cooldown=.07;this.incomingShot='block';this.shotSerial++;
+        this.teamPhases=['defense','defense'];this.stats.blocks[p.team]++;this.cpuBlockPlan=null;this.autoSelect(attacker);this.label('БЛОК! Новый приём — J снизу');this.emit('block',{team:p.team});return true;
       }
-      return;
-    }
-    if (this.phase === 'serve') {
-      if ((this.isHuman(this.server) && input.aPressed) || (!this.isHuman(this.server) && this.phaseTime > 1)) this.toss(input);
-      return;
-    }
-    if (this.phase === 'toss') { this.updateToss(dt, input); return; }
-
-    const oldBall = { ...this.ball };
-    integrateBall(this.ball, dt, this.config);
-    // Explicit arcade move hook: the special serve dives after clearing the net.
-    // Isolated here so real ballistic flight is not silently bent for ordinary shots.
-    if (this.ball.special === 'thunder' && this.ball.x * this.sign(this.server) < -0.25) {
-      launchTo(this.ball, { x: -this.sign(this.server) * 6.8, y: 0.15, z: 4.5 }, 0.45, this.config, 2.5);
-      this.ball.special = null;
-      this.emit('hit', { kind: 'super', team: this.server });
-    }
-    if (collideNet(this.ball, oldBall, this.config.restitution)) {
-      this.emit('net'); this.label('СЕТКА');
-    }
-    this.trail.push({ x: this.ball.x, y: this.ball.y }); if (this.trail.length > 18) this.trail.shift();
-    if (this.ball.y <= COURT.ballRadius) {
-      this.ball.y = COURT.ballRadius;
-      const inside = isInside(this.ball);
-      const side = this.ball.x < 0 ? 0 : 1;
-      this.point(inside ? 1 - side : 1 - this.lastTouch, inside ? 'МЯЧ НА ПОЛУ' : this.incomingShot === 'block' ? 'ONE TOUCH · АУТ ОТ БЛОКА' : 'АУТ');
-      return;
-    }
-    if (Math.abs(this.ball.x) > 15 || this.ball.y > 30) { this.point(1 - this.lastTouch, 'АУТ'); return; }
-
-    // Crossing the centre changes reception responsibility; block contacts are separate.
-    const ballSide = this.ball.x < 0 ? 0 : 1;
-    if (ballSide !== this.possession && Math.abs(this.ball.x) > 0.22) {
-      this.possession = ballSide; this.touches = 0; this.lastPlayer = null;
-      this.phase = 'receive'; this.phaseTime = 0; this.activeRole = 'receiver';
-      this.setModifier = false; this.dumpRequested = false;
-    }
-    const team = this.possession;
-    const human = this.isHuman(team);
-    const control = human ? input : this.cpuInput(team);
-    if (this.phase === 'set') {
-      if (control.bPressed || (!human && control.b)) this.setModifier = true;
-      if ((this.attack === 'open' || this.attack === 'back') && control.a && control.axis * -this.sign(team) > 0) this.dumpRequested = true;
-    }
-    this.positionPlayers(dt, input);
-    this.updateBlocks(input);
-    this.tryBlock();
-    if (this.cooldown > 0) return;
-    if (this.phase === 'receive') this.tryReceive(team, control);
-    else if (this.phase === 'set') this.trySet(team);
-    else if (this.phase === 'attack') this.tryAttack(team, control);
+    }return false;
   }
-  label(text, seconds = 1.2) { this.notice = text; this.noticeTime = seconds; }
-  animatePlayers(dt) {
-    for (const p of this.players) {
-      p.animation = Math.max(0, p.animation - dt); p.block = Math.max(0, p.block - dt); p.stun = Math.max(0, p.stun - dt);
-      if (p.y > 0 || p.vy > 0) { p.y = Math.max(0, p.y + p.vy * dt - 0.5 * this.config.gravity * dt * dt); p.vy -= this.config.gravity * dt; if (p.y === 0) p.vy = 0; }
-      if (!p.animation && !p.block && !p.stun) p.pose = p.y > 0 ? 'jump' : Math.abs(p.vx) > 0.1 ? 'run' : 'idle';
-    }
-  }
-  jump(p, pose = 'jump') {
-    if (p.y < 0.02 && p.stun <= 0) { p.vy = this.config.jumpSpeed; p.pose = pose; p.animation = 0.7; }
-  }
-  toss(input) {
-    const cpu = !this.isHuman(this.server);
-    const control = cpu ? { axis: this.random() > 0.5 ? -this.sign(this.server) : 0, up: false } : input;
-    this.serveKind = serveChoice(control, -this.sign(this.server));
-    this.specialArmed = !cpu && input.up && input.b && !this.specialUsed[this.server];
-    this.phase = 'toss'; this.phaseTime = 0;
-    this.ball.vy = SERVES[this.serveKind].toss;
-    this.label('ПОДБРОС · УДАРЬТЕ, КОГДА МЯЧ КРАСНЫЙ', 2);
-    this.emit('toss');
-  }
-  updateToss(dt, input) {
-    integrateBall(this.ball, dt, { ...this.config, drag: 0 });
-    const serve = SERVES[this.serveKind];
-    const server = this.player(this.server, 'receiver');
-    const ideal = this.serveKind === 'jump' ? 0.59 : this.serveKind === 'over' ? 0.57 : this.serveKind === 'under' ? 0.63 : 0.77;
-    const scale = Math.sqrt(9.81 / this.config.gravity);
-    const targetTime = ideal * scale;
-    if (this.serveKind === 'jump' && this.phaseTime > targetTime - 0.34) this.jump(server, 'spike');
-    this.contactWindow = Math.abs(this.phaseTime - targetTime) < 0.15;
-    const human = this.isHuman(this.server);
-    if ((human && (input.aPressed || this.aBuffer > 0) && this.phaseTime > 0.2) || (!human && this.phaseTime >= targetTime)) {
-      const quality = clamp(1 - Math.abs(this.phaseTime - targetTime) * 2.3, 0.2, 1);
-      let kind = this.serveKind;
-      if (this.specialArmed && input.b && (input.up || input.down) && this.contactWindow) {
-        kind = input.down ? 'thunder' : 'sky'; this.specialUsed[this.server] = true;
-      }
-      const chosen = SERVES[kind];
-      // A mistimed contact changes the trajectory, rather than teleporting to a keyframe.
-      const target = { x: -this.sign(this.server) * (5.3 + (1 - quality) * 5 + (input.axis || 0) * 0.7), y: 0.15, z: 4.5 };
-      const minFlight = Math.abs(this.ball.x) > 8 && this.ball.y < 1.8 ? Math.max(1.95, chosen.flight) : chosen.flight;
-      launchTo(this.ball, target, minFlight / this.config.hitPower, this.config, kind === 'thunder' ? 2 : 0);
-      this.ball.special = kind === 'thunder' ? 'thunder' : null;
-      server.pose = 'spike'; server.animation = 0.32;
-      this.phase = 'receive'; this.phaseTime = 0; this.cooldown = 0.35;
-      this.lastTouch = this.server; this.stats.serves[this.server]++;
-      this.label(chosen.name.toUpperCase()); this.emit('hit', { kind, quality, team: this.server });
-      this.aBuffer = 0;
-    } else if (this.ball.y < 0.6 || this.phaseTime > 2) this.point(1 - this.server, 'ОШИБКА ПОДАЧИ');
-  }
-  cpuInput(team) {
-    const difficulty = this.config.difficulty;
-    return { a: true, b: false, aPressed: false, bPressed: false, axis: 0, up: false, down: false, difficulty };
-  }
-  positionPlayers(dt, input) {
-    const team = this.possession;
-    const prediction = predictAtHeight(this.ball, this.phase === 'attack' ? 3.1 : 1.5, this.config);
-    this.prediction = prediction;
-    for (const p of this.players) {
-      const s = this.sign(p.team);
-      let target = s * HOME[p.role];
-      if (p.team === team) {
-        if (this.phase === 'receive' && p.role === 'receiver') target = clamp(prediction.x, s < 0 ? -10.3 : 0.5, s < 0 ? -0.5 : 10.3);
-        if (this.phase === 'set' && p.role === 'setter') target = s * 0.95;
-        if (this.phase === 'attack' && p.role === ATTACKS[this.attack].role) {
-          target = s * ATTACKS[this.attack].x;
-          const hitTime = predictAtHeight(this.ball, ATTACKS[this.attack].height, this.config).time;
-          if (hitTime < 0.33 && this.ball.vy < 2) this.jump(p, 'spike');
-        }
-      } else if (p.role === 'quick' || p.role === 'open') target = s * (p.role === 'quick' ? 0.5 : 1.15);
-      if (p.team === 0 && this.mode !== 'demo' && p.role === 'receiver' && this.phase === 'receive') {
-        if (input.axis) target = p.x + input.axis * 10;
-        else if (!this.config.assist) target = p.x;
-      }
-      const old = p.x;
-      const speed = this.config.playerSpeed * (p.role === 'receiver' ? 1.25 : 1);
-      if (p.stun <= 0) p.x += clamp(target - p.x, -speed * dt, speed * dt);
-      p.x = clamp(p.x, s < 0 ? -10.4 : 0.32, s < 0 ? -0.32 : 10.4);
-      p.vx = (p.x - old) / dt;
-    }
-  }
-  contact(p, height, radius = 1.15) {
-    return Math.abs(this.ball.x - p.x) < radius && this.ball.y >= 0.55 && this.ball.y < height && this.ball.vy < 0.6 && p.stun <= 0;
-  }
-  recordTouch(team, role) {
-    const id = `${team}:${role}`;
-    if (this.lastPlayer === id) { this.point(1 - team, 'ДВОЙНОЕ КАСАНИЕ'); return false; }
-    this.touches++; this.contacts++;
-    if (this.touches > 3) { this.point(1 - team, 'ЧЕТЫРЕ КАСАНИЯ'); return false; }
-    this.lastPlayer = id; this.lastTouch = team; this.cooldown = 0.2;
-    return true;
-  }
-  tryReceive(team, input) {
-    // A ball still travelling away from its server must not be received by them.
-    if (this.lastTouch === team && this.touches === 0 && this.ball.vx * this.sign(team) < 0) return;
-    const p = this.player(team, 'receiver'); this.activeRole = 'receiver';
-    const ready = this.contact(p, 1.8);
-    if (team === 0 && this.isHuman(team)) this.contactWindow = ready;
-    if (!ready || !(input.a || this.isHuman(team) && this.aBuffer > 0)) return;
-    if (!this.recordTouch(team, p.role)) return;
-    this.attack = this.isHuman(team) ? receptionChoice(input) : ['normal', 'quick', 'open'][Math.floor(this.random() * 3)];
-    this.setModifier = false;
-    const setter = this.player(team, 'setter');
-    launchTo(this.ball, { x: setter.x, y: 2.1, z: 4.5 }, 1.15, this.config);
-    p.pose = 'receive'; p.animation = 0.38;
-    this.phase = 'set'; this.phaseTime = 0; this.aBuffer = 0;
-    this.label(`ПРИЁМ → ${ATTACKS[this.attack].name.toUpperCase()}`);
-    this.emit('hit', { kind: 'receive', team });
-  }
-  trySet(team) {
-    const p = this.player(team, 'setter'); this.activeRole = 'setter';
-    if (this.dumpRequested && this.ball.vy < 1.5) this.jump(p, 'set');
-    if (!this.contact(p, this.dumpRequested ? 3.1 : 2.3, 0.95)) return;
-    if (!this.recordTouch(team, p.role)) return;
-    p.pose = 'set'; p.animation = 0.4;
-    if (this.dumpRequested) {
-      launchTo(this.ball, { x: -this.sign(team) * 2.5, y: 0.15, z: 4.5 }, 1.15, this.config);
-      this.phase = 'receive'; this.phaseTime = 0; this.incomingShot = 'dump';
-      this.label('СКИДКА СО ВТОРОГО КАСАНИЯ'); this.emit('hit', { kind: 'dump', team }); return;
-    }
-    this.attack = setChoice(this.attack, this.setModifier);
-    const attack = ATTACKS[this.attack];
-    launchTo(this.ball, { x: this.sign(team) * attack.x, y: attack.height, z: 4.5 }, attack.flight, this.config);
-    this.phase = 'attack'; this.phaseTime = 0; this.aBuffer = 0;
-    this.label(attack.name.toUpperCase()); this.emit('hit', { kind: 'set', team, attack: this.attack });
-  }
-  tryAttack(team, input) {
-    const attack = ATTACKS[this.attack];
-    const p = this.player(team, attack.role); this.activeRole = attack.role;
-    const ready = this.contact(p, p.y + 2.65, 1.2) && this.ball.y > 2.05;
-    if (team === 0 && this.isHuman(team)) this.contactWindow = ready;
-    if (!ready || !(input.a || this.isHuman(team) && this.aBuffer > 0)) return;
-    if (!this.recordTouch(team, p.role)) return;
-    const kind = input.up ? 'dink' : input.down && input.b ? 'super' : this.attack;
-    const s = this.sign(team);
-    let targetX = 6.3 + (this.random() - 0.5) * 3;
-    if (input.axis) targetX = input.axis * -s > 0 ? 8.5 : 3.3;
-    if (kind === 'dink') targetX = 1.8;
-    const power = (ATTACKS[kind].power || 1) * this.config.hitPower;
-    let duration = kind === 'dink' ? 0.92 : (0.9 + attack.x * 0.085) / power;
-    // Give the ballistic arc sufficient net clearance for the chosen launch point.
-    let target = { x: -s * targetX, y: 0.15, z: 4.5 };
-    for (let n = 0; n < 8; n++) {
-      launchTo(this.ball, target, duration, this.config, kind === 'super' ? 2 : 0.35);
-      const test = { ...this.ball }; let clearance = 9;
-      for (let i = 0; i < Math.ceil(duration * 120); i++) {
-        const old = test.x; integrateBall(test, FIXED_DT, this.config);
-        if (old * test.x <= 0) { clearance = test.y; break; }
-      }
-      if (clearance > COURT.netHeight + 0.14) break;
-      duration += 0.08;
-    }
-    p.pose = kind === 'dink' ? 'set' : 'spike'; p.animation = 0.32;
-    this.stats.attacks[team]++; this.incomingShot = kind;
-    this.phase = 'receive'; this.phaseTime = 0; this.cooldown = 0.22; this.aBuffer = 0;
-    this.label(ATTACKS[kind].name.toUpperCase()); this.emit('hit', { kind, team });
-  }
-  updateBlocks(input) {
-    for (const team of [0, 1]) {
-      if (team === this.possession) continue;
-      const human = this.isHuman(team);
-      const ballApproaching = this.ball.vx * this.sign(team) > 0;
-      const timeToNet = Math.abs(this.ball.x / (this.ball.vx || 0.01));
-      const cpuTiming = this.config.difficulty === 'easy' ? 0.2 : this.config.difficulty === 'hard' ? 0.39 : 0.32;
-      const go = human ? input.bPressed : ballApproaching && timeToNet < cpuTiming && this.ball.y > 2.4 && this.incomingShot !== 'serve';
-      if (go) for (const role of ['quick', 'open']) { const p = this.player(team, role); if (p.y <= 0.02) { this.jump(p, 'block'); p.block = 0.85; } }
-    }
-  }
-  tryBlock() {
-    if (this.cooldown > 0 || Math.abs(this.ball.x) > 1.2 || this.incomingShot === 'serve') return;
-    for (const p of this.players) {
-      if (p.team === this.lastTouch || p.block <= 0 || p.y < 0.12) continue;
-      if (Math.abs(this.ball.x - p.x) < 0.7 && this.ball.y > 2.1 && this.ball.y < p.y + 2.65) {
-        this.ball.vx = -this.sign(p.team) * Math.max(3.5, Math.abs(this.ball.vx) * 0.63);
-        this.ball.vy = Math.min(this.ball.vy, -1.2);
-        this.lastTouch = p.team; this.lastPlayer = null; this.touches = 0;
-        this.cooldown = 0.23; this.stats.blocks[p.team]++; this.incomingShot = 'block';
-        this.emit('block', { team: p.team }); this.label('БЛОК!'); return;
-      }
-    }
-  }
-  point(winner, reason) {
-    if (['point', 'set-end', 'finished'].includes(this.phase)) return;
-    this.rallies++;
-    const result = awardRally(this, winner, this.config);
-    this.phase = result.matchWon ? 'finished' : result.setWon ? 'set-end' : 'point';
-    this.phaseTime = 0; this.pointWinner = winner;
-    this.ball.vx = this.ball.vy = this.ball.vz = 0;
-    this.contactWindow = false;
-    this.pointReason = reason;
-    this.label(result.matchWon ? 'МАТЧ ЗАВЕРШЁН' : result.setWon ? 'СЕТ ЗАВЕРШЁН' : result.scored ? 'ОЧКО' : 'ПЕРЕХОД ПОДАЧИ', 3);
-    this.emit('point', { winner, reason, ...result });
+  updatePreview(){const action=this.charge||this.pending;if(!action){this.aimPreview=null;return;}const p=this.players[action.playerId],origin={...this.ball};if(this.phase==='serve')origin.y=action.kind==='drive'?3:1.9;this.aimPreview={...origin,...shotImpulse(origin,p,action.kind,action.power,action.aim,this.players,this.config,this.phase==='serve')};}
+  point(winner,reason){
+    if(['point','set-end','finished'].includes(this.phase))return;this.rallies++;const result=this.mode==='practice'?{scored:false,setWon:false,matchWon:false}:awardRally(this,winner,this.config);
+    this.phase=result.matchWon?'finished':result.setWon?'set-end':'point';this.phaseTime=0;this.pointWinner=winner;this.pointReason=reason;this.charge=null;this.pending=null;this.aimPreview=null;this.cpuBlockPlan=null;
+    this.ball.vx=this.ball.vy=this.ball.vz=0;this.contactWindow=false;this.label(this.mode==='practice'?'ПОПРОБУЕМ ЕЩЁ':result.matchWon?'ОТЛИЧНЫЙ МАТЧ!':result.setWon?'СЕТ ЗАВЕРШЁН':result.scored?'ОЧКО!':'ПЕРЕХОД ПОДАЧИ',3);this.emit('point',{winner,reason,...result});
   }
 }
