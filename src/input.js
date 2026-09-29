@@ -6,8 +6,9 @@ export class InputBuffer {
   clear(){this.held.clear();this.pressed.clear();}
   read(){
     const has=(...keys)=>keys.some(k=>this.held.has(k)||this.pressed.has(k));
-    return{axis:Number(has('KeyD','ArrowRight'))-Number(has('KeyA','ArrowLeft')),up:has('KeyW','ArrowUp'),down:has('KeyS','ArrowDown'),low:has('KeyJ','KeyZ'),loft:has('KeyL','KeyC'),drive:has('KeyI','KeyV'),block:has('KeyK','KeyX'),jump:has('Space'),dive:has('ShiftLeft','ShiftRight'),switch:has('KeyQ')};
+    const modifier=has('ShiftLeft','ShiftRight');
+    return{axis:Number(has('ArrowRight'))-Number(has('ArrowLeft')),up:modifier&&has('ArrowUp'),down:modifier&&has('ArrowDown'),low:has('KeyA'),loft:has('KeyW'),drive:has('KeyD'),block:has('KeyS'),jump:has('Space')||(!modifier&&has('ArrowUp')),dive:!modifier&&has('ArrowDown'),switch:has('Tab','KeyQ')};
   }
   consume(){this.pressed.clear();}
 }
-export const GAME_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyL','KeyI','KeyK','KeyZ','KeyC','KeyV','KeyX','Space','ShiftLeft','ShiftRight','KeyQ'];
+export const GAME_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight','Tab','KeyQ'];

@@ -1,4 +1,4 @@
-import { COURT } from './config.js';
+import { COURT, FIXED_DT } from './config.js';
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
@@ -39,6 +39,17 @@ export function collideNet(ball, previous, restitution = 0.58) {
 export function isInside(ball) {
   const r = COURT.ballRadius;
   return Math.abs(ball.x) <= COURT.halfLength + r && ball.z >= -r && ball.z <= COURT.width + r;
+}
+
+// Same step, drag, spin and net collision as Match.tick; excludes future player contacts.
+export function traceBall(ball, config, seconds=4) {
+  const b={...ball}, points=[{...b}];
+  for(let i=0;i<Math.ceil(seconds/FIXED_DT);i++) {
+    const previous={...b};integrateBall(b,FIXED_DT,config);collideNet(b,previous,config.restitution);
+    if(b.y<=COURT.ballRadius){b.y=COURT.ballRadius;points.push({...b});break;}
+    points.push({...b});
+  }
+  return points;
 }
 
 export function predictAtHeight(ball, height, config, maxTime = 4) {

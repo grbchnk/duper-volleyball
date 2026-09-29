@@ -3,7 +3,7 @@ export const COURT = Object.freeze({ halfLength: 9, width: 9, netHeight: 2.43, b
 export const DEFAULTS = Object.freeze({
   gravity: 9.81, drag: 0.018, restitution: 0.58, playerSpeed: 5.6,
   jumpSpeed: 5.2, hitPower: 1, gameSpeed: 0.7, assist: true,
-  scoring: 'sideout', targetScore: 15, difficulty: 'normal', trajectory: false,
+  scoring: 'sideout', targetScore: 15, difficulty: 'normal', trajectory: true,
 });
 export const PRESETS = {
   arcade: { ...DEFAULTS },

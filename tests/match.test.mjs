@@ -22,7 +22,7 @@ test('holding a shot only charges; releasing performs one contact',()=>{
  tick(m,20);m.ball={...m.ball,x:m.active().x,y:1.5,vx:0,vy:0};tick(m,10);assert.equal(m.contacts,1);
 });
 for(const kind of Object.keys(SHOTS))test(`${kind} is a manually released contact`,()=>{
- const m=rally();m.ball.y=7;tick(m,25,{[kind]:true});m.ball.y=kind==='loft'?2.1:1.4;m.ball.vy=0;m.tick();assert.equal(m.contacts,1);assert.ok(m.events.some(e=>e.type==='hit'&&e.kind===kind&&e.team===0));
+ const m=rally();m.ball.y=7;tick(m,25,{[kind]:true});m.ball.y=kind==='loft'?2.1:1.1;m.ball.vy=0;m.tick();assert.equal(m.contacts,1);assert.ok(m.events.some(e=>e.type==='hit'&&e.kind===kind&&e.team===0));
 });
 test('expired release does not hit a later ball',()=>{
  const m=rally();m.ball.x=-2;m.ball.y=6;m.tick(FIXED_DT,{low:true});m.tick();tick(m,45);assert.equal(m.pending,null);m.ball.x=m.active().x;m.ball.y=1.5;m.ball.vy=0;tick(m,3);assert.equal(m.contacts,0);
@@ -30,7 +30,7 @@ test('expired release does not hit a later ball',()=>{
 test('charge length increases impulse and late modifiers change direction',()=>{
  const m=rally(),p=m.active();const base={axis:1,up:false,down:false};
  const weak=shotImpulse(m.ball,p,'drive',.15,base,m.players,{...DEFAULTS,assist:false});const strong=shotImpulse(m.ball,p,'drive',.9,base,m.players,{...DEFAULTS,assist:false});assert.ok(Math.hypot(strong.vx,strong.vy)>Math.hypot(weak.vx,weak.vy));
- m.ball.y=7;tick(m,15,{low:true,axis:1});tick(m,15,{low:true,axis:-1,up:true});m.ball.y=1.4;m.ball.vy=0;m.tick(FIXED_DT,{axis:-1,up:true});assert.ok(m.ball.vx<0);assert.ok(m.ball.vy>0);
+ m.ball.y=7;tick(m,15,{low:true,axis:1});tick(m,15,{low:true,axis:-1,up:true});m.ball.y=1.1;m.ball.vy=0;m.tick(FIXED_DT,{axis:-1,up:true});assert.ok(m.ball.vx<0);assert.ok(m.ball.vy>0);
 });
 test('assist ignores wrong direction and severe overpowering',()=>{
  const m=rally(),p=m.active();const wrong=shotImpulse(m.ball,p,'low',.5,{axis:-1},m.players,DEFAULTS);assert.equal(wrong.assisted,false);assert.ok(wrong.vx<0);
@@ -80,9 +80,9 @@ test('switching cannot replace the server but works after the serve',()=>{
  m.phase='rally';m.ball.y=10;m.tick();m.tick(FIXED_DT,{switch:true});assert.equal(m.selected[0],1);
 });
 test('fast keyboard taps are retained for a tick, key repeat does not create extra edges',()=>{
- const b=new InputBuffer();b.down('KeyJ');b.up('KeyJ');assert.equal(b.read().low,true);b.consume();assert.equal(b.read().low,false);
- b.down('KeyK');b.consume();b.down('KeyK',true);assert.equal(b.pressed.size,0);assert.equal(b.read().block,true);b.clear();assert.equal(b.read().block,false);
- b.down('KeyC');assert.equal(b.read().loft,true);b.clear();b.down('Space');assert.equal(b.read().jump,true);assert.equal(b.read().low,false);
+ const b=new InputBuffer();b.down('KeyA');b.up('KeyA');assert.equal(b.read().low,true);b.consume();assert.equal(b.read().low,false);
+ b.down('KeyS');b.consume();b.down('KeyS',true);assert.equal(b.pressed.size,0);assert.equal(b.read().block,true);b.clear();assert.equal(b.read().block,false);
+ b.down('KeyW');assert.equal(b.read().loft,true);b.clear();b.down('ArrowUp');assert.equal(b.read().jump,true);assert.equal(b.read().low,false);
 });
 test('CPU does not attempt a block on every attack and cannot spam within one shot',()=>{
  const m=rally();let plans=0;for(let i=0;i<200;i++){m.ball={...m.ball,x:-2,y:3.1,vx:10,vy:1};m.shotSerial++;m.scheduleCPUBlock(1);if(m.cpuBlockPlan)plans++;}assert.ok(plans>5&&plans<100,plans);

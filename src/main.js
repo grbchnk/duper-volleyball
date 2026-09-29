@@ -42,17 +42,17 @@ function startGame(mode='match'){
 function updateUI(){
   const phase=match.teamPhases[0],action=match.charge||match.pending,percent=Math.round((action?.power||0)*100);
   $('phase-pill').textContent=match.phase==='serve'||match.phase==='serve-motion'?'ПОДАЧА':phase==='attack'?'АТАКА':'ЗАЩИТА';$('phase-pill').classList.toggle('defense',phase==='defense');
-  $('charge-label').textContent=match.charge?`${SHOTS[match.charge.kind].name} · отпустите для контакта`:match.pending?'Попытка контакта…':'Зажмите J, L или I';
+  $('charge-label').textContent=match.charge?`${SHOTS[match.charge.kind].name} · отпустите для контакта`:match.pending?'Попытка контакта…':'Зажмите A, W или D';
   $('charge-value').textContent=percent+'%';$('power-fill').style.width=percent+'%';$('power-fill').style.background=percent>88?'#d78e76':'#88a481';
   $('touch-count').textContent=match.touches[0]+' / 3';$('rule-label').textContent=`ТЕМП ${config.gameSpeed.toFixed(2)}×`;
-  let title='Выбери подачу',hint='J — снизу, L — планирующая, I — в прыжке. Начните с 45–55% силы, затем отпустите.',key='J';
+  let title='Выбери подачу',hint='A — снизу, W — планирующая, D — в прыжке. Начните с 45–55% силы, затем отпустите.',key='A';
   if(match.mode==='demo'){title='Смотрим и учимся';hint='Здесь обе команды играют сами. В «Матче» каждый контакт вашей команды будет ручным.';key='▶';}
   else if(['point','set-end'].includes(match.phase)){title=match.notice;hint=match.mode==='practice'?'Сейчас повторим упражнение. Кнопка «Повторить мяч» запускает его сразу.':match.pointReason;key='✿';}
   else if(match.phase==='finished'){title='Какой матч!';hint='Попробуйте новую комбинацию или измените характер физики.';key='✿';}
-  else if(match.active(0).recovery>0){title='Поднимаемся';hint='После нырка игроку нужно встать. Q — выбрать другого свободного игрока.';key='Q';}
-  else if(match.charge){title=match.contactWindow?'Отпусти сейчас!':SHOTS[match.charge.kind].name;hint='A/D — направление, W/S — выше/ниже. Подведите мяч к нужной высоте рук и отпустите кнопку.';key=SHOTS[match.charge.kind].key;}
-  else if(match.phase==='rally'&&phase==='defense'){title='Сохрани мяч';hint='J — приём снизу. L — сверху. I — сразу вернуть. K — один блокирующий за нажатие.';key='J';}
-  else if(match.phase==='rally'){title='Построй атаку';hint='Каждый пас вручную: заряд J/L → отпускание. Для атаки Space → заряд I → отпускание. Q меняет игрока.';key='L';}
+  else if(match.active(0).recovery>0){title='Поднимаемся';hint='После нырка игроку нужно встать. Tab — выбрать другого свободного игрока.';key='Tab';}
+  else if(match.charge){title=match.contactWindow?'Отпусти сейчас!':SHOTS[match.charge.kind].name;hint='←/→ — бег и направление, Shift + ↑/↓ — выше/ниже. Отпустите у мяча; руки уже готовы.';key=SHOTS[match.charge.kind].key;}
+  else if(match.phase==='rally'&&phase==='defense'){title='Сохрани мяч';hint='A — снизу. W — сверху. D — удар. S — один блокирующий. ↑ — прыжок, ↓ — нырок.';key='A';}
+  else if(match.phase==='rally'){title='Построй атаку';hint='←/→ — двигайтесь даже при замахе. A/W — пас; ↑ и D — атака. Tab меняет игрока.';key='W';}
   else if(match.phase==='serve-motion'){title='Подаём!';hint='Контакт разрешён вашим отпусканием. Дальше подающий сам за мячом не побежит.';key='↗';}
   $('action-title').textContent=title;$('action-hint').textContent=hint;$('action-key').textContent=key;$('assist-status').textContent=match.assistLabel;
   document.querySelectorAll('[data-phase]').forEach(el=>el.classList.toggle('current',el.dataset.phase===phase));

@@ -14,7 +14,7 @@ export class Sound {
       o.connect(g);g.connect(ctx.destination);o.start(now+delay);o.stop(now+delay+duration+.01);
       o.onended=()=>{o.disconnect();g.disconnect();};
     };
-    if(event.type==='hit')tone(event.kind==='super'?240:390,.1);
+    if(event.type==='hit')tone({low:220,loft:560,drive:340}[event.kind]||390,event.kind==='drive'?.07:.12);
     if(event.type==='block')tone(170,.15,0,'square');
     if(event.type==='net')tone(90,.12);
     if(event.type==='point'){tone(740,.11);tone(990,.22,.13);}

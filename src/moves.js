@@ -1,15 +1,15 @@
 import { clamp, launchTo, predictAtHeight } from './physics.js';
 export const SHOTS = Object.freeze({
-  low: { key: 'J', name: 'Приём снизу', speed: [5, 11.7], angle: 55, min: .16, max: 1.8, reach: 1.15, pose: 'bump' },
-  loft: { key: 'L', name: 'Верхний пас', speed: [5.8, 11.8], angle: 71, min: 1.25, max: 2.7, reach: 1.0, pose: 'set' },
-  drive: { key: 'I', name: 'Направленный удар', speed: [7.4, 18], angle: 31, min: .8, max: 2.75, reach: 1.12, pose: 'spike' },
+  low: { key: 'A', name: 'Приём снизу', speed: [5, 11.7], angle: 55, min: .16, max: 1.35, reach: 1.15, pose: 'bump' },
+  loft: { key: 'W', name: 'Верхний пас', speed: [5.8, 11.8], angle: 71, min: 1.65, max: 2.45, reach: 1.0, pose: 'set' },
+  drive: { key: 'D', name: 'Направленный удар', speed: [7.4, 18], angle: 31, min: .8, max: 2.6, reach: 1.12, pose: 'spike' },
 });
 export const SERVES = Object.freeze({
   low: { name: 'Нижняя подача', speed: [10, 17], angle: 49 },
   loft: { name: 'Планирующая подача', speed: [10.5, 17.5], angle: 38 },
-  drive: { name: 'Подача в прыжке', speed: [11.5, 18.5], angle: 22 },
+  drive: { name: 'Подача в прыжке', speed: [11.5, 18.5], angle: 18 },
 });
-export const CHARGE_SECONDS = .82;
+export const CHARGE_SECONDS = .41;
 export const RELEASE_WINDOW = .32;
 // Free launch first; assist may correct only a small error toward a teammate.
 export function shotImpulse(ball, player, kind, power, aim, players, config, serving = false) {
