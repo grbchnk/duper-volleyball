@@ -5,7 +5,7 @@ const mix=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
 const pairMix=(a,b,t)=>a.map((point,i)=>mix(point,b[i],t));
 const idle=[{x:-9,y:-12},{x:10,y:-12}];
 
-export function expressivePose({spec,config,kind,charge,swing,jump,block=false,step=0,contactPoint=null}){
+export function expressivePose({spec,config,kind,charge,swing,jump,block=false,diving=false,step=0,contactPoint=null}){
  const power=clamp(charge?.power??swing?.power??.35),amp=1.3*power*config.armPowerMotion;
  const scale=spec.size*config.armScale;
  const scaled=points=>points.map((p,i)=>({x:(i?6:-6)+(p.x-(i?6:-6))*scale,y:-20+(p.y+20)*scale}));
@@ -20,7 +20,7 @@ export function expressivePose({spec,config,kind,charge,swing,jump,block=false,s
  if(block){base=[{x:-10,y:-43},{x:11,y:-43}];stage='Блок';}
  base=scaled(base);
  let wrists=base,activity=0;
- const ready=scaled(kind==='low'?[{x:10,y:-9-amp*2},{x:14,y:-9-amp*2}]:kind==='loft'?[{x:0,y:-36+amp*2},{x:7,y:-36+amp*2}]:[{x:12,y:-27},{x:-13-amp*7,y:-33-amp*4}]);
+ const ready=scaled(diving?[{x:6,y:-39},{x:10,y:-40}]:kind==='low'?[{x:10,y:-9-amp*2},{x:14,y:-9-amp*2}]:kind==='loft'?[{x:0,y:-36+amp*2},{x:7,y:-36+amp*2}]:[{x:12,y:-27},{x:-13-amp*7,y:-33-amp*4}]);
  if(charge){activity=ease((charge.age??.1)/config.armWindup);wrists=pairMix(base,ready,activity);stage='Подготовка';}
  if(swing&&!charge&&!block&&kind!=='block'){
   const age=swing.age;

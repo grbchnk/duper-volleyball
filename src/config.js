@@ -1,14 +1,16 @@
+import { SKINS } from './sprites.js';
 import { ARM_STYLES } from './arms.js';
 export const FIXED_DT = 1 / 120;
 export const COURT = Object.freeze({ halfLength: 9, width: 9, netHeight: 2.43, ballRadius: 0.105 });
 export const DEFAULTS = Object.freeze({
   gravity: 9.81, drag: 0.018, restitution: 0.58, playerSpeed: 5.6,
   jumpSpeed: 5.2, hitPower: 1, gameSpeed: 0.7, assist: true,
-  scoring: 'sideout', targetScore: 15, difficulty: 'normal', trajectory: true, armStyle: 'whip',
+  scoring: 'sideout', targetScore: 15, difficulty: 'normal', trajectory: true, armStyle: 'whip', skin:'club',
   releaseWindow:.06, chargeSeconds:.41, maxHold:.56, chargeMove:.65,
   jumpWindup:.085, jumpRise:.54, jumpHang:.04, jumpFall:.45,
   blockWindow:.13, blockReach:.42, blockCooldown:1.15, blockDeflect:.45,
   armScale:1, armSpring:1, armBend:1,
+  diveSpeed:6.5,diveLift:2.3,diveRecovery:.92,divePower:.48,
   armWindup:.07, armPowerMotion:1, armJumpMotion:1,
 });
 export const PRESETS = {
@@ -22,6 +24,7 @@ export const LIMITS = {
   jumpWindup:[0,.25],jumpRise:[.3,.9],jumpHang:[0,.15],jumpFall:[.25,.85],
   blockWindow:[.04,.35],blockReach:[.2,.75],blockCooldown:[.6,2],blockDeflect:[.25,.8],
   armScale:[.65,1.3],armSpring:[.5,2],armBend:[0,1.5],
+  diveSpeed:[4,8],diveLift:[1.8,3],diveRecovery:[.5,1.4],divePower:[.2,.75],
   armWindup:[.025,.15],armPowerMotion:[0,1.5],armJumpMotion:[0,1.5],
 };
 export const TEAMS = [
@@ -42,5 +45,6 @@ export function sanitizeConfig(value = {}) {
   if (['sideout', 'rally'].includes(value.scoring)) result.scoring = value.scoring;
   if (['easy', 'normal', 'hard'].includes(value.difficulty)) result.difficulty = value.difficulty;
   if (Object.hasOwn(ARM_STYLES,value.armStyle)) result.armStyle=value.armStyle;
+  if(Object.hasOwn(SKINS,value.skin))result.skin=value.skin;
   return result;
 }

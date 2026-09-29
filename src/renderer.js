@@ -1,10 +1,11 @@
+import {BodySprites,playerFrame} from './sprites.js';
 import { COURT } from './config.js';
 import { clamp, traceBall } from './physics.js';
 import { springPoint, blockWindow } from './motion.js';
 import { ARM_STYLES } from './arms.js';
 import { expressivePose } from './arm-motion.js';
 export class Renderer {
-  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.camera=0;this.particles=[];this.impacts=[];this.armRigs=new Map();this.shake=0;this.background=document.createElement('canvas');this.background.width=960;this.background.height=540;this.makeBackground();}
+  constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.bodySprites=new BodySprites();this.camera=0;this.particles=[];this.impacts=[];this.armRigs=new Map();this.shake=0;this.background=document.createElement('canvas');this.background.width=960;this.background.height=540;this.makeBackground();}
   rect(x,y,w,h,color,ctx=this.ctx){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));}
   text(str,x,y,size=12,color='#454b47',align='left',ctx=this.ctx){ctx.font=`bold ${size}px "Consolas",monospace`;ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(str,Math.round(x),Math.round(y));}
   makeBackground(){
@@ -46,26 +47,16 @@ export class Renderer {
   }
   drawPlayer(p,team,m,dt){
     const c=this.ctx,pos=this.project(p.x,p.y),floor=this.project(p.x),dir=p.diving?Math.sign(p.diveVelocity):p.facing||(p.team===0?1:-1);
-    c.fillStyle='#b08e6a50';c.beginPath();c.ellipse(floor.x,457,14,4,0,0,Math.PI*2);c.fill();
+    c.fillStyle='#b08e6a50';c.beginPath();c.ellipse(floor.x,floor.y+6,13,3,0,0,Math.PI*2);c.fill();
     c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(dir*(this.spriteScale||2.1),this.spriteScale||2.1);
-    const r=(x,y,w,h,col)=>this.rect(x,y,w,h,col),ink='#665d62',skin='#f4cfac',hair=['#765f5a','#b38465','#695d6c','#aa826b'][p.id%4];
-    const diving=p.diving||p.pose==='belly';
-    if(diving){c.translate(-3,-5);c.rotate(Math.PI/2-.12);}
-    const running=Math.abs(p.vx)>.1&&p.y===0&&!p.recovery;
-    const bob=running?Math.sin(m.time*20)*1.1:p.pose==='idle'?Math.sin(m.time*3+p.id)*.4:0;
-    const preparingJump=p.jumpProfile&&p.jumpTime<p.jumpProfile.windup;
-    const load=preparingJump?Math.sin(Math.PI*Math.max(.15,p.jumpTime/p.jumpProfile.windup)):0;
-    const step=running?Math.sin(m.time*20)*3:0;const crouch=preparingJump?5*load:p.pose==='bump'||p.pose==='ready-bump'?3:p.pose==='land'?4*(p.animation/.12):p.pose==='getup'?4:0;c.translate(0,bob+crouch);
-    if(preparingJump)c.scale(1+.07*load,1-.09*load);else if(p.pose==='land')c.scale(1.08,.92);else if(p.y>0&&!diving)c.scale(.97,1.03);
-    // Chibi proportions: large head, tiny limbs, jersey and animal-eared cap.
-    r(-6-step,-7,4,6,skin);r(3+step,-7,4,6,skin);r(-7-step,-2,7,3,ink);r(3+step,-2,7,3,ink);r(-6-step,-2,6,2,'#fff5dd');r(4+step,-2,6,2,'#fff5dd');
-    r(-7,-11,15,5,team.dark);r(-5,-10,4,5,team.dark);r(3,-10,4,5,team.dark);
-    r(-8,-22,17,13,ink);r(-7,-21,15,11,team.color);r(-7,-21,3,11,team.dark);r(5,-20,3,9,team.light);r(-3,-21,7,2,'#fff2dd');
-    r(-9,-34,19,13,ink);r(-8,-35,17,13,skin);r(-7,-36,15,5,hair);r(-9,-33,4,7,hair);r(7,-33,3,7,hair);r(-7,-37,14,5,team.color);
-    r(-8,-41,5,6,team.dark);r(4,-41,5,6,team.dark);r(-7,-40,3,4,team.light);r(5,-40,3,4,team.light);
-    r(-3,-29,2,3,ink);r(4,-29,2,3,ink);r(-6,-26,3,2,'#eaa096');r(6,-26,3,2,'#eaa096');r(0,-24,3,1,'#b57670');
+    const frame=playerFrame(p,m),skin=m.config.skin||'club',pose=frame.pose;
+    if(p.diving||p.recovery>0){c.translate(-3,-5);c.rotate(pose.tilt);}
+    c.imageSmoothingEnabled=false;
+    c.drawImage(this.bodySprites.get(frame,skin,team,p.id),-32,-54);
+    c.save();c.translate(0,pose.y);
+    const step=frame.state==='run'?(pose.r-pose.l-9)*.5:0;
     this.drawArms(p,m,dt,step);
-    c.save();c.scale(dir,1);this.text(String(p.number),dir,-13,7,'#fff7e4','center');c.restore();c.restore();
+    c.save();c.scale(dir,1);this.text(String(p.number),dir,-13,7,'#fff7e4','center');c.restore();c.restore();c.restore();
     if(p.id===m.selected[0]&&m.mode!=='demo'){
       const y=pos.y-99;c.fillStyle='#5f8470';c.beginPath();c.moveTo(pos.x-5,y);c.lineTo(pos.x+5,y);c.lineTo(pos.x,y+6);c.fill();this.text('YOU',pos.x,y-4,8,'#426c5b','center');
     }
@@ -86,7 +77,7 @@ export class Renderer {
       rig.contactPoint={x:local.x,y:local.y};
       rig.contactKey=swing.at??swing;
     }
-    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',step,contactPoint:swing?.hit?rig.contactPoint:null});
+    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',diving:p.diving,step,contactPoint:swing?.hit?rig.contactPoint:null});
     if(!rig.wrists){rig.wrists=pose.wrists.map(w=>({...w,vx:0,vy:0}));rig.elbows=pose.elbows.map(w=>({...w,vx:0,vy:0}));}
     rig.stage=pose.stage;
     const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';

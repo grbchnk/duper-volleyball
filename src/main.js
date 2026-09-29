@@ -1,3 +1,4 @@
+import {SKINS} from './sprites.js';
 import { Match, EMPTY_INPUT } from './engine.js';
 import { Renderer } from './renderer.js';
 import { Sound } from './audio.js';
@@ -31,11 +32,13 @@ const physicsFields={
  releaseWindow:['Допуск после отпускания',.01,'с','Точность и замах','0 — строго в момент отпускания. Больше — проще попасть по мячу.'],chargeSeconds:['Время набора силы',.01,'с','Точность и замах'],maxHold:['Предельное удержание',.01,'с','Точность и замах','После лимита замах отменяется. Не меньше времени полного заряда + 0.05 с.'],chargeMove:['Бег при подготовке',.05,'×','Точность и замах'],
  jumpWindup:['Приседание до отталкивания',.005,'с','Фазы прыжка'],jumpRise:['Длительность подъёма',.01,'×','Фазы прыжка'],jumpHang:['Пауза на вершине',.005,'с','Фазы прыжка'],jumpFall:['Длительность падения',.01,'×','Фазы прыжка'],
  blockWindow:['Рабочее окно блока',.01,'с','Блок','Только возле вершины прыжка. В середине окна блок сильнее, по краям — смягчение.'],blockReach:['Досягаемость рук блока',.01,'м','Блок'],blockCooldown:['Восстановление блока',.05,'с','Блок'],blockDeflect:['Скорость отскока от блока',.05,'×','Блок'],
- armScale:['Размер рук',.05,'×','Внешний вид рук','Меняет позу и толщину, но не игровые зоны контакта.'],armSpring:['Упругость кистей',.05,'×','Внешний вид рук'],armBend:['Выраженность локтей',.05,'×','Внешний вид рук'],armWindup:['Быстрая подготовка',.005,'с','Анимация рук','Только движение рук. Не добавляет задержку к игровому касанию.'],armPowerMotion:['Влияние силы на замах',.05,'×','Анимация рук'],armJumpMotion:['Взмах рук в прыжке',.05,'×','Анимация рук'],targetScore:['Очков до победы в сете',1,'','Счёт'],
+ armScale:['Размер рук',.05,'×','Внешний вид рук','Меняет позу и толщину, но не игровые зоны контакта.'],armSpring:['Упругость кистей',.05,'×','Внешний вид рук'],armBend:['Выраженность локтей',.05,'×','Внешний вид рук'],armWindup:['Быстрая подготовка',.005,'с','Анимация рук','Только движение рук. Не добавляет задержку к игровому касанию.'],armPowerMotion:['Влияние силы на замах',.05,'×','Анимация рук'],armJumpMotion:['Взмах рук в прыжке',.05,'×','Анимация рук'],diveSpeed:['Скорость броска',.1,'м/с','Бросок за мячом'],diveLift:['Высота броска: импульс',.1,'м/с','Бросок за мячом'],diveRecovery:['Подъём после падения',.01,'с','Бросок за мячом'],divePower:['Сила приёма в броске',.01,'×','Бросок за мячом'],targetScore:['Очков до победы в сете',1,'','Счёт'],
 };
 const drawArmLab=createArmLab($('arms-dialog'),()=>config);
 function formatPhysics(key,value){return value.toFixed(key==='targetScore'?0:physicsFields[key][1]<.01?3:2)+' '+physicsFields[key][2];}
 function syncSettings(){
+  $('preview-skin').value=config.skin;
+  document.querySelectorAll('[data-skin]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.skin===config.skin)));
   $('speed').value=config.gameSpeed;$('speed-value').textContent=config.gameSpeed.toFixed(2)+'×';$('assist').checked=config.assist;$('trajectory').checked=config.trajectory;$('difficulty').value=config.difficulty;$('scoring').value=config.scoring;
   for(const key of Object.keys(physicsFields)){const el=$('physics-'+key);if(el){el.value=config[key];$('value-'+key).textContent=formatPhysics(key,config[key]);}}
 }
@@ -54,12 +57,13 @@ function updateUI(){
   $('charge-value').textContent=percent+'%';$('power-fill').style.width=percent+'%';$('power-fill').style.background=percent>88?'#d78e76':'#88a481';
   $('touch-count').textContent=match.touches[0]+' / 3';$('rule-label').textContent=`ТЕМП ${config.gameSpeed.toFixed(2)}×`;
   let title='Выбери подачу',hint='A — снизу, W — планирующая, D — в прыжке. Начните с 45–55% силы, затем отпустите.',key='A';
-  if(match.mode==='demo'){title='Смотрим и учимся';hint='Здесь обе команды играют сами. В «Матче» каждый контакт вашей команды будет ручным.';key='▶';}
+  if(match.mode==='demo'){title='Смотрим и учимся';hint='Здесь обе команды играют сами. В «Матче» вы командуете каждым приёмом, в том числе броском за мячом.';key='▶';}
   else if(['point','set-end'].includes(match.phase)){title=match.notice;hint=match.mode==='practice'?'Сейчас повторим упражнение. Кнопка «Повторить мяч» запускает его сразу.':match.pointReason;key='✿';}
   else if(match.phase==='finished'){title='Какой матч!';hint='Попробуйте новую комбинацию или измените характер физики.';key='✿';}
   else if(match.active(0).recovery>0){title='Поднимаемся';hint='После нырка игроку нужно встать. Tab — выбрать другого свободного игрока.';key='Tab';}
+  else if(match.active().diving){title=match.active().diveArmed?'Руки готовы к приёму':'Приём выполнен';hint='Направление броска зафиксировано. Мяч должен попасть в предплечья; A нажимать не нужно.';key='↓';}
   else if(match.charge){title=match.contactWindow?'Отпусти сейчас!':SHOTS[match.charge.kind].name;hint='←/→ — бег и направление, Shift + ↑/↓ — выше/ниже. Отпустите у мяча; руки уже готовы.';key=SHOTS[match.charge.kind].key;}
-  else if(match.phase==='rally'&&phase==='defense'){title='Сохрани мяч';hint='A — снизу. W — сверху. D — удар. S — один блокирующий. ↑ — прыжок, ↓ — нырок.';key='A';}
+  else if(match.phase==='rally'&&phase==='defense'){title='Сохрани мяч';hint='A — снизу. W — сверху. D — удар. S — один блокирующий. ↑ — прыжок, ↓ + ←/→ — бросок с приёмом.';key='A';}
   else if(match.phase==='rally'){title='Построй атаку';hint='3 выбирает нападающего у сетки. Затем ↑, короткий заряд D и отпускание у мяча. 1/2/3 — выбор игроков.';key='3';}
   else if(match.phase==='serve-motion'){title='Подаём!';hint='Контакт разрешён вашим отпусканием. Дальше подающий сам за мячом не побежит.';key='↗';}
   $('action-title').textContent=title;$('action-hint').textContent=hint;$('action-key').textContent=key;$('assist-status').textContent=match.assistLabel;
@@ -75,6 +79,15 @@ function frame(time){
   renderer.draw(match,teams,paused||modalOpen()?0:elapsed);drawArmLab(elapsed);if(time-lastUI>65){updateUI();lastUI=time;}requestAnimationFrame(frame);
 }
 for(const id of ['home-team','away-team'])for(const team of TEAMS){const option=document.createElement('option');option.value=team.id;option.textContent=team.name;$(id).append(option);}
+for(const [id,spec] of Object.entries(SKINS)){
+  const button=document.createElement('button');button.className='skin-choice';button.dataset.skin=id;button.title=spec.description;
+  const canvas=document.createElement('canvas');canvas.width=100;canvas.height=100;canvas.setAttribute('aria-hidden','true');
+  const previewMatch=new Match({...config,skin:id});previewMatch.selected[0]=-1;previewMatch.time=0;
+  const previewRenderer=new Renderer(canvas);previewRenderer.spriteScale=1.9;previewRenderer.project=()=>({x:50,y:90});previewRenderer.ctx.fillStyle='#f5f6ed';previewRenderer.ctx.fillRect(0,0,100,100);previewRenderer.drawPlayer(previewMatch.players[0],TEAMS[0],previewMatch,0);
+  const label=document.createElement('span');label.textContent=spec.name;button.append(canvas,label);button.onclick=()=>applyConfig({...config,skin:id});$('skin-cards').append(button);
+  const option=document.createElement('option');option.value=id;option.textContent=spec.name;$('preview-skin').append(option);
+}
+$('preview-skin').onchange=e=>applyConfig({...config,skin:e.target.value});
 $('home-team').value=teams[0].id;$('away-team').value=teams[1].id;
 $('arms-button').onclick=()=>openDialog('arms-dialog');
 $('start').onclick=$('new-match').onclick=$('rematch').onclick=()=>startGame();

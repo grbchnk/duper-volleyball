@@ -54,12 +54,12 @@ test('a block on the attacker side resets contacts and allows a fresh forearm re
  assert.equal(m.tryBlocks(),true);assert.deepEqual(m.touches,[0,0]);assert.equal(m.lastTouch,1);assert.equal(m.lastPlayer,null);assert.ok(m.ball.vx<0);
  m.cooldown=0;m.ball={...m.ball,x:m.active().x,y:1.3,vx:0,vy:0};m.tick(FIXED_DT,{low:true});m.tick();assert.equal(m.contacts,1);assert.equal(m.touches[0],1);assert.equal(m.lastTouch,0);
 });
-test('dive commits its direction, needs a manual hit, lands on belly and recovers',()=>{
+test('dive commits its direction, cannot hit a distant ball, lands on belly and recovers',()=>{
  const m=rally();m.ball.y=12;m.tick(FIXED_DT,{dive:true,axis:1});const x=m.active().x;tick(m,12,{axis:-1});assert.ok(m.active().x>x);assert.equal(m.contacts,0);
  tick(m,50);assert.equal(m.active().pose,'belly');assert.ok(m.active().recovery>0);const landedX=m.active().x;tick(m,20,{axis:1,jump:true});assert.equal(m.active().x,landedX);tick(m,120);assert.equal(m.active().recovery,0);
 });
 test('diving forearms can reach a low ball; overhead cannot',()=>{
- const m=rally();m.dive(m.active(),1);m.active().y=.2;m.ball={...m.ball,x:-6,y:.35};assert.equal(m.canContact(m.active(),'low'),true);assert.equal(m.canContact(m.active(),'loft'),false);
+ const m=rally();m.dive(m.active(),1);m.active().y=.2;m.ball={...m.ball,x:-5.2,y:.35};assert.equal(m.canContact(m.active(),'low'),true);assert.equal(m.canContact(m.active(),'loft'),false);
 });
 for(const kind of ['low','loft','drive'])test(`${kind} serve waits for release then launches once`,()=>{
  const m=new Match();tick(m,40,{[kind]:true});assert.equal(m.phase,'serve');assert.equal(m.stats.serves[0],0);m.tick();assert.equal(m.phase,'serve-motion');tick(m,50);assert.equal(m.stats.serves[0],1);assert.ok(m.ball.vx>0);
