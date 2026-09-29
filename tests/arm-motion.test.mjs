@@ -81,3 +81,27 @@ test('animation tuning does not delay contacts, change flight or create addition
   for(let i=0;i<95;i++)m.tick();assert.equal(m.players[1].armSwing,null);assert.equal(m.contacts,1);
  }
 });
+
+test('jump wrists stay on opposite sides throughout push-off and ascent',()=>{
+ const profile=jumpProfile(DEFAULTS);
+ for(let time=0;time<profile.windup+profile.rise;time+=.01){
+  const p=pose({kind:null,jump:{profile,time}});
+  assert.ok(p.wrists[0].x<0&&p.wrists[1].x>0);
+  assert.ok(Math.abs(p.wrists[0].x+p.wrists[1].x)<3);
+ }
+});
+
+test('forward rescue reaches horizontally as the body rotates; recovery palms meet the floor',()=>{
+ for(const bodyTilt of [.2,.55,1.05,1.38]){
+  const p=pose({kind:'low',diving:true,diveForward:true,bodyTilt,charge:{age:.2,power:.2}});
+  for(let i=0;i<2;i++){
+   const x=p.wrists[i].x-(i?3:-3),y=p.wrists[i].y+20;
+   assert.ok(Math.abs(x*Math.sin(bodyTilt)+y*Math.cos(bodyTilt))<1e-8);
+   assert.ok(x*Math.cos(bodyTilt)-y*Math.sin(bodyTilt)>24);
+  }
+ }
+ for(const bodyTilt of [1.49,1.05,.65]){
+  const bodyOffsetY=5,p=pose({bodyTilt,bodyOffsetY,recoveryPose:{progress:.3}});
+  for(const w of p.wrists)assert.ok(Math.abs(w.x*Math.sin(bodyTilt)+(w.y+bodyOffsetY)*Math.cos(bodyTilt)-5*Math.sin(bodyTilt))<1e-8);
+ }
+});

@@ -9,7 +9,7 @@ export const SKINS = {
 const f=(y=0,h=0,l=-5,ly=0,r=4,ry=0,eye=0,tilt=0)=>({y,h,l,ly,r,ry,eye,tilt});
 export const BODY_CLIPS = {
   idle:{label:'Стойка',fps:4,loop:true,frames:[f(),f(-1),f(),f(0,0,-5,0,4,0,1)]},
-  run:{label:'Бег',fps:12,loop:true,frames:[f(0,1,-8,0,6,-3),f(-1,1,-6,-2,5,-5),f(-2,1,-3,-4,3,-1),f(0,1,-2,-3,8,0),f(-1,1,-3,-5,6,-2),f(-2,1,-5,-1,3,-4)]},
+  run:{label:'Бег',fps:12,loop:true,frames:[f(0,1,-8,0,6,-3),f(-1,1,-6,-2,5,-5),f(-2,1,-3,-4,3,-1),f(0,1,-2,-3,8,0),f(-1,1,-3,-5,6,-2),f(-2,1,-5,-1,3,-4)].map(p=>({...p,l:-p.l-3,r:-p.r-3}))},
   crouch:{label:'Толчок',fps:30,frames:[f(1,1,-6),f(3,1,-7,0,6),f(5,1,-7,0,6)]},
   jump:{label:'Взлёт',fps:14,frames:[f(-1,1,-5,-2,4,-1),f(-2,1,-6,-4,5,-2),f(-2,0,-6,-5,5,-4)]},
   apex:{label:'Вершина',fps:12,frames:[f(-2,0,-6,-5,5,-4),f(-1,0,-5,-4,4,-4)]},
@@ -21,7 +21,7 @@ export const BODY_CLIPS = {
   block:{label:'Блок',fps:12,frames:[f(0,0,-5,-1,4,-1),f(-1,0,-6,-3,5,-3),f(0,0,-6,-2,5,-2)]},
   dive:{label:'Бросок',fps:14,frames:[f(2,2,-7,0,5,-2,0,.2),f(0,2,-7,-2,4,-4,0,.55),f(0,1,-6,-3,4,-5,0,1.05),f(0,1,-5,-4,4,-4,0,1.38)]},
   belly:{label:'На площадке',fps:10,frames:[f(0,1,-5,-3,4,-3,1,1.49),f(0,0,-5,-2,4,-2,1,1.49)]},
-  getup:{label:'Подъём',fps:12,frames:[f(1,0,-5,-2,4,-2,0,1.15),f(3,1,-6,0,5,0,0,.7),f(5,1,-7,0,6,0,0,.3),f(2,0,-6,0,5)]},
+  getup:{label:'Подъём',fps:12,frames:[f(0,1,-5,-2,4,-2,0,1.49),f(2,1,-4,-1,3,-1,0,1.05),f(5,1,-3,0,3,0,0,.65),f(6,1,-7,0,6,0,0,.25),f(3,1,-6,0,5),f()]},
   serve:{label:'Подача',fps:10,frames:[f(1,-1,-6,0,5),f(0,0,-5,0,4),f(-1,1,-5,-1,4),f(1,2,-5,0,5)]},
 };
 export function frameOf(state,time=0){
@@ -31,7 +31,7 @@ export function frameOf(state,time=0){
   return {state:BODY_CLIPS[state]?state:'idle',index,pose:clip.frames[index],label:clip.label,total:clip.frames.length};
 }
 export function playerFrame(p,m){
-  if(p.recovery>0)return p.recovery>.32?frameOf('belly',(p.recoveryTotal||.92)-p.recovery):frameOf('getup',.32-p.recovery);
+  if(p.recovery>0){const duration=Math.min(.5,(p.recoveryTotal||.92)*.7);return p.recovery>duration?frameOf('belly',(p.recoveryTotal||.92)-p.recovery):frameOf('getup',(1-p.recovery/duration)*.5);}
   if(p.diving)return frameOf('dive',p.diveAge||0);
   if(p.jumpProfile){
     const t=p.jumpTime,j=p.jumpProfile;
@@ -46,6 +46,8 @@ export function playerFrame(p,m){
   if(p.contact)return frameOf(p.contact.kind==='drive'?'spike':p.contact.kind==='loft'?'set':p.contact.kind==='block'?'block':'bump',.24-p.contact.life);
   const charge=m.charge?.playerId===p.id?m.charge:null;
   if(charge)return frameOf(charge.kind==='drive'?'spike':charge.kind==='loft'?'set':'bump',Math.min(.07,charge.age||0));
+  const released=m.pending?.playerId===p.id?m.pending:p.armSwing&&!p.armSwing.hit&&p.armSwing.age<.1?p.armSwing:null;
+  if(released)return frameOf(released.kind==='drive'?'spike':released.kind==='loft'?'set':'bump',.07);
   if(p.pose==='land'&&p.animation>0)return frameOf('land',.14-p.animation);
   if(Math.abs(p.vx)>.1)return frameOf('run',p.runTime??m.time);
   return frameOf('idle',m.time+p.id*.17);

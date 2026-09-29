@@ -5,22 +5,29 @@ const mix=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
 const pairMix=(a,b,t)=>a.map((point,i)=>mix(point,b[i],t));
 const idle=[{x:-9,y:-12},{x:10,y:-12}];
 
-export function expressivePose({spec,config,kind,charge,swing,jump,block=false,diving=false,step=0,contactPoint=null}){
+export function expressivePose({spec,config,kind,charge,swing,jump,block=false,diving=false,diveForward=false,bodyTilt=0,bodyOffsetY=0,recoveryPose=null,step=0,contactPoint=null}){
  const power=clamp(charge?.power??swing?.power??.35),amp=1.3*power*config.armPowerMotion;
  const scale=spec.size*config.armScale;
  const scaled=points=>points.map((p,i)=>({x:(i?6:-6)+(p.x-(i?6:-6))*scale,y:-20+(p.y+20)*scale}));
  let base=idle.map((p,i)=>({...p,x:p.x+(i?1:-1)*step*.5})),stage='Покой';
  if(jump){
   const {profile,time}=jump,air=time-profile.windup;let jumpPose;
-  if(air<0){const t=ease(time/Math.max(.001,profile.windup));jumpPose=[{x:-16*t-8,y:-11+5*t},{x:8-9*t,y:-11+5*t}];stage='Толчок';}
-  else if(air<profile.rise){const t=ease(air/profile.rise);jumpPose=pairMix([{x:-22,y:-7},{x:-1,y:-6}],[{x:-10,y:-39},{x:11,y:-41}],t);stage='Взлёт';}
+  if(air<0){const t=ease(time/Math.max(.001,profile.windup));jumpPose=[{x:-9-t,y:-12+6*t},{x:10+t,y:-12+6*t}];stage='Толчок';}
+  else if(air<profile.rise){const t=ease(air/profile.rise);jumpPose=pairMix([{x:-10,y:-6},{x:11,y:-6}],[{x:-10,y:-39},{x:11,y:-41}],t);stage='Взлёт';}
   else{const t=ease((air-profile.rise-profile.hang)/profile.fall);jumpPose=pairMix([{x:-10,y:-39},{x:11,y:-41}],idle,t);stage='Приземление';}
   base=pairMix(base,jumpPose,config.armJumpMotion);
  }
  if(block){base=[{x:-10,y:-43},{x:11,y:-43}];stage='Блок';}
  base=scaled(base);
+ // Keep the reach horizontal in world space while the torso tips forward.
+ if(diving&&diveForward){base=[-1,1].map(side=>({x:side*3+25*Math.cos(bodyTilt),y:-20-25*Math.sin(bodyTilt)}));stage='Руки вперёд';}
+ if(recoveryPose){
+  const t=clamp(recoveryPose.progress);
+  const support=[8,16].map(x=>{const y=5*Math.sin(bodyTilt);return {x:x*Math.cos(bodyTilt)+y*Math.sin(bodyTilt),y:-x*Math.sin(bodyTilt)+y*Math.cos(bodyTilt)-bodyOffsetY};});
+  base=pairMix(support,base,ease((t-.55)/.45));stage=t<.55?'Опора руками':'Подъём';
+ }
  let wrists=base,activity=0;
- const ready=scaled(diving?[{x:6,y:-39},{x:10,y:-40}]:kind==='low'?[{x:10,y:-9-amp*2},{x:14,y:-9-amp*2}]:kind==='loft'?[{x:0,y:-36+amp*2},{x:7,y:-36+amp*2}]:[{x:12,y:-27},{x:-13-amp*7,y:-33-amp*4}]);
+ const ready=diving&&diveForward?base:scaled(diving?[{x:6,y:-39},{x:10,y:-40}]:kind==='low'?[{x:10,y:-9-amp*2},{x:14,y:-9-amp*2}]:kind==='loft'?[{x:0,y:-36+amp*2},{x:7,y:-36+amp*2}]:[{x:12,y:-27},{x:-13-amp*7,y:-33-amp*4}]);
  if(charge){activity=ease((charge.age??.1)/config.armWindup);wrists=pairMix(base,ready,activity);stage='Подготовка';}
  if(swing&&!charge&&!block&&kind!=='block'){
   const age=swing.age;
@@ -40,6 +47,7 @@ export function expressivePose({spec,config,kind,charge,swing,jump,block=false,d
    stage=age<.055?'Контакт!':age<.14?'Проводка':activity>0?'Возврат':stage;
   }
  }
+ if(recoveryPose){wrists=base;activity=0;}
  const elbows=wrists.map((p,i)=>{
   const shoulder={x:i?spec.shoulder:-spec.shoulder,y:-20};
   const rest={x:(shoulder.x+p.x)/2+(i?1:-1)*6*config.armBend,y:(shoulder.y+p.y)/2+5*config.armBend};

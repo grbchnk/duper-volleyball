@@ -50,19 +50,19 @@ export class Renderer {
     c.fillStyle='#b08e6a50';c.beginPath();c.ellipse(floor.x,floor.y+6,13,3,0,0,Math.PI*2);c.fill();
     c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(dir*(this.spriteScale||2.1),this.spriteScale||2.1);
     const frame=playerFrame(p,m),skin=m.config.skin||'club',pose=frame.pose;
-    if(p.diving||p.recovery>0){c.translate(-3,-5);c.rotate(pose.tilt);}
+    if(p.diving||p.recovery>0){const tilt=pose.tilt;c.translate(-3*Math.sin(tilt),-5*Math.sin(tilt));c.rotate(tilt);}
     c.imageSmoothingEnabled=false;
     c.drawImage(this.bodySprites.get(frame,skin,team,p.id),-32,-54);
     c.save();c.translate(0,pose.y);
     const step=frame.state==='run'?(pose.r-pose.l-9)*.5:0;
-    this.drawArms(p,m,dt,step);
+    this.drawArms(p,m,dt,step,frame);
     c.save();c.scale(dir,1);this.text(String(p.number),dir,-13,7,'#fff7e4','center');c.restore();c.restore();c.restore();
     if(p.id===m.selected[0]&&m.mode!=='demo'){
       const y=pos.y-99;c.fillStyle='#5f8470';c.beginPath();c.moveTo(pos.x-5,y);c.lineTo(pos.x+5,y);c.lineTo(pos.x,y+6);c.fill();this.text('YOU',pos.x,y-4,8,'#426c5b','center');
     }
     if(p.recovery>0){this.text('···',pos.x,pos.y-25,15,'#a27970','center');}
   }
-  drawArms(p,m,dt,step){
+  drawArms(p,m,dt,step,bodyFrame=null){
     const c=this.ctx,spec=ARM_STYLES.whip;
     const charge=m.charge?.playerId===p.id?m.charge:null;
     const serving=m.phase==='serve-motion'&&p.id===m.selected[m.server];
@@ -77,7 +77,7 @@ export class Renderer {
       rig.contactPoint={x:local.x,y:local.y};
       rig.contactKey=swing.at??swing;
     }
-    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',diving:p.diving,step,contactPoint:swing?.hit?rig.contactPoint:null});
+    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',diving:p.diving,diveForward:p.diveVelocity*(p.team===0?1:-1)>0,bodyTilt:bodyFrame?.pose.tilt||0,bodyOffsetY:bodyFrame?.pose.y||0,recoveryPose:p.recovery>0?{progress:bodyFrame?.state==='getup'?bodyFrame.index/5:0}:null,step,contactPoint:swing?.hit?rig.contactPoint:null});
     if(!rig.wrists){rig.wrists=pose.wrists.map(w=>({...w,vx:0,vy:0}));rig.elbows=pose.elbows.map(w=>({...w,vx:0,vy:0}));}
     rig.stage=pose.stage;
     const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';

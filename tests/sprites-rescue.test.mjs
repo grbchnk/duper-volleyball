@@ -69,3 +69,20 @@ test('forward/back drills are playable, and skin choice leaves their physics ide
   }
  }
 });
+
+test('release keeps the prepared body until contact, including the former 0.65-second gap',()=>{
+ for(const kind of ['low','loft','drive']){
+  const m=setup(),p=m.active();m.charge={playerId:p.id,kind,age:.52};const before=playerFrame(p,m);
+  m.charge=null;m.pending={playerId:p.id,kind};
+  for(const age of [0,.01,.059]){p.armSwing={kind,age,hit:false};assert.deepEqual(playerFrame(p,m),before);}
+  m.pending=null;p.armSwing.age=.08;assert.deepEqual(playerFrame(p,m),before);
+ }
+});
+
+test('run legs sweep backward under a forward-facing torso; getup finishes in neutral stance',()=>{
+ const run=BODY_CLIPS.run.frames;assert.ok(run[0].l>run[1].l&&run[1].l>run[2].l);
+ assert.deepEqual(BODY_CLIPS.getup.frames.at(-1),BODY_CLIPS.idle.frames[0]);
+ const m=setup(),p=m.active();p.recoveryTotal=.92;p.recovery=.501;assert.equal(playerFrame(p,m).state,'belly');
+ p.recovery=.499;assert.equal(playerFrame(p,m).index,0);
+ p.recovery=.001;assert.equal(playerFrame(p,m).index,5);
+});
