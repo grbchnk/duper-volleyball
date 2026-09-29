@@ -5,6 +5,8 @@ import { DEFAULTS, FIXED_DT, LIMITS, TEAMS, sanitizeConfig } from './config.js';
 import { InputBuffer, GAME_KEYS } from './input.js';
 import { GUIDE_HTML } from './guide.js';
 import { SHOTS } from './moves.js';
+import { ARM_STYLES } from './arms.js';
+import { createArmLab } from './arm-lab.js';
 const $=id=>document.getElementById(id),storageKey='super-volley-club.config.v2';
 let config={...DEFAULTS};try{const data=localStorage.getItem(storageKey);if(data)config=sanitizeConfig(JSON.parse(data));}catch{}
 const match=new Match(config),renderer=new Renderer($('game')),sound=new Sound(),input=new InputBuffer();
@@ -25,10 +27,17 @@ window.addEventListener('blur',()=>{clearActions();if(started&&!paused&&!modalOp
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4000);}
 function persist(){try{localStorage.setItem(storageKey,JSON.stringify(config));}catch{}}
 function applyConfig(next){config=sanitizeConfig(next);match.updateConfig(config);syncSettings();persist();}
-const physicsFields={gravity:['Гравитация',.01,'м/с²'],drag:['Сопротивление воздуха',.005,''],restitution:['Упругость сетки',.01,''],playerSpeed:['Скорость бега',.1,'м/с'],jumpSpeed:['Импульс прыжка',.1,'м/с'],hitPower:['Сила контакта',.05,'×']};
-function formatPhysics(key,value){return value.toFixed(key==='drag'?3:2)+' '+physicsFields[key][2];}
+const physicsFields={
+ gravity:['Гравитация',.01,'м/с²','Мяч и игроки'],drag:['Сопротивление воздуха',.001,'','Мяч и игроки'],restitution:['Упругость сетки',.01,'','Мяч и игроки'],playerSpeed:['Скорость бега',.1,'м/с','Мяч и игроки'],jumpSpeed:['Высота прыжка: импульс',.1,'м/с','Мяч и игроки'],hitPower:['Сила контакта',.05,'×','Мяч и игроки'],
+ releaseWindow:['Допуск после отпускания',.01,'с','Точность и замах','0 — строго в момент отпускания. Больше — проще попасть по мячу.'],chargeSeconds:['Время набора силы',.01,'с','Точность и замах'],maxHold:['Предельное удержание',.01,'с','Точность и замах','После лимита замах отменяется. Не меньше времени полного заряда + 0.05 с.'],chargeMove:['Бег при подготовке',.05,'×','Точность и замах'],
+ jumpWindup:['Приседание до отталкивания',.005,'с','Фазы прыжка'],jumpRise:['Длительность подъёма',.01,'×','Фазы прыжка'],jumpHang:['Пауза на вершине',.005,'с','Фазы прыжка'],jumpFall:['Длительность падения',.01,'×','Фазы прыжка'],
+ blockWindow:['Рабочее окно блока',.01,'с','Блок','Только возле вершины прыжка. В середине окна блок сильнее, по краям — смягчение.'],blockReach:['Досягаемость рук блока',.01,'м','Блок'],blockCooldown:['Восстановление блока',.05,'с','Блок'],blockDeflect:['Скорость отскока от блока',.05,'×','Блок'],
+ armScale:['Размер рук',.05,'×','Внешний вид рук','Меняет позу и толщину, но не игровые зоны контакта.'],armSpring:['Упругость кистей',.05,'×','Внешний вид рук'],armBend:['Выраженность локтей',.05,'×','Внешний вид рук'],targetScore:['Очков до победы в сете',1,'','Счёт'],
+};
+const drawArmLab=createArmLab($('arms-dialog'),()=>config,style=>applyConfig({...config,armStyle:style}));
+function formatPhysics(key,value){return value.toFixed(key==='targetScore'?0:physicsFields[key][1]<.01?3:2)+' '+physicsFields[key][2];}
 function syncSettings(){
-  $('speed').value=config.gameSpeed;$('speed-value').textContent=config.gameSpeed.toFixed(2)+'×';$('assist').checked=config.assist;$('trajectory').checked=config.trajectory;$('difficulty').value=config.difficulty;$('scoring').value=config.scoring;
+  $('speed').value=config.gameSpeed;$('speed-value').textContent=config.gameSpeed.toFixed(2)+'×';$('assist').checked=config.assist;$('trajectory').checked=config.trajectory;$('difficulty').value=config.difficulty;$('scoring').value=config.scoring;$('arm-style').value=config.armStyle;
   for(const key of Object.keys(physicsFields)){const el=$('physics-'+key);if(el){el.value=config[key];$('value-'+key).textContent=formatPhysics(key,config[key]);}}
 }
 function setPaused(value){paused=value;clearActions();accumulator=0;$('pause-overlay').hidden=!value||!started||match.phase==='finished'||modalOpen();$('pause').textContent=value?'▶':'Ⅱ';$('pause').setAttribute('aria-label',value?'Продолжить':'Пауза');}
@@ -42,7 +51,7 @@ function startGame(mode='match'){
 function updateUI(){
   const phase=match.teamPhases[0],action=match.charge||match.pending,percent=Math.round((action?.power||0)*100);
   $('phase-pill').textContent=match.phase==='serve'||match.phase==='serve-motion'?'ПОДАЧА':phase==='attack'?'АТАКА':'ЗАЩИТА';$('phase-pill').classList.toggle('defense',phase==='defense');
-  $('charge-label').textContent=match.charge?`${SHOTS[match.charge.kind].name} · отпустите для контакта`:match.pending?'Попытка контакта…':'Зажмите A, W или D';
+  $('charge-label').textContent=match.charge?`${SHOTS[match.charge.kind].name} · до срыва ${Math.max(0,config.maxHold-match.charge.age).toFixed(2)} с`:match.pending?'Короткий допуск…':match.chargeLock?'Передержал — отпусти кнопку':'Зажмите A, W или D';
   $('charge-value').textContent=percent+'%';$('power-fill').style.width=percent+'%';$('power-fill').style.background=percent>88?'#d78e76':'#88a481';
   $('touch-count').textContent=match.touches[0]+' / 3';$('rule-label').textContent=`ТЕМП ${config.gameSpeed.toFixed(2)}×`;
   let title='Выбери подачу',hint='A — снизу, W — планирующая, D — в прыжке. Начните с 45–55% силы, затем отпустите.',key='A';
@@ -52,7 +61,7 @@ function updateUI(){
   else if(match.active(0).recovery>0){title='Поднимаемся';hint='После нырка игроку нужно встать. Tab — выбрать другого свободного игрока.';key='Tab';}
   else if(match.charge){title=match.contactWindow?'Отпусти сейчас!':SHOTS[match.charge.kind].name;hint='←/→ — бег и направление, Shift + ↑/↓ — выше/ниже. Отпустите у мяча; руки уже готовы.';key=SHOTS[match.charge.kind].key;}
   else if(match.phase==='rally'&&phase==='defense'){title='Сохрани мяч';hint='A — снизу. W — сверху. D — удар. S — один блокирующий. ↑ — прыжок, ↓ — нырок.';key='A';}
-  else if(match.phase==='rally'){title='Построй атаку';hint='←/→ — двигайтесь даже при замахе. A/W — пас; ↑ и D — атака. Tab меняет игрока.';key='W';}
+  else if(match.phase==='rally'){title='Построй атаку';hint='3 выбирает нападающего у сетки. Затем ↑, короткий заряд D и отпускание у мяча. 1/2/3 — выбор игроков.';key='3';}
   else if(match.phase==='serve-motion'){title='Подаём!';hint='Контакт разрешён вашим отпусканием. Дальше подающий сам за мячом не побежит.';key='↗';}
   $('action-title').textContent=title;$('action-hint').textContent=hint;$('action-key').textContent=key;$('assist-status').textContent=match.assistLabel;
   document.querySelectorAll('[data-phase]').forEach(el=>el.classList.toggle('current',el.dataset.phase===phase));
@@ -64,10 +73,13 @@ function updateUI(){
 function frame(time){
   const elapsed=Math.min(.1,(time-previousTime)/1000);previousTime=time;
   if(started&&!paused&&!modalOpen()){accumulator+=elapsed*config.gameSpeed;while(accumulator>=FIXED_DT){match.tick(FIXED_DT,input.read());input.consume();accumulator-=FIXED_DT;for(const event of match.events.splice(0)){renderer.effect(event,match);sound.play(event);}}}
-  renderer.draw(match,teams,paused||modalOpen()?0:elapsed);if(time-lastUI>65){updateUI();lastUI=time;}requestAnimationFrame(frame);
+  renderer.draw(match,teams,paused||modalOpen()?0:elapsed);drawArmLab(elapsed);if(time-lastUI>65){updateUI();lastUI=time;}requestAnimationFrame(frame);
 }
 for(const id of ['home-team','away-team'])for(const team of TEAMS){const option=document.createElement('option');option.value=team.id;option.textContent=team.name;$(id).append(option);}
 $('home-team').value=teams[0].id;$('away-team').value=teams[1].id;
+for(const [id,spec]of Object.entries(ARM_STYLES)){const option=document.createElement('option');option.value=id;option.textContent=spec.name;$('arm-style').append(option);}
+$('arm-style').onchange=e=>{applyConfig({...config,armStyle:e.target.value});$('game').focus({preventScroll:true});};
+$('arms-button').onclick=()=>openDialog('arms-dialog');
 $('start').onclick=$('new-match').onclick=$('rematch').onclick=()=>startGame();
 for(const mode of ['match','practice','demo'])$(mode+'-mode').onclick=()=>startGame(mode);
 function repeatDrill(){clearActions();match.startDrill($('drill').value);setPaused(false);$('game').focus({preventScroll:true});}
@@ -81,8 +93,10 @@ for(const dialog of document.querySelectorAll('dialog')){dialog.querySelector('.
 $('speed').oninput=e=>applyConfig({...config,gameSpeed:Number(e.target.value)});
 for(const key of ['assist','trajectory'])$(key).onchange=e=>applyConfig({...config,[key]:e.target.checked});
 $('difficulty').onchange=e=>applyConfig({...config,difficulty:e.target.value});$('scoring').onchange=e=>applyConfig({...config,scoring:e.target.value});
-for(const [key,[label,step]]of Object.entries(physicsFields)){const div=document.createElement('div'),lab=document.createElement('label');lab.className='slider-label';lab.htmlFor='physics-'+key;lab.append(document.createTextNode(label));const out=document.createElement('output');out.id='value-'+key;lab.append(out);const slider=document.createElement('input');slider.type='range';slider.id='physics-'+key;slider.min=LIMITS[key][0];slider.max=LIMITS[key][1];slider.step=step;slider.oninput=()=>applyConfig({...config,[key]:Number(slider.value)});div.append(lab,slider);$('physics-controls').append(div);}
+let lastPhysicsGroup;
+for(const [key,[label,step,,group,hint]]of Object.entries(physicsFields)){if(group!==lastPhysicsGroup){const heading=document.createElement('h3');heading.className='physics-group';heading.textContent=group;$('physics-controls').append(heading);lastPhysicsGroup=group;}const div=document.createElement('div'),lab=document.createElement('label');lab.className='slider-label';lab.htmlFor='physics-'+key;lab.append(document.createTextNode(label));const out=document.createElement('output');out.id='value-'+key;lab.append(out);const slider=document.createElement('input');slider.type='range';slider.id='physics-'+key;slider.min=LIMITS[key][0];slider.max=LIMITS[key][1];slider.step=step;slider.oninput=()=>applyConfig({...config,[key]:Number(slider.value)});div.append(lab,slider);if(hint){const note=document.createElement('small');note.textContent=hint;div.append(note);}$('physics-controls').append(div);}
 $('reset-physics').onclick=()=>{applyConfig(DEFAULTS);$('config-message').textContent='Уютный темп и базовая физика восстановлены.';};
 $('export-config').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify({version:2,config},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='volley-club-v2.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('config-message').textContent='Настройки готовы к скачиванию.';};
 $('import-config').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>50000)throw new Error('слишком большой файл');const data=JSON.parse(await file.text());if(data.version!==undefined&&data.version!==2)throw new Error('нужны настройки версии 02');const candidate=data.config??data;if(!candidate||typeof candidate!=='object'||Array.isArray(candidate)||!Object.keys(DEFAULTS).some(k=>k in candidate))throw new Error('в файле нет настроек');applyConfig(candidate);$('config-message').textContent='Настройки загружены и проверены.';}catch(err){$('config-message').textContent='Не удалось загрузить: '+err.message;}e.target.value='';};
 syncSettings();updateUI();requestAnimationFrame(frame);
+if(new URLSearchParams(location.search).get('view')==='arms')openDialog('arms-dialog');

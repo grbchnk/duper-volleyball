@@ -10,13 +10,13 @@ export const SERVES = Object.freeze({
   drive: { name: 'Подача в прыжке', speed: [11.5, 18.5], angle: 18 },
 });
 export const CHARGE_SECONDS = .41;
-export const RELEASE_WINDOW = .32;
+export const MAX_HOLD_SECONDS = .56;
 // Free launch first; assist may correct only a small error toward a teammate.
 export function shotImpulse(ball, player, kind, power, aim, players, config, serving = false) {
   const shot = serving ? SERVES[kind] : SHOTS[kind];
   const forward = player.team === 0 ? 1 : -1, dir = aim.axis || forward;
   let angle = shot.angle;
-  if (!serving && kind === 'drive' && player.y > .25) angle = 5;
+  if (!serving && kind === 'drive' && player.y > .25) angle = -10;
   angle += aim.up ? 16 : aim.down ? -17 : 0;
   const speed = (shot.speed[0] + (shot.speed[1] - shot.speed[0]) * power) * config.hitPower;
   const rad = angle * Math.PI / 180;

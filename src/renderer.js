@@ -1,6 +1,7 @@
 import { COURT } from './config.js';
 import { clamp, traceBall } from './physics.js';
-import { springPoint, elbowBetween } from './motion.js';
+import { springPoint, elbowBetween, blockWindow } from './motion.js';
+import { ARM_STYLES } from './arms.js';
 export class Renderer {
   constructor(canvas){this.canvas=canvas;this.ctx=canvas.getContext('2d',{alpha:false});this.camera=0;this.particles=[];this.impacts=[];this.armRigs=new Map();this.shake=0;this.background=document.createElement('canvas');this.background.width=960;this.background.height=540;this.makeBackground();}
   rect(x,y,w,h,color,ctx=this.ctx){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));}
@@ -45,14 +46,16 @@ export class Renderer {
   drawPlayer(p,team,m,dt){
     const c=this.ctx,pos=this.project(p.x,p.y),floor=this.project(p.x),dir=p.diving?Math.sign(p.diveVelocity):p.facing||(p.team===0?1:-1);
     c.fillStyle='#b08e6a50';c.beginPath();c.ellipse(floor.x,457,14,4,0,0,Math.PI*2);c.fill();
-    c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(dir*2.1,2.1);
+    c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(dir*(this.spriteScale||2.1),this.spriteScale||2.1);
     const r=(x,y,w,h,col)=>this.rect(x,y,w,h,col),ink='#665d62',skin='#f4cfac',hair=['#765f5a','#b38465','#695d6c','#aa826b'][p.id%4];
     const diving=p.diving||p.pose==='belly';
     if(diving){c.translate(-3,-5);c.rotate(Math.PI/2-.12);}
     const running=Math.abs(p.vx)>.1&&p.y===0&&!p.recovery;
     const bob=running?Math.sin(m.time*20)*1.1:p.pose==='idle'?Math.sin(m.time*3+p.id)*.4:0;
-    const step=running?Math.sin(m.time*20)*3:0;const crouch=p.pose==='bump'||p.pose==='ready-bump'?3:p.pose==='land'?4*(p.animation/.12):p.pose==='getup'?4:0;c.translate(0,bob+crouch);
-    if(p.pose==='land')c.scale(1.08,.92);else if(p.y>0&&!diving)c.scale(.97,1.03);
+    const preparingJump=p.jumpProfile&&p.jumpTime<p.jumpProfile.windup;
+    const load=preparingJump?Math.sin(Math.PI*Math.max(.15,p.jumpTime/p.jumpProfile.windup)):0;
+    const step=running?Math.sin(m.time*20)*3:0;const crouch=preparingJump?5*load:p.pose==='bump'||p.pose==='ready-bump'?3:p.pose==='land'?4*(p.animation/.12):p.pose==='getup'?4:0;c.translate(0,bob+crouch);
+    if(preparingJump)c.scale(1+.07*load,1-.09*load);else if(p.pose==='land')c.scale(1.08,.92);else if(p.y>0&&!diving)c.scale(.97,1.03);
     // Chibi proportions: large head, tiny limbs, jersey and animal-eared cap.
     r(-6-step,-7,4,6,skin);r(3+step,-7,4,6,skin);r(-7-step,-2,7,3,ink);r(3+step,-2,7,3,ink);r(-6-step,-2,6,2,'#fff5dd');r(4+step,-2,6,2,'#fff5dd');
     r(-7,-11,15,5,team.dark);r(-5,-10,4,5,team.dark);r(3,-10,4,5,team.dark);
@@ -68,7 +71,7 @@ export class Renderer {
     if(p.recovery>0){this.text('···',pos.x,pos.y-25,15,'#a27970','center');}
   }
   drawArms(p,m,dt,step){
-    const c=this.ctx,action=m.charge||m.pending;
+    const c=this.ctx,action=m.charge||m.pending,style=m.config.armStyle||'compact',spec=ARM_STYLES[style];
     const preparing=action?.playerId===p.id?action.kind:null;
     const kind=p.contact?.kind||(p.block>0?'block':preparing)||(m.phase==='serve-motion'&&p.id===m.selected[m.server]?m.serveAction?.kind:null);
     let targets=[{x:-10-step,y:-12},{x:11+step,y:-12}];
@@ -76,6 +79,9 @@ export class Renderer {
     if(kind==='loft')targets=[{x:-7,y:-41},{x:8,y:-41}];
     if(kind==='drive')targets=[{x:12,y:-22},{x:-11,y:-38}];
     if(kind==='block')targets=[{x:-11,y:-42},{x:12,y:-42}];
+    if(p.pose==='crouch')targets=[{x:-11,y:-10},{x:10,y:-10}];
+    if(style!=='classic'&&!kind)targets=[{x:-8-step*.5,y:-14},{x:8+step*.5,y:-14}];
+    for(let i=0;i<2;i++){const sx=i===0?-spec.shoulder:spec.shoulder;targets[i]={x:sx+(targets[i].x-sx)*spec.size*m.config.armScale,y:-20+(targets[i].y+20)*spec.size*m.config.armScale};}
     const tracking=preparing&&m.canContact(p,preparing);
     const serving=m.phase==='serve-motion'&&p.id===m.selected[m.server];
     const contact=p.contact;
@@ -88,20 +94,22 @@ export class Renderer {
       else targets=[{x:local.x-5,y:local.y+3-follow},{x:local.x+5,y:local.y+3-follow}];
     }
     let rig=this.armRigs.get(p.id);
-    if(!rig||rig.player!==p){rig={player:p,wrists:targets.map(t=>({...t,vx:0,vy:0})),contactAt:null};this.armRigs.set(p.id,rig);}
+    if(!rig||rig.player!==p||rig.style!==style){rig={player:p,style,wrists:targets.map(t=>({...t,vx:0,vy:0})),contactAt:null};this.armRigs.set(p.id,rig);}
     // The actual collision frame reaches the ball immediately, then the spring follows through.
     const newContact=contact&&contact.at!==rig.contactAt;
     if(newContact)rig.contactAt=contact.at;
     const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';
     for(let i=0;i<2;i++){
       const wrist=rig.wrists[i];
-      if(newContact)Object.assign(wrist,targets[i],{vx:0,vy:0});else springPoint(wrist,targets[i],dt);
-      const shoulder={x:i===0?-7:7,y:-20};
+      if(newContact)Object.assign(wrist,targets[i],{vx:0,vy:0});else springPoint(wrist,targets[i],dt,spec.spring*m.config.armSpring,spec.damping*Math.sqrt(m.config.armSpring));
+      const shoulder={x:i===0?-spec.shoulder:spec.shoulder,y:-20};
       const bend=(i===0?1:-1)*Math.sign(wrist.y-shoulder.y||1);
-      const elbow=elbowBetween(shoulder,wrist,bend);
-      c.lineCap='square';c.lineJoin='round';c.lineWidth=5;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);c.lineTo(elbow.x,elbow.y);c.lineTo(wrist.x,wrist.y);c.stroke();
-      c.lineWidth=3;c.strokeStyle=contact&&contact.life>.17?'#fff7dc':'#f4cfac';c.stroke();
-      this.rect(wrist.x-2,wrist.y-1,4,3,tint);this.rect(wrist.x-1,wrist.y-3,3,3,'#f4cfac');
+      const elbow=style==='classic'?elbowBetween(shoulder,wrist,bend*m.config.armBend):{x:(shoulder.x+wrist.x)/2+(i===0?-1:1)*3*m.config.armBend,y:(shoulder.y+wrist.y)/2+2*m.config.armBend};
+      c.lineCap=style==='classic'?'square':'round';c.lineJoin='round';c.lineWidth=spec.width*m.config.armScale;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);
+      if(style==='soft')c.quadraticCurveTo(elbow.x,elbow.y,wrist.x,wrist.y);else{if(style!=='mittens')c.lineTo(elbow.x,elbow.y);c.lineTo(wrist.x,wrist.y);}c.stroke();
+      c.lineWidth=Math.max(1,spec.width*m.config.armScale-2);c.strokeStyle=contact&&contact.life>.17?'#fff7dc':'#f4cfac';c.stroke();
+      const hand=spec.hand*m.config.armScale,activeBlock=kind==='block'&&blockWindow(p,m.config);
+      this.rect(wrist.x-hand/2,wrist.y-1,hand,hand*.7,activeBlock?'#f8da75':tint);this.rect(wrist.x-hand*.4,wrist.y-hand*.55,hand*.8,hand*.65,'#f4cfac');
     }
   }
   drawNet(){const c=this.ctx,x=480,top=450-COURT.netHeight*42;this.rect(x-4,top,8,111,'#718b83');this.rect(x-2,top,3,113,'#f7f2dd');this.rect(x-10,top,22,3,'#fffbee');this.rect(x+8,top-19,2,22,'#d3897c');for(let y=top+8;y<461;y+=8)this.rect(x-7,y,17,1,'#a9b9a7');this.rect(x-10,461,24,5,'#d29d82');}

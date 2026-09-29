@@ -6,7 +6,7 @@ import { DEFAULTS, FIXED_DT } from '../src/config.js';
 import { SHOTS, shotImpulse } from '../src/moves.js';
 import { InputBuffer } from '../src/input.js';
 const tick=(m,n,input={})=>{for(let i=0;i<n;i++)m.tick(FIXED_DT,input);};
-function rally(){const m=new Match();m.phase='rally';m.lastTouch=1;m.lastPlayer=4;m.possession=0;m.teamPhases=['defense','defense'];m.players[0].x=-7;m.ball={x:-7,y:1.5,z:4.5,vx:0,vy:0,vz:0,spin:0,angle:0};return m;}
+function rally(){const m=new Match();m.phase='rally';m.lastTouch=1;m.lastPlayer=3;m.possession=0;m.teamPhases=['defense','defense'];m.players[0].x=-7;m.ball={x:-7,y:1.5,z:4.5,vx:0,vy:0,vz:0,spin:0,angle:0};return m;}
 const state=(more={})=>({score:[0,0],sets:[0,0],server:0,...more});
 test('sideout, deuce ceiling and fifth-set rally scoring',()=>{
  const s=state();assert.equal(awardRally(s,1,DEFAULTS).scored,false);assert.deepEqual(s.score,[0,0]);assert.equal(awardRally(s,1,DEFAULTS).scored,true);
@@ -15,7 +15,7 @@ test('sideout, deuce ceiling and fifth-set rally scoring',()=>{
 });
 test('no human contact without input, including the setter',()=>{
  const m=rally();tick(m,45);assert.equal(m.contacts,0);assert.equal(m.stats.passes[0],0);
- const s=rally();s.selected[0]=3;s.lastTouch=0;s.lastPlayer=0;s.touches[0]=1;s.ball.x=s.active().x;s.ball.y=2.2;tick(s,45);assert.equal(s.contacts,0);
+ const s=rally();s.selected[0]=1;s.lastTouch=0;s.lastPlayer=0;s.touches[0]=1;s.ball.x=s.active().x;s.ball.y=2.2;tick(s,45);assert.equal(s.contacts,0);
 });
 test('holding a shot only charges; releasing performs one contact',()=>{
  const m=rally();tick(m,25,{low:true});assert.equal(m.contacts,0);assert.ok(m.charge.power>.2);m.tick();assert.equal(m.contacts,1);assert.equal(m.pending,null);assert.equal(m.charge,null);
@@ -38,19 +38,19 @@ test('assist ignores wrong direction and severe overpowering',()=>{
  let assisted=false;for(let q=.1;q<=.8;q+=.05)if(shotImpulse(m.ball,p,'low',q,{axis:1},m.players,DEFAULTS).assisted)assisted=true;assert.ok(assisted);
 });
 test('human server and teammates never chase or hit autonomously',()=>{
- const m=new Match();tick(m,40,{low:true});m.tick();tick(m,40);const xs=m.players.filter(p=>p.team===0).map(p=>p.x);tick(m,100);assert.deepEqual(m.players.filter(p=>p.team===0).map(p=>p.x),xs);assert.equal(m.stats.passes[0],0);
+ const m=new Match();tick(m,40,{low:true});m.tick();tick(m,50);const xs=m.players.filter(p=>p.team===0).map(p=>p.x);tick(m,100);assert.deepEqual(m.players.filter(p=>p.team===0).map(p=>p.x),xs);assert.equal(m.stats.passes[0],0);
 });
 test('normal human and CPU jumps forbid horizontal movement',()=>{
  const m=rally();m.ball.y=12;const p=m.active(),x=p.x;m.tick(FIXED_DT,{jump:true,axis:1});tick(m,40,{axis:-1});assert.ok(p.y>0);assert.equal(p.x,x);
  const cpu=m.players[5];const cx=cpu.x;m.jump(cpu);tick(m,25);assert.ok(cpu.y>0);assert.equal(cpu.x,cx);
 });
-test('one block press jumps one player; held K does not repeat; next edge jumps next player',()=>{
- const m=rally();m.ball={...m.ball,x:6,y:12,vx:0,vy:0};m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);
+test('one block press jumps one player; held S does not repeat; next edge jumps next player',()=>{
+ const m=rally();m.players[1].x=-2;m.ball={...m.ball,x:6,y:12,vx:0,vy:0};m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);
  tick(m,10,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);m.tick();m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,2);
  const xs=m.players.filter(p=>p.block>0).map(p=>p.x);tick(m,12,{axis:-1});assert.deepEqual(m.players.filter(p=>p.block>0).map(p=>p.x),xs);
 });
 test('a block on the attacker side resets contacts and allows a fresh forearm reception',()=>{
- const m=rally();m.touches=[3,0];m.lastTouch=0;m.lastPlayer=3;m.incomingShot='drive';m.ball={...m.ball,x:-.05,y:3,vx:10,vy:0};const blocker=m.players[7];blocker.x=.5;blocker.y=.7;blocker.block=.5;
+ const m=rally();m.touches=[3,0];m.lastTouch=0;m.lastPlayer=2;m.incomingShot='drive';const blocker=m.players[5];blocker.x=.32;m.jump(blocker,true);blocker.jumpTime=blocker.jumpProfile.windup+blocker.jumpProfile.rise+.02;blocker.y=blocker.jumpProfile.height;m.ball={...m.ball,x:-.05,y:blocker.y+2.05,vx:10,vy:0};
  assert.equal(m.tryBlocks(),true);assert.deepEqual(m.touches,[0,0]);assert.equal(m.lastTouch,1);assert.equal(m.lastPlayer,null);assert.ok(m.ball.vx<0);
  m.cooldown=0;m.ball={...m.ball,x:m.active().x,y:1.3,vx:0,vy:0};m.tick(FIXED_DT,{low:true});m.tick();assert.equal(m.contacts,1);assert.equal(m.touches[0],1);assert.equal(m.lastTouch,0);
 });
@@ -62,14 +62,14 @@ test('diving forearms can reach a low ball; overhead cannot',()=>{
  const m=rally();m.dive(m.active(),1);m.active().y=.2;m.ball={...m.ball,x:-6,y:.35};assert.equal(m.canContact(m.active(),'low'),true);assert.equal(m.canContact(m.active(),'loft'),false);
 });
 for(const kind of ['low','loft','drive'])test(`${kind} serve waits for release then launches once`,()=>{
- const m=new Match();tick(m,40,{[kind]:true});assert.equal(m.phase,'serve');assert.equal(m.stats.serves[0],0);m.tick();assert.equal(m.phase,'serve-motion');tick(m,40);assert.equal(m.stats.serves[0],1);assert.ok(m.ball.vx>0);
+ const m=new Match();tick(m,40,{[kind]:true});assert.equal(m.phase,'serve');assert.equal(m.stats.serves[0],0);m.tick();assert.equal(m.phase,'serve-motion');tick(m,50);assert.equal(m.stats.serves[0],1);assert.ok(m.ball.vx>0);
 });
 test('practice retries without changing score',()=>{
  const m=new Match();m.reset('practice');m.startDrill('receive');m.point(1,'TEST');assert.deepEqual(m.score,[0,0]);tick(m,290);assert.equal(m.phase,'rally');assert.equal(m.lastTouch,1);
 });
 test('all three neutral serves land in court at the documented beginner power',()=>{
  for(const kind of ['low','loft','drive'])for(const power of [.45,.5,.55]){
-  const m=new Match();m.beginServe({kind,power,aim:{axis:1}});tick(m,34);
+  const m=new Match();m.beginServe({kind,power,aim:{axis:1}});tick(m,44);
   for(const p of m.players)p.recovery=100;
   for(let i=0;i<600&&m.phase==='rally';i++)m.tick();
   assert.equal(m.pointReason,'МЯЧ КОСНУЛСЯ ПЛОЩАДКИ',`${kind} ${power}`);assert.equal(m.pointWinner,0);
