@@ -1,3 +1,4 @@
+import {preparedHands,ballTouchesHands} from './held-contact.js';
 import { DEFAULTS, COURT, FIXED_DT, sanitizeConfig } from './config.js';
 import { integrateBall, launchTo, predictAtHeight, collideNet, isInside, clamp } from './physics.js';
 import { SHOTS, SERVES, shotImpulse } from './moves.js';
@@ -62,6 +63,7 @@ export class Match {
     this.possession=this.ball.x<0?0:1;this.prediction=predictAtHeight(this.ball,1.4,this.config);
     this.movePlayers(dt,input);this.updateCPU();this.tryBlocks();
     if(this.pending&&this.cooldown<=0)this.tryPending();
+    this.tryHeldContact(previous);
     this.tryDiveContacts();
     for(const team of [0,1])if(!this.isHuman(team)&&this.cooldown<=0)this.tryCPUContact(team);
     if(this.pending){this.pending.ttl-=dt;if(this.pending.ttl<=0){this.players[this.pending.playerId].swingCooldown=.16;this.pending=null;this.label('Мимо: отпускайте кнопку у мяча',1.2);}}
@@ -149,13 +151,22 @@ export class Match {
       p.x=clamp(p.x,p.team===0?-10.5:.32,p.team===0?-.32:10.5);p.vx=(p.x-old)/dt;if(Math.abs(p.vx)>.1)p.runTime+=dt;else p.runTime=0;
     }
   }
-  canContact(p,kind){
+  canContact(p,kind,handsOnly=false){
     if(!p||p.recovery>0||p.block>0||this.phase!=='rally'||this.cooldown>0||(p.jumpProfile&&p.jumpTime<p.jumpProfile.windup))return false;
     if((this.ball.x<-.08&&p.team!==0)||(this.ball.x>.08&&p.team!==1))return false;
     if(this.lastPlayer===p.id&&this.lastTouch===p.team)return false;
+    if(handsOnly)return true;
     const shot=SHOTS[kind];let min=shot.min+p.y,max=shot.max+p.y,reach=shot.reach;
     if(p.diving){if(kind!=='low')return false;return this.ball.y>=.12&&this.ball.y<=1.2&&Math.abs(this.ball.x-(p.x+Math.sign(p.diveVelocity)*1.8))<=.55;}
     return Math.abs(this.ball.x-p.x)<=reach&&this.ball.y>=min&&this.ball.y<=max;
+  }
+  tryHeldContact(previous=this.ball){
+    const a=this.charge;if(!a||a.age<this.config.armWindup)return false;
+    const p=this.players[a.playerId];
+    if(!this.canContact(p,a.kind,true)||!ballTouchesHands(this.ball,previous,preparedHands(p,this),COURT.ballRadius+.13*this.config.armScale))return false;
+    // Consume the entire press, including when selection switches to a teammate.
+    this.charge=null;this.pending=null;this.chargeLock=true;
+    return this.makeContact(p,a.kind,a.power,shotImpulse(this.ball,p,a.kind,a.power,a.aim,this.players,this.config));
   }
   tryPending(){const a=this.pending,p=this.players[a.playerId];if(!this.canContact(p,a.kind))return false;this.pending=null;return this.makeContact(p,a.kind,a.power,shotImpulse(this.ball,p,a.kind,a.power,a.aim,this.players,this.config));}
   recordContact(p,kind,power){

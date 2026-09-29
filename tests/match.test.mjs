@@ -17,7 +17,7 @@ test('no human contact without input, including the setter',()=>{
  const m=rally();tick(m,45);assert.equal(m.contacts,0);assert.equal(m.stats.passes[0],0);
  const s=rally();s.selected[0]=1;s.lastTouch=0;s.lastPlayer=0;s.touches[0]=1;s.ball.x=s.active().x;s.ball.y=2.2;tick(s,45);assert.equal(s.contacts,0);
 });
-test('holding a shot only charges; releasing performs one contact',()=>{
+test('holding outside the palms charges; releasing performs one contact',()=>{
  const m=rally();tick(m,25,{low:true});assert.equal(m.contacts,0);assert.ok(m.charge.power>.2);m.tick();assert.equal(m.contacts,1);assert.equal(m.pending,null);assert.equal(m.charge,null);
  tick(m,20);m.ball={...m.ball,x:m.active().x,y:1.5,vx:0,vy:0};tick(m,10);assert.equal(m.contacts,1);
 });

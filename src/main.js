@@ -53,7 +53,7 @@ function startGame(mode='match'){
 function updateUI(){
   const phase=match.teamPhases[0],action=match.charge||match.pending,percent=Math.round((action?.power||0)*100);
   $('phase-pill').textContent=match.phase==='serve'||match.phase==='serve-motion'?'ПОДАЧА':phase==='attack'?'АТАКА':'ЗАЩИТА';$('phase-pill').classList.toggle('defense',phase==='defense');
-  $('charge-label').textContent=match.charge?`${SHOTS[match.charge.kind].name} · до срыва ${Math.max(0,config.maxHold-match.charge.age).toFixed(2)} с`:match.pending?'Короткий допуск…':match.chargeLock?'Передержал — отпусти кнопку':'Зажмите A, W или D';
+  $('charge-label').textContent=match.charge?`${SHOTS[match.charge.kind].name} · до срыва ${Math.max(0,config.maxHold-match.charge.age).toFixed(2)} с`:match.pending?'Короткий допуск…':match.chargeLock?'Отпусти кнопку для нового приёма':'Зажмите A, W или D';
   $('charge-value').textContent=percent+'%';$('power-fill').style.width=percent+'%';$('power-fill').style.background=percent>88?'#d78e76':'#88a481';
   $('touch-count').textContent=match.touches[0]+' / 3';$('rule-label').textContent=`ТЕМП ${config.gameSpeed.toFixed(2)}×`;
   let title='Выбери подачу',hint='A — снизу, W — планирующая, D — в прыжке. Начните с 45–55% силы, затем отпустите.',key='A';

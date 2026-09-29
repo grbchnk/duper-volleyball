@@ -47,6 +47,8 @@ export class Renderer {
   }
   drawPlayer(p,team,m,dt){
     const c=this.ctx,pos=this.project(p.x,p.y),floor=this.project(p.x),dir=p.diving?Math.sign(p.diveVelocity):p.facing||(p.team===0?1:-1);
+    const selected=p.id===m.selected[0]&&m.mode!=='demo';
+    if(selected){c.save();c.fillStyle='#fff1a54d';c.strokeStyle='#395c74';c.lineWidth=5;c.beginPath();c.ellipse(floor.x,floor.y+3,24,8,0,0,Math.PI*2);c.fill();c.stroke();c.strokeStyle='#ffe896';c.lineWidth=2;c.stroke();c.restore();}
     c.fillStyle='#b08e6a50';c.beginPath();c.ellipse(floor.x,floor.y+6,13,3,0,0,Math.PI*2);c.fill();
     c.save();c.translate(Math.round(pos.x),Math.round(pos.y));c.scale(dir*(this.spriteScale||2.1),this.spriteScale||2.1);
     const frame=playerFrame(p,m),skin=m.config.skin||'club',pose=frame.pose;
@@ -58,7 +60,7 @@ export class Renderer {
     this.drawArms(p,m,dt,step,frame);
     c.save();c.scale(dir,1);this.text(String(p.number),dir,-13,7,'#fff7e4','center');c.restore();c.restore();c.restore();
     if(p.id===m.selected[0]&&m.mode!=='demo'){
-      const y=pos.y-99;c.fillStyle='#5f8470';c.beginPath();c.moveTo(pos.x-5,y);c.lineTo(pos.x+5,y);c.lineTo(pos.x,y+6);c.fill();this.text('YOU',pos.x,y-4,8,'#426c5b','center');
+      const y=pos.y-105;this.rect(pos.x-32,y-24,64,22,'#314e64');this.rect(pos.x-30,y-22,60,18,'#ffe896');this.text('ТЫ · '+p.number,pos.x,y-9,13,'#314e64','center');c.fillStyle='#314e64';c.beginPath();c.moveTo(pos.x-9,y-2);c.lineTo(pos.x+9,y-2);c.lineTo(pos.x,y+8);c.fill();
     }
     if(p.recovery>0){this.text('···',pos.x,pos.y-25,15,'#a27970','center');}
   }
