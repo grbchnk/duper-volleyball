@@ -1,0 +1,9 @@
+{
+  "name": "super-volleyball-reborn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Editable, local-first 2.5D volleyball game inspired by the Mega Drive era",
+  "scripts": { "start": "node server.mjs", "test": "node --test tests/*.test.mjs" },
+  "engines": { "node": ">=20" }
+}
