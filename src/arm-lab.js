@@ -1,3 +1,4 @@
+import {EMOTIONS} from './emotions.js';
 import {Match} from './engine.js';
 import {Renderer} from './renderer.js';
 import {TEAMS} from './config.js';
@@ -6,6 +7,10 @@ import {playerFrame} from './sprites.js';
 
 // Uses the match renderer, including its springs and contact-to-recovery transition.
 export function createArmLab(dialog,getConfig){
+ const poseSelect=dialog.querySelector('#arm-pose');
+ for(const [value,label] of Object.entries({...EMOTIONS,'serve-low-left':'Подача снизу · левая','serve-low-right':'Подача снизу · правая','serve-loft-left':'Подача сверху · левая','serve-loft-right':'Подача сверху · правая'})){
+  const option=document.createElement('option');option.value=value;option.textContent=label;poseSelect.append(option);
+ }
  const canvas=document.createElement('canvas');canvas.width=400;canvas.height=280;canvas.setAttribute('aria-label','Хлёсткие — просмотр движения');
  const card=document.createElement('section');card.className='arm-card';
  const status=document.createElement('p');status.className='arm-stage';card.append(canvas,status);dialog.querySelector('#arm-cards').append(card);
@@ -23,9 +28,16 @@ export function createArmLab(dialog,getConfig){
   const kind=dialog.querySelector('#arm-pose').value,phase=freeze.checked?clock%2.200001:clock%2.2,cycle=Math.floor(clock/2.2),power=Number(powerInput.value)/100;
   frame.value=phase;dialog.querySelector('#arm-frame-value').textContent=phase.toFixed(2)+' с';
   m.config={...getConfig()};m.time=clock;const p=m.players[0];
-  Object.assign(p,{x:-1,y:0,vy:0,vx:0,facing:1,diving:false,diveArmed:false,diveAge:0,diveVelocity:0,recovery:0,block:0,blockUsed:false,contact:null,armSwing:null,pose:'idle',animation:0,jumpProfile:null,jumpTime:0});m.charge=null;m.pending=null;
+  Object.assign(p,{x:-1,y:0,vy:0,vx:0,facing:1,diving:false,diveArmed:false,diveAge:0,diveVelocity:0,recovery:0,block:0,blockUsed:false,contact:null,armSwing:null,pose:'idle',animation:0,jumpProfile:null,jumpTime:0});m.charge=null;m.pending=null;m.phase='rally';m.serveAction=null;p.emotion=null;
   let rescueBall=null;
-  if(kind==='jump'||kind==='block'){
+  if(EMOTIONS[kind]){p.emotion={kind,age:phase,duration:2.2};}
+  else if(kind.startsWith('serve-')){
+   const type=kind.split('-')[1],hand=kind.endsWith('left')?0:1;
+   const vx=5+power*9,vy=type==='low'?vx*.8:vx*.5,hitY=type==='low'?.85:2.05;
+   if(phase<.9){m.phase='serve-motion';m.server=0;m.serveAction={kind:type,hand,power,aim:{axis:1}};m.phaseTime=phase;rescueBall={x:-.5,y:1.3+(hitY-1.3)*phase/.9+Math.sin(phase/.9*Math.PI)*.7};}
+   else {const age=phase-.9;p.armSwing={kind:type,serve:true,hand,power,hit:true,age,at:cycle*2.2+.9,x:-.5,y:hitY,vx,vy};rescueBall={x:-.5+vx*age,y:hitY+vy*age-4.9*age*age};}
+  }
+  else if(kind==='jump'||kind==='block'){
    const profile=jumpProfile(m.config),t=phase-.2;
    if(t>=0&&t<jumpDuration(profile)){p.jumpProfile=profile;p.jumpTime=t;Object.assign(p,sampleJump(profile,t));p.pose=t<profile.windup?'crouch':kind==='block'?'block':'jump';if(kind==='block')p.block=jumpDuration(profile)-t;}
   }else if(kind==='run'){p.vx=3;p.runTime=clock;p.pose='run';}
@@ -42,7 +54,7 @@ export function createArmLab(dialog,getConfig){
    if(phase>.12&&phase<.65){m.charge={kind,power:power*Math.min(1,(phase-.12)/.35),age:phase-.12,playerId:0};p.pose='ready-'+({low:'bump',loft:'set',drive:'spike'}[kind]);}
    if(phase>=.65&&phase<.71){m.pending={kind,power,playerId:0};p.armSwing={kind,power,age:phase-.65,hit:false};}
    if(phase>=.71&&phase<.95)p.contact={kind,power,x:-.55,y:kind==='low'?.8:2.05,life:.95-phase,at:cycle*2.2+.71};
-   if(phase>=.71&&phase<1.46)p.armSwing={kind,power,x:-.55,y:kind==='low'?.8:2.05,age:phase-.71,at:cycle*2.2+.71,hit:true};
+   if(phase>=.71&&phase<1.46)p.armSwing={kind,power,x:-.55,y:kind==='low'?.8:2.05,age:phase-.71,at:cycle*2.2+.71,hit:true,vx:3+power*4,vy:kind==='drive'?-3:4};
   }
   m.ball={x:phase<.71?-.55+Math.max(0,(.71-phase)*4):-.55+(phase-.71)*(3+power*4),y:kind==='low'?.8:2.05,z:4.5,vx:0,vy:0,spin:0};
   if(rescueBall)Object.assign(m.ball,rescueBall);

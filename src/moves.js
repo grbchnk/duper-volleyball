@@ -5,9 +5,9 @@ export const SHOTS = Object.freeze({
   drive: { key: 'D', name: 'Направленный удар', speed: [7.4, 18], angle: 31, min: .8, max: 2.6, reach: 1.12, pose: 'spike' },
 });
 export const SERVES = Object.freeze({
-  low: { name: 'Нижняя подача', speed: [10, 17], angle: 49 },
-  loft: { name: 'Планирующая подача', speed: [10.5, 17.5], angle: 38 },
-  drive: { name: 'Подача в прыжке', speed: [11.5, 18.5], angle: 18 },
+  low: { name: 'Высокая подача снизу', speed: [10, 17], angle: 49 },
+  loft: { name: 'Силовая подача сверху', speed: [10.5, 17.5], angle: 38 },
+  drive: { name: 'Подача в прыжке', speed: [11.5, 18.5], angle: 13 },
 });
 export const CHARGE_SECONDS = .41;
 export const MAX_HOLD_SECONDS = .56;

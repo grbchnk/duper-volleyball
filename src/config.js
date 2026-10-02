@@ -9,7 +9,7 @@ export const DEFAULTS = Object.freeze({
   releaseWindow:.06, chargeSeconds:.41, maxHold:.56, chargeMove:.65,
   jumpWindup:.085, jumpRise:.54, jumpHang:.04, jumpFall:.45,
   blockWindow:.13, blockReach:.42, blockCooldown:1.15, blockDeflect:.45,
-  armScale:1, armSpring:1, armBend:1,
+  armScale:1, armSpring:1, armBend:1, elbowHeight:0, armRoundness:1,
   diveSpeed:6.5,diveLift:2.3,diveRecovery:.92,divePower:.48,
   armWindup:.07, armPowerMotion:1, armJumpMotion:1,
 });
@@ -23,7 +23,7 @@ export const LIMITS = {
   releaseWindow:[0,.35],chargeSeconds:[.15,.9],maxHold:[.2,1.5],chargeMove:[0,1],
   jumpWindup:[0,.25],jumpRise:[.3,.9],jumpHang:[0,.15],jumpFall:[.25,.85],
   blockWindow:[.04,.35],blockReach:[.2,.75],blockCooldown:[.6,2],blockDeflect:[.25,.8],
-  armScale:[.65,1.3],armSpring:[.5,2],armBend:[0,1.5],
+  elbowHeight:[-12,12],armRoundness:[.5,2],armScale:[.65,1.3],armSpring:[.5,2],armBend:[0,1.5],
   diveSpeed:[4,8],diveLift:[1.8,3],diveRecovery:[.5,1.4],divePower:[.2,.75],
   armWindup:[.025,.15],armPowerMotion:[0,1.5],armJumpMotion:[0,1.5],
 };

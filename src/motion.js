@@ -25,8 +25,8 @@ export function blockWindow(player,config){
 }
 export function serveOrigin(player, kind, config, preview = false) {
   const dir = player.team === 0 ? 1 : -1;
-  const lift = preview ? (kind === 'drive' ? sampleJump(jumpProfile(config), SERVE_WINDUP).y : 0) : player.y;
-  return {x: player.x + dir * (kind === 'loft' ? .2 : .5), y: lift + (kind === 'low' ? .85 : 2.05), z: 4.5};
+  const lift = preview ? (kind === 'drive' ? jumpProfile(config).height : 0) : player.y;
+  return {x: player.x + dir * (.5 + (preview && kind==='drive'?1.05:0)), y: lift + (kind === 'low' ? .85 : 2.05), z: 4.5};
 }
 
 // Damped wrists and a two-bone elbow. Only presentation uses these springs;

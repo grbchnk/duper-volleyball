@@ -44,6 +44,9 @@ test('normal human and CPU jumps forbid horizontal movement',()=>{
  const m=rally();m.ball.y=12;const p=m.active(),x=p.x;m.tick(FIXED_DT,{jump:true,axis:1});tick(m,40,{axis:-1});assert.ok(p.y>0);assert.equal(p.x,x);
  const cpu=m.players[5];const cx=cpu.x;m.jump(cpu);tick(m,25);assert.ok(cpu.y>0);assert.equal(cpu.x,cx);
 });
+test('analog movement keeps facing discrete so sprites do not squash',()=>{
+    const m=rally(),p=m.active();m.tick(FIXED_DT,{axis:.4});assert.equal(p.facing,1);m.tick(FIXED_DT,{axis:-.4});assert.equal(p.facing,1);m.ball.x=p.x-2;m.tick(FIXED_DT,{axis:-.4});assert.equal(p.facing,-1);
+});
 test('one block press jumps one player; held S does not repeat; next edge jumps next player',()=>{
  const m=rally();m.players[1].x=-2;m.ball={...m.ball,x:6,y:12,vx:0,vy:0};m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);
  tick(m,10,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,1);m.tick();m.tick(FIXED_DT,{block:true});assert.equal(m.players.filter(p=>p.team===0&&p.block>0).length,2);
@@ -61,15 +64,15 @@ test('dive commits its direction, cannot hit a distant ball, lands on belly and 
 test('diving forearms can reach a low ball; overhead cannot',()=>{
  const m=rally();m.dive(m.active(),1);m.active().y=.2;m.ball={...m.ball,x:-5.2,y:.35};assert.equal(m.canContact(m.active(),'low'),true);assert.equal(m.canContact(m.active(),'loft'),false);
 });
-for(const kind of ['low','loft','drive'])test(`${kind} serve waits for release then launches once`,()=>{
- const m=new Match();tick(m,40,{[kind]:true});assert.equal(m.phase,'serve');assert.equal(m.stats.serves[0],0);m.tick();assert.equal(m.phase,'serve-motion');tick(m,50);assert.equal(m.stats.serves[0],1);assert.ok(m.ball.vx>0);
+for(const kind of ['low','loft','drive'])test(`${kind} serve waits for release and a second press`,()=>{
+ const m=new Match();tick(m,40,{[kind]:true});assert.equal(m.phase,'serve');assert.equal(m.stats.serves[0],0);m.tick();assert.equal(m.phase,'serve-motion');tick(m,50);assert.equal(m.stats.serves[0],0);m.tick(FIXED_DT,{[kind]:true});assert.equal(m.stats.serves[0],1);assert.ok(m.ball.vx>0);
 });
 test('practice retries without changing score',()=>{
  const m=new Match();m.reset('practice');m.startDrill('receive');m.point(1,'TEST');assert.deepEqual(m.score,[0,0]);tick(m,290);assert.equal(m.phase,'rally');assert.equal(m.lastTouch,1);
 });
 test('all three neutral serves land in court at the documented beginner power',()=>{
  for(const kind of ['low','loft','drive'])for(const power of [.45,.5,.55]){
-  const m=new Match();m.beginServe({kind,power,aim:{axis:1}});tick(m,44);
+  const m=new Match();m.beginServe({kind,power,aim:{axis:1}});tick(m,Math.round(m.serveAction.ideal/FIXED_DT)-1);m.tick(FIXED_DT,{[kind]:true});
   for(const p of m.players)p.recovery=100;
   for(let i=0;i<600&&m.phase==='rally';i++)m.tick();
   assert.equal(m.pointReason,'МЯЧ КОСНУЛСЯ ПЛОЩАДКИ',`${kind} ${power}`);assert.equal(m.pointWinner,0);

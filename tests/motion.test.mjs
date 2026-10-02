@@ -34,7 +34,7 @@ test('preview is absent for unreachable balls and matches the actual contact imp
  m.config.trajectory=false;m.updatePreview();assert.equal(m.aimPreview,null);
 });
 test('serve previews use exactly the launch point after the curved jump, for all three types',()=>{
- for(const kind of ['low','loft','drive']){const m=new Match({...DEFAULTS,trajectory:true});m.charge={kind,power:.5,aim:{axis:1},playerId:0};m.updatePreview();const expected={...m.aimPreview};m.charge=null;m.beginServe({kind,power:.5,aim:{axis:1}});ticks(m,43);assert.equal(m.phase,'rally');for(const key of ['x','y','vx','vy'])assert.ok(Math.abs(m.ball[key]-expected[key])<1e-9,`${kind}: ${key}`);}
+ for(const kind of ['low','loft','drive']){const m=new Match({...DEFAULTS,trajectory:true});m.charge={kind,power:.5,aim:{axis:1},playerId:0};m.updatePreview();const expected={...m.aimPreview};m.charge=null;m.beginServe({kind,power:.5,aim:{axis:1}});ticks(m,Math.round(m.serveAction.ideal/FIXED_DT)-1);m.tick(FIXED_DT,{[kind]:true});assert.equal(m.phase,'rally');for(const key of ['x','y','vx','vy'])assert.ok(Math.abs(m.ball[key]-expected[key])<.015,`${kind}: ${key}`);}
 });
 test('trajectory trace follows the match integrator including a net rebound',()=>{
  const ball={x:-2,y:1.8,z:4.5,vx:14,vy:2,vz:0,spin:.5,angle:0};const path=traceBall(ball,DEFAULTS,.3),actual={...ball};

@@ -32,8 +32,8 @@ test('charge deepens the windup, release accents it and contact reaches the ball
  assert.ok(pose({swing:{power:1,age:.03,hit:false}}).wrists[1].x<strong.wrists[1].x);
  const hit=pose({swing:{power:1,age:0,hit:true},contactPoint:{x:13,y:-43}});
  assert.equal(hit.snap,true);assert.deepEqual(hit.wrists[1],{x:13,y:-43});
- const soft=pose({swing:{power:.2,age:.12,hit:true}}),hard=pose({swing:{power:1,age:.12,hit:true}});
- assert.ok(hard.wrists[1].y>soft.wrists[1].y);
+ const soft=pose({swing:{power:.2,age:.01,hit:true},localVelocity:{x:60,y:0}}),hard=pose({swing:{power:1,age:.01,hit:true},localVelocity:{x:180,y:0}});
+ assert.ok(hard.wrists[1].x>soft.wrists[1].x);
 });
 test('all wrists, elbows and palm angles return to the same rest pose after hit or miss, at every size and power',()=>{
  for(const armScale of [.65,1,1.3])for(const power of [.08,.5,1])for(const kind of ['low','loft','drive'])for(const hit of [true,false]){
@@ -49,9 +49,9 @@ test('overhead cup and wide elbows blend away during recovery rather than sticki
  assert.ok(recovering.cup>0&&recovering.cup<1);
  assert.notDeepEqual(recovering.elbows,ready.elbows);
 });
-test('a spike sweeps downward and returns without an extended hold; recovery blends into the jump pose',()=>{
+test('a spike makes a compact follow-through and recovers into the jump pose',()=>{
  const stroke=pose({swing:{hit:true,power:1,age:.13},contactPoint:{x:24,y:-44}});
- assert.ok(stroke.wrists[1].x<27);assert.ok(stroke.wrists[1].y>-20);
+ assert.ok(stroke.wrists[1].x<29);assert.ok(stroke.wrists[1].y>-44&&stroke.wrists[1].y<-30);
  const profile=jumpProfile(DEFAULTS),jump={profile,time:profile.windup+profile.rise};
  assert.deepEqual(pose({kind:'drive',jump,swing:{hit:true,power:1,age:.5}}).wrists,pose({kind:null,jump}).wrists);
  const up=pose({kind:null,jump}),early=pose({kind:null,jump:{profile,time:.04}});

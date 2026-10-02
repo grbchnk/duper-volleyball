@@ -1,3 +1,4 @@
+import {activeEmotion} from './emotions.js';
 import {BodySprites,playerFrame} from './sprites.js';
 import { COURT } from './config.js';
 import { clamp, traceBall } from './physics.js';
@@ -66,7 +67,7 @@ export class Renderer {
   }
   drawArms(p,m,dt,step,bodyFrame=null){
     const c=this.ctx,spec=ARM_STYLES.whip;
-    const charge=m.charge?.playerId===p.id?m.charge:null;
+    const charge=m.phase!=='serve'&&m.charge?.playerId===p.id?m.charge:null;
     const serving=m.phase==='serve-motion'&&p.id===m.selected[m.server];
     const swing=p.armSwing,kind=p.block>0?'block':charge?.kind||(serving?m.serveAction?.kind:null)||swing?.kind||(p.diving?'low':null);
     let rig=this.armRigs.get(p.id);
@@ -78,19 +79,23 @@ export class Renderer {
       // DOMPoint coordinates live on its prototype; object spread drops them.
       rig.contactPoint={x:local.x,y:local.y};
       rig.contactKey=swing.at??swing;
+      if(Number.isFinite(swing.vx)&&Number.isFinite(swing.vy)){
+        const end=c.getTransform().inverse().transformPoint(this.project(swing.x+swing.vx,swing.y+swing.vy));
+        rig.localVelocity={x:end.x-local.x,y:end.y-local.y};
+      }else rig.localVelocity=null;
     }
-    const pose=expressivePose({spec,config:m.config,kind,charge:charge||(serving?{...m.serveAction,age:m.phaseTime}:p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',diving:p.diving,diveForward:p.diveVelocity*(p.team===0?1:-1)>0,bodyTilt:bodyFrame?.pose.tilt||0,bodyOffsetY:bodyFrame?.pose.y||0,recoveryPose:p.recovery>0?{progress:bodyFrame?.state==='getup'?bodyFrame.index/5:0}:null,step,contactPoint:swing?.hit?rig.contactPoint:null});
+    const pose=expressivePose({emotion:activeEmotion(p),shoulderLift:bodyFrame?.pose.shoulders||0,localVelocity:swing?.hit?rig.localVelocity:null,actionDirection:Math.sign((serving?m.serveAction?.aim?.axis:charge?.aim?.axis)|| (p.team===0?1:-1))/(p.facing||1),spec,config:m.config,kind,serve:serving?{...m.serveAction,age:m.phaseTime}:null,charge:charge||(p.diving&&!swing?{kind:'low',power:.2,age:.1}:null),swing,jump:p.jumpProfile?{profile:p.jumpProfile,time:p.jumpTime}:null,block:p.block>0&&p.pose!=='crouch',diving:p.diving,diveForward:p.diveVelocity*(p.team===0?1:-1)>0,bodyTilt:bodyFrame?.pose.tilt||0,bodyOffsetY:bodyFrame?.pose.y||0,recoveryPose:p.recovery>0?{progress:bodyFrame?.state==='getup'?bodyFrame.index/5:0}:null,step,contactPoint:swing?.hit?rig.contactPoint:null});
     if(!rig.wrists){rig.wrists=pose.wrists.map(w=>({...w,vx:0,vy:0}));rig.elbows=pose.elbows.map(w=>({...w,vx:0,vy:0}));}
     rig.stage=pose.stage;
     const tint={low:'#78b6c9',loft:'#8aad77',drive:'#e89a70',block:'#b7a0ce'}[kind]||'#fff1da';
     for(let i=0;i<2;i++){
       const wrist=rig.wrists[i],target=pose.wrists[i];
-      if(newContact&&pose.snap)Object.assign(wrist,target,{vx:0,vy:0});else springPoint(wrist,target,dt,spec.spring*m.config.armSpring*(1+pose.power*.3),spec.damping*Math.sqrt(m.config.armSpring));
-      const shoulder={x:i?spec.shoulder:-spec.shoulder,y:-20},elbow=rig.elbows[i];
-      springPoint(elbow,pose.elbows[i],dt,spec.spring*m.config.armSpring*1.35,spec.damping*Math.sqrt(m.config.armSpring)*1.2);
-      c.lineCap='round';c.lineJoin='round';c.lineWidth=spec.width*m.config.armScale;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);
+      if((newContact&&pose.snap)||(swing?.hit&&rig.localVelocity&&swing.age<.09))Object.assign(wrist,target,{vx:0,vy:0});else springPoint(wrist,target,dt,spec.spring*m.config.armSpring*(kind==='loft'?1.65:1+pose.power*.3),spec.damping*Math.sqrt(m.config.armSpring)*(kind==='loft'?1.25:1));
+      const shoulder=pose.shoulders[i],elbow=rig.elbows[i];
+      springPoint(elbow,pose.elbows[i],dt,spec.spring*m.config.armSpring*(kind==='loft'?2:1.35),spec.damping*Math.sqrt(m.config.armSpring)*1.2);
+      c.lineCap='round';c.lineJoin='round';c.lineWidth=spec.width*m.config.armScale*m.config.armRoundness;c.strokeStyle='#665d62';c.beginPath();c.moveTo(shoulder.x,shoulder.y);
       c.quadraticCurveTo(elbow.x,elbow.y,wrist.x,wrist.y);c.stroke();
-      c.lineWidth=Math.max(1,spec.width*m.config.armScale-2);c.strokeStyle=pose.snap?'#fff7dc':'#f4cfac';c.stroke();
+      c.lineWidth=Math.max(1,spec.width*m.config.armScale*m.config.armRoundness-2);c.strokeStyle=pose.snap?'#fff7dc':'#f4cfac';c.stroke();
       const hand=spec.hand*m.config.armScale;
       c.save();c.translate(wrist.x,wrist.y);
       // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
@@ -107,9 +112,13 @@ export class Renderer {
     const c=this.ctx,p=this.project(m.ball.x,m.ball.y),y=Math.max(84,p.y);
     if(Math.hypot(m.ball.vx,m.ball.vy)>5)for(let i=0;i<m.trail.length;i+=4){const t=this.project(m.trail[i].x,m.trail[i].y);this.rect(t.x-3,t.y-3,6,6,'#fff4d480');}
     if(p.y<84)this.text('↑',clamp(p.x,15,945),81,15,'#bb776b','center');
-    if(m.contactWindow){c.strokeStyle='#cc7967';c.lineWidth=2;c.beginPath();c.arc(p.x,y,16,0,Math.PI*2);c.stroke();}
-    c.save();c.translate(Math.round(p.x),Math.round(y));c.rotate(m.ball.angle);c.fillStyle='#788b83';c.beginPath();c.arc(0,0,10,0,Math.PI*2);c.fill();c.fillStyle='#fff9d9';c.beginPath();c.arc(0,0,8,0,Math.PI*2);c.fill();c.strokeStyle='#d6957f';c.lineWidth=3;c.beginPath();c.moveTo(-7,-2);c.quadraticCurveTo(0,-5,7,1);c.moveTo(0,-8);c.quadraticCurveTo(-2,0,3,7);c.stroke();c.restore();
-    if(m.contactWindow&&m.mode!=='demo')this.text(m.charge?'ОТПУСТИТЕ':'КАСАНИЕ',p.x,y-22,9,'#9e665b','center');
+    if(m.contactWindow&&(m.phase!=='serve-motion'||Math.floor(m.phaseTime*20)%2===0)){c.strokeStyle='#cc7967';c.lineWidth=2;c.beginPath();c.arc(p.x,y,16,0,Math.PI*2);c.stroke();}
+    c.save();c.translate(Math.round(p.x),Math.round(y));
+    const speed=Math.hypot(m.ball.vx,m.ball.vy),stretch=1+clamp((speed-5)/30,0,.3);
+    const direction=Math.atan2(-m.ball.vy,m.ball.vx),impact=this.impacts.length?Math.max(...this.impacts.map(e=>e.life)):0;
+    const squash=impact>.34?1-(impact-.34)*2:1;
+    c.rotate(direction);c.scale(stretch*1.18*squash,1.18/(stretch*squash));c.rotate(-direction);c.rotate(m.ball.angle);c.fillStyle='#788b83';c.beginPath();c.arc(0,0,10,0,Math.PI*2);c.fill();c.fillStyle='#fff9d9';c.beginPath();c.arc(0,0,8,0,Math.PI*2);c.fill();c.strokeStyle='#d6957f';c.lineWidth=3;c.beginPath();c.moveTo(-7,-2);c.quadraticCurveTo(0,-5,7,1);c.moveTo(0,-8);c.quadraticCurveTo(-2,0,3,7);c.stroke();c.restore();
+    if(m.contactWindow&&m.mode!=='demo')this.text(m.phase==='serve-motion'?'НАЖМИ!':m.charge?'ОТПУСТИТЕ':'КАСАНИЕ',p.x,y-22,9,'#9e665b','center');
   }
   trajectory(ball,config,preview){const points=traceBall(ball,config),color=preview?({low:'#568ca6',loft:'#638e56',drive:'#c78055'}[ball.kind]||'#698d7f'):'#fff5d299';for(let i=0;i<points.length;i+=16){const p=this.project(points[i].x,points[i].y);this.rect(p.x-2,p.y-2,4,4,color);}const end=points.at(-1);if(end.y<=COURT.ballRadius){const p=this.project(end.x);this.rect(p.x-6,456,12,3,color);}}
   drawHUD(m,teams){
@@ -117,7 +126,7 @@ export class Renderer {
     this.rect(29,17,8,34,teams[0].color);this.text(teams[0].short,48,34,17,teams[0].dark);this.text(m.mode==='demo'?'CPU':'ВАША КОМАНДА',48,51,9,'#839286');
     this.rect(923,17,8,34,teams[1].color);this.text(teams[1].short,912,34,17,teams[1].dark,'right');this.text('КОМПЬЮТЕР',912,51,9,'#839286','right');
     this.text(`${String(m.score[0]).padStart(2,'0')} : ${String(m.score[1]).padStart(2,'0')}`,480,41,32,'#526e5f','center');this.text(`СЕТ ${m.sets[0]+m.sets[1]+1}  /  ${m.sets.join(' — ')}`,480,61,9,'#8d9b84','center');
-    const phase=m.teamPhases[0]==='attack'?'АТАКА':'ЗАЩИТА';this.text(m.phase==='serve'?'ПОДАЧА':phase,265,34,11,'#8d7867','center');this.text(`${m.touches[0]} / 3 КАСАНИЯ`,265,51,9,'#8b998a','center');
+    const phase=m.mode==='test'?'ТЕСТ ∞':m.teamPhases[0]==='attack'?'АТАКА':'ЗАЩИТА';this.text(m.phase==='serve'?'ПОДАЧА':phase,265,34,11,'#8d7867','center');this.text(`${m.touches[0]} / 3 КАСАНИЯ`,265,51,9,'#8b998a','center');
     this.text('A  W  D',697,32,13,'#7d917a','center');this.text('ЗАЖМИ → ОТПУСТИ',697,51,8,'#8b998a','center');
   }
   effect(e,m){if(e.type==='hit'||e.type==='block'){const p=this.project(e.x??m.ball.x,e.y??m.ball.y),color={low:'#568ca6',loft:'#638e56',drive:'#c78055',block:'#947aaf'}[e.kind]||'#947aaf';for(let i=0;i<10;i++)this.particles.push({x:p.x,y:p.y,vx:Math.cos(i)*65,vy:Math.sin(i)*65,life:.27,color});this.impacts.push({...p,life:.4,color,label:{low:'СНИЗУ',loft:'ПАС',drive:'УДАР',block:'БЛОК'}[e.kind]||'БЛОК'});}}
