@@ -1,1 +1,82 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Методичка · Super Volley Club</title><link rel="stylesheet" href="./style.css"><style>main{max-width:900px;padding-bottom:50px}.guide p,.guide li{font-size:14px}.guide table{font-size:13px}.guide h3{margin-top:32px}.guide td:first-child{white-space:normal}.printbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:35px}@media print{.printbar{display:none}body{background:white;color:#222}.guide p,.guide li,.guide strong,.guide th,.guide td{color:#222}main{padding:0;max-width:none}.guide table{break-inside:auto}.guide tr{break-inside:avoid}h3{break-after:avoid}.guide-callout{background:#f2f2f2}}</style></head><body><main><div class="printbar"><a href="./">← На площадку</a><button id="print" class="secondary">Печать / сохранить PDF</button></div><p class="eyebrow">SUPER VOLLEY CLUB · VOL. 02</p><h1>Методичка<br><em>к красивой игре.</em></h1><div id="content"></div></main><script type="module">import{GUIDE_HTML}from'./src/guide.js';document.getElementById('content').innerHTML=GUIDE_HTML;document.getElementById('print').onclick=()=>window.print();</script></body></html>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Методичка · Super Volley Club</title>
+    <link rel="stylesheet" href="./style.css" />
+    <style>
+      main {
+        max-width: 900px;
+        padding-bottom: 50px;
+      }
+      .guide p,
+      .guide li {
+        font-size: 14px;
+      }
+      .guide table {
+        font-size: 13px;
+      }
+      .guide h3 {
+        margin-top: 32px;
+      }
+      .guide td:first-child {
+        white-space: normal;
+      }
+      .printbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 35px;
+      }
+      @media print {
+        .printbar {
+          display: none;
+        }
+        body {
+          background: white;
+          color: #222;
+        }
+        .guide p,
+        .guide li,
+        .guide strong,
+        .guide th,
+        .guide td {
+          color: #222;
+        }
+        main {
+          padding: 0;
+          max-width: none;
+        }
+        .guide table {
+          break-inside: auto;
+        }
+        .guide tr {
+          break-inside: avoid;
+        }
+        h3 {
+          break-after: avoid;
+        }
+        .guide-callout {
+          background: #f2f2f2;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="printbar">
+        <a href="./">← На площадку</a
+        ><button id="print" class="secondary">Печать / сохранить PDF</button>
+      </div>
+      <p class="eyebrow">SUPER VOLLEY CLUB · VOL. 02</p>
+      <h1>Методичка<br /><em>по игре.</em></h1>
+      <div id="content"></div>
+    </main>
+    <script type="module">
+      import { GUIDE_HTML } from './src/guide.js';
+      document.getElementById('content').innerHTML = GUIDE_HTML;
+      document.getElementById('print').onclick = () => window.print();
+    </script>
+  </body>
+</html>

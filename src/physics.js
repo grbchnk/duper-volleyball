@@ -42,12 +42,19 @@ export function isInside(ball) {
 }
 
 // Same step, drag, spin and net collision as Match.tick; excludes future player contacts.
-export function traceBall(ball, config, seconds=4) {
-  const b={...ball}, points=[{...b}];
-  for(let i=0;i<Math.ceil(seconds/FIXED_DT);i++) {
-    const previous={...b};integrateBall(b,FIXED_DT,config);collideNet(b,previous,config.restitution);
-    if(b.y<=COURT.ballRadius){b.y=COURT.ballRadius;points.push({...b});break;}
-    points.push({...b});
+export function traceBall(ball, config, seconds = 4) {
+  const b = { ...ball },
+    points = [{ ...b }];
+  for (let i = 0; i < Math.ceil(seconds / FIXED_DT); i++) {
+    const previous = { ...b };
+    integrateBall(b, FIXED_DT, config);
+    collideNet(b, previous, config.restitution);
+    if (b.y <= COURT.ballRadius) {
+      b.y = COURT.ballRadius;
+      points.push({ ...b });
+      break;
+    }
+    points.push({ ...b });
   }
   return points;
 }
