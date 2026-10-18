@@ -1,8 +1,14 @@
-// Original canvas scenery; court coordinates are identical in every location.
+import {
+  drawStreetSky,
+  drawStreetCity,
+  drawStreetArchitecture,
+  drawStreetForeground,
+} from './street-scene.js';
+// Court coordinates are identical in every location.
 export const ARENAS = {
   miami: {
-    name: 'Майами · вечер',
-    subtitle: 'Пальмы, океан и персиковый закат',
+    name: 'Город · закат',
+    subtitle: 'Тёплый асфальт, граффити и вечерний матч',
     court: '#e7bdad',
     edge: '#cb9da4',
     floor: '#8b9da2',
@@ -33,7 +39,14 @@ export function spectatorPlace(index) {
   const y = 338 + (index % 2) * 8;
   return { x: 65 + index * 47, y, groundY: y + 26 };
 }
-export function drawArenaBackdrop(c, theme = 'miami') {
+export function drawArenaBackdrop(c, theme = 'miami', time = 0) {
+  if (theme === 'miami') {
+    drawStreetSky(c, time);
+    drawStreetCity(c);
+    drawStreetArchitecture(c);
+    drawStreetForeground(c);
+    return;
+  }
   const arena = ARENAS[theme] || ARENAS.miami;
   const r = (x, y, w, h, color) => {
     c.fillStyle = color;

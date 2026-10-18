@@ -1,6 +1,7 @@
 import { activeEmotion } from './emotions.js';
 import { skinPalette } from './appearance.js';
-// Editable, hand-authored pixel frames. Body frames are cached as 64×64 sprites;
+// Editable, hand-authored pixel frames. Frames use a 128×128 raster with
+// half-unit detailing, presented in the original 64×64 rig coordinate system;
 // the existing spring-driven arms are drawn above them without changing their rig.
 export const SKINS = {
   club: {
@@ -80,21 +81,28 @@ export const BODY_CLIPS = {
       if (i >= 18 && i < 29) return f(0, i < 26 ? 1 : 0);
       if (i >= 62 && i < 78) return f(i < 66 || i > 74 ? 0 : -1, -1, -6, 0, 3);
       if (i >= 90 && i < 96) return f(0, 1, -4, 0, 5);
-      return f();
+      // One-pixel ribcage breath, with long held frames instead of jitter.
+      return i % 30 >= 19 && i % 30 <= 24 ? f(-1) : f();
     }),
   },
   run: {
     label: 'Бег',
-    fps: 12,
+    fps: 24,
     loop: true,
     frames: [
-      f(0, 1, 5, 0, -5, -3),
-      f(-1, 1, 1, 0, -3, -5),
-      f(0, 1, -4, 0, 2, -3),
-      f(0, 1, -5, -3, 5, 0),
-      f(-1, 1, -3, -5, 1, 0),
-      f(0, 1, 2, -3, -4, 0),
-    ],
+      f(0, 1, 6, 0, -5, -5),
+      f(1, 1, 4, 0, -4, -6),
+      f(1, 2, 1, 0, -2, -7),
+      f(0, 2, -2, 0, 1, -6),
+      f(-1, 1, -5, -1, 4, -3),
+      f(-1, 1, -6, -3, 6, -1),
+      f(0, 1, -5, -5, 6, 0),
+      f(1, 1, -4, -6, 4, 0),
+      f(1, 2, -2, -7, 1, 0),
+      f(0, 2, 1, -6, -2, 0),
+      f(-1, 1, 4, -3, -5, -1),
+      f(-1, 1, 6, -1, -6, -3),
+    ].map((pose, i) => ({ ...pose, lean: i % 6 < 3 ? 0.12 : 0.09 })),
   },
   crouch: { label: 'Толчок', fps: 30, frames: [f(1, 1, -6), f(3, 1, -7, 0, 6), f(5, 1, -7, 0, 6)] },
   squat: {
@@ -140,7 +148,13 @@ export const BODY_CLIPS = {
   spike: {
     label: 'Удар',
     fps: 16,
-    frames: [f(1, -2, -6, 0, 5), f(-1, -1, -6, -1, 5), f(0, 2, -5, 0, 6), f(2, 2, -6, 0, 5), f()],
+    frames: [
+      f(1, -2, -6, 0, 5),
+      f(-1, -1, -6, -1, 5),
+      f(0, 2, -5, 0, 6),
+      f(2, 2, -6, 0, 5),
+      f(),
+    ].map((pose, i) => ({ ...pose, lean: [-0.09, -0.05, 0.15, 0.12, 0][i] })),
   },
   block: {
     label: 'Блок',
@@ -281,8 +295,14 @@ export function playerFrame(p, m) {
     );
   if (p.pose === 'land' && p.animation > 0) return frameOf('land', 0.14 - p.animation);
   if (Math.abs(p.vx) > 0.1) {
-    const t = p.runTime ?? m.time;
-    return frameOf('run', p.vx * (p.facing || 1) < 0 ? (6 - ((t * 12) % 6)) / 12 : t);
+    const t = p.runTime ?? m.time,
+      clip = BODY_CLIPS.run;
+    return frameOf(
+      'run',
+      p.vx * (p.facing || 1) < 0
+        ? (clip.frames.length - ((t * clip.fps) % clip.frames.length)) / clip.fps
+        : t,
+    );
   }
   return frameOf('idle', m.time + p.id * 2.73);
 }
@@ -304,16 +324,44 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
     c.fillStyle = color;
     c.fillRect(x, y, w, h);
   };
-  // 15-pixel torso and 17-pixel head: subtly slimmer than the old 17/19 silhouette.
+  // Angled legs retain the animated foot positions and give the stance weight.
   if (layer === 'all' || layer === 'feet')
-    for (const [x, y] of [
-      [pose.l, pose.ly],
-      [pose.r, pose.ry],
+    for (const [foot, y, side] of [
+      [pose.l, pose.ly, -1],
+      [pose.r, pose.ry, 1],
     ]) {
-      r(x, -8 + y, 3, 7, flesh);
-      r(x, -4 + y, 3, 3, '#f8eed6');
-      r(x - 1, -2 + y, 6, 3, ink);
-      r(x - 1, -2 + y, 5, 2, '#fff6e1');
+      const x = Math.round(foot * 1.8);
+      const hip = side * 4;
+      const raised = y < -2;
+      const knee = {
+        x: raised ? (x > hip ? x + 2 : hip - 2) : Math.round((hip + x) * 0.5 + side),
+        y: -11 + pose.y + (raised && x > hip ? 3 : 6),
+      };
+      const points = [];
+      const joints = [
+        [hip, -11 + pose.y],
+        [knee.x, knee.y],
+        [x, -1 + y],
+      ];
+      for (let segment = 0; segment < 2; segment++) {
+        const [ax, ay] = joints[segment],
+          [bx, by] = joints[segment + 1];
+        const steps = Math.max(Math.abs(bx - ax), Math.abs(by - ay), 1);
+        for (let step = 0; step <= steps; step++)
+          points.push([
+            Math.round(ax + ((bx - ax) * step) / steps),
+            Math.round(ay + ((by - ay) * step) / steps),
+          ]);
+      }
+      for (const [px, py] of points) r(px - 2, py, 5, 2, ink);
+      for (const [px, py] of points) {
+        const sock = py >= -3 + y;
+        r(px - 1, py, 3, 1, sock ? '#f7efdf' : flesh);
+        if (!sock) r(px + 1, py, 1, 1, palette.blush);
+      }
+      r(x - 3, -3 + y, 8, 4, ink);
+      r(x - 2, -3 + y, 6, 3, '#fff9e9');
+      r(x - 2, y, 6, 1, '#b9c4bb');
     }
   const y = pose.y;
   if (layer === 'feet') return;
@@ -325,45 +373,62 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
         r(side < 0 ? knee : 3, -10 + Math.round(pose.squat * 4), Math.abs(knee) - 1, 3, flesh);
       }
     }
-    r(-6, -12 + y, 13, 6, team.dark);
-    r(-5, -9 + y, 4, 4, team.dark);
-    r(3, -9 + y, 4, 4, team.dark);
-    r(-7, -22 + y, 15, 13, ink);
-    r(-6, -21 + y, 13, 11, team.color);
-    r(-6, -20 + y, 2, 10, team.dark);
-    r(5, -20 + y, 2, 10, team.light);
-    r(-3, -21 + y, 7, 2, '#fff2dd');
-    r(-5, -11 + y, 10, 1, team.light);
-    if (skin.detail === 'cap') {
-      r(-5, -18 + y, 11, 2, skin.accent);
-      r(-5, -14 + y, 11, 1, team.dark);
+    const shorts = team.id === 'mint' ? team.dark : '#fff2df';
+    r(-7, -15 + y, 15, 6, ink);
+    r(-6, -14 + y, 13, 4, shorts);
+    r(-6, -10 + y, 5, 1, shorts);
+    r(3, -10 + y, 5, 1, shorts);
+    r(0, -12 + y, 2, 3, ink);
+    if (appearance) {
+      r(-5.5, -14 + y, 1, 3.5, '#fff8e7');
+      r(6, -13.5 + y, 1, 3, '#fff8e7');
+      r(-6, -10 + y, 4, 0.5, '#e6d5bb');
+      r(3.5, -10 + y, 3, 0.5, '#e6d5bb');
     }
-    if (skin.detail === 'fox') {
-      r(-3, -20 + y, 7, 7, team.light);
-      r(-1, -14 + y, 3, 2, '#fff1d8');
+    r(-6, -26 + y, 13, 2, ink);
+    r(-7, -24 + y, 15, 11, ink);
+    r(-6, -25 + y, 13, 11, team.color);
+    r(-6, -22 + y, 2, 8, team.dark);
+    r(5, -22 + y, 2, 8, team.dark);
+    r(4, -21 + y, 1, 7, team.light);
+    r(-2, -25 + y, 7, 2, '#fff2dd');
+    r(-1, -24 + y, 5, 1, team.dark);
+    // Tank-top piping and small jersey folds catch the same light as the face.
+    r(-6, -25 + y, 2, 4, '#fff2dd');
+    r(5, -25 + y, 2, 4, '#fff2dd');
+    r(-4, -17 + y, 2, 2, team.dark);
+    r(-5, -14 + y, 10, 1, '#fff2dd');
+    r(3, -16 + y, 2, 2, team.light);
+    if (!appearance && skin.detail === 'cap') {
+      r(-5, -21 + y, 11, 2, skin.accent);
+      r(-5, -17 + y, 11, 1, team.dark);
+    }
+    if (!appearance && skin.detail === 'fox') {
+      r(-3, -23 + y, 7, 7, team.light);
+      r(-1, -17 + y, 3, 2, '#fff1d8');
     }
     if (appearance?.body === 'stripes') {
-      for (const x of [-4, 0, 4]) r(x, -20 + y, 2, 9, team.light);
+      for (const x of [-4, 0, 4]) r(x, -23 + y, 2, 9, team.light);
     }
     if (appearance?.body === 'sleeveless') {
-      r(-6, -21 + y, 3, 6, flesh);
-      r(4, -21 + y, 3, 6, flesh);
-      r(-2, -21 + y, 5, 2, team.dark);
+      r(-6, -24 + y, 3, 6, flesh);
+      r(4, -24 + y, 3, 6, flesh);
+      r(-2, -24 + y, 5, 2, team.dark);
     }
     if (appearance?.body === 'chevron') {
       for (let i = 0; i < 6; i++) {
-        r(-6 + i, -20 + y + Math.floor(i / 2), 2, 2, team.light);
-        r(5 - i, -20 + y + Math.floor(i / 2), 2, 2, team.light);
+        r(-6 + i, -23 + y + Math.floor(i / 2), 2, 2, team.light);
+        r(5 - i, -23 + y + Math.floor(i / 2), 2, 2, team.light);
       }
     }
     if (appearance?.body === 'longsleeve') {
-      r(-8, -21 + y, 3, 10, team.dark);
-      r(6, -21 + y, 3, 10, team.dark);
-      r(-5, -12 + y, 11, 2, team.light);
+      r(-8, -24 + y, 3, 10, team.dark);
+      r(6, -24 + y, 3, 10, team.dark);
+      r(-5, -15 + y, 11, 2, team.light);
     }
     if (pose.shoulders) {
-      r(-7, -22 + y + pose.shoulders, 4, 5, team.color);
-      r(4, -22 + y + pose.shoulders, 4, 5, team.light);
+      r(-7, -25 + y + pose.shoulders, 4, 5, team.color);
+      r(4, -25 + y + pose.shoulders, 4, 5, team.light);
     }
   }
   if (layer === 'torso') return;
@@ -389,16 +454,33 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
     r(-8 + h, -33 + y, 3, 7, skin.hair);
     r(6 + h, -33 + y, 3, 7, skin.hair);
   }
+  // Directional sunset shading on the face; eyes remain on top of the light.
+  r(-6 + h, -31 + y, 3, 8, palette.blush);
+  r(5 + h, -32 + y, 1, 7, palette.highlight);
+  r(-4 + h, -23 + y, 9, 1, palette.blush);
   if (appearance) {
+    // A darker side plane, small ear and short sideburn turn the head in 3/4.
+    r(-6.5 + h, -28.5 + y, 1.5, 3.5, flesh);
+    r(-6 + h, -27.5 + y, 0.5, 1.5, palette.mouth);
+    r(-5 + h, -33 + y, 1.5, 4, skin.hair);
+    r(-3.5 + h, -33.5 + y, 8, 0.5, palette.highlight);
     if (['crop', 'band', 'fox'].includes(appearance.head)) {
       r(-5 + h, -36 + y, 11, 3, skin.hair);
       r(-7 + h, -33 + y, 2, 4, skin.hair);
       r(6 + h, -33 + y, 2, 3, skin.hair);
+      r(-4 + h, -36 + y, 4, 1, '#665044');
+      r(-6 + h, -35 + y, 2, 2, skin.hair);
     } else if (appearance.head === 'cap') {
       r(-7 + h, -32 + y, 2, 4, skin.hair);
     }
   }
   if (skin.detail === 'band') {
+    if (appearance) {
+      r(-7 + h, -38 + y, 14, 5, skin.hair);
+      for (let x = -7; x < 7; x += 3) r(x + h, -39 + y + (x % 2 ? 0 : 1), 2, 2, skin.hair);
+      r(-8 + h, -36 + y, 2, 3, skin.hair);
+      r(6 + h, -36 + y, 2, 2, skin.hair);
+    }
     r(-7 + h, -34 + y, 15, 2, skin.accent);
     r(7 + h, -33 + y, 3, 2, team.color);
     r(-4 + h, -36 + y, 6, 2, skin.hair);
@@ -408,6 +490,23 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
     r(-5 + h, -38 + y, 11, 2, team.dark);
     r(5 + h, -34 + y, 7, 2, skin.accent);
     r(-4 + h, -37 + y, 3, 2, team.light);
+    if (appearance) {
+      r(-8 + h, -32 + y, 2, 6, team.dark);
+      r(-9 + h, -30 + y, 2, 3, team.dark);
+      r(-5 + h, -37.5 + y, 9, 1, team.color);
+      r(5 + h, -35 + y, 6, 1, team.dark);
+      r(-3 + h, -37 + y, 1, 0.5, team.light);
+    }
+  }
+  if (skin.detail === 'bucket') {
+    r(-8 + h, -36 + y, 17, 4, '#667c83');
+    r(-6 + h, -41 + y, 13, 7, '#98adae');
+    r(-4 + h, -42 + y, 9, 2, '#cbd5cb');
+    r(-5 + h, -40 + y, 11, 5, '#f2eddb');
+    r(-6 + h, -36 + y, 13, 1.5, '#b3c4bf');
+    r(-10 + h, -34 + y, 21, 2, '#71888c');
+    r(-8 + h, -35 + y, 17, 1.5, '#d8ded0');
+    r(-8 + h, -32 + y, 2, 6, '#325c60');
   }
   if (skin.ears) {
     r(-7 + h, -37 + y, 14, 5, team.color);
@@ -415,12 +514,23 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
     r(4 + h, -40 + y, 4, 5, team.dark);
     r(-6 + h, -38 + y, 2, 3, skin.accent);
     r(5 + h, -38 + y, 2, 3, skin.accent);
+    if (appearance) {
+      r(-7 + h, -44 + y, 5, 9, team.dark);
+      r(3 + h, -44 + y, 5, 9, team.dark);
+      r(-6 + h, -43 + y, 3, 7, team.color);
+      r(4 + h, -43 + y, 3, 7, team.color);
+      r(-5.5 + h, -42 + y, 2, 5, '#fff1dc');
+      r(4.5 + h, -42 + y, 2, 5, '#fff1dc');
+      r(-7 + h, -36 + y, 15, 3, team.color);
+      r(-5 + h, -37 + y, 11, 1.5, team.light);
+    }
   }
-  r(-3 + h, -29 + y, 2, pose.eye ? 1 : 3, ink);
-  r(3 + h, -29 + y, 2, pose.eye ? 1 : 3, ink);
+  r(-2 + h, -29 + y, 1, pose.eye ? 1 : 3, ink);
+  r(4 + h, -29 + y, 1, pose.eye ? 1 : 3, ink);
+  r(3 + h, -26 + y, 2, 1, palette.blush);
   r(-5 + h, -26 + y, 2, 2, appearance ? palette.blush : '#eaa096');
   r(5 + h, -26 + y, 2, 2, appearance ? palette.blush : '#eaa096');
-  r(h, -24 + y, 3, 1, appearance ? palette.mouth : '#b57670');
+  r(h + 1, -24 + y, 3, 1, appearance ? palette.mouth : '#b57670');
   if (['sad', 'shake'].includes(frame.state)) {
     r(h - 1, -25 + y, 5, 1, ink);
     r(h - 2, -24 + y, 1, 1, ink);
@@ -449,9 +559,10 @@ export class BodySprites {
     ].join(':');
     if (!this.cache.has(key)) {
       const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
+      canvas.width = 128;
+      canvas.height = 128;
       const c = canvas.getContext('2d');
+      c.scale(2, 2);
       c.translate(32, 54);
       paintBody(c, frame, skin, team, playerId, layer, appearance);
       this.cache.set(key, canvas);

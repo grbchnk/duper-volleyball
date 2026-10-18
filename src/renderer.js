@@ -15,6 +15,15 @@ import { ARM_STYLES } from './arms.js';
 import { expressivePose } from './arm-motion.js';
 import { diveHands } from './dive-pose.js';
 import { localReceiveAim } from './receive-pose.js';
+import {
+  drawStreetSky,
+  drawStreetCity,
+  drawStreetArchitecture,
+  drawStreetForeground,
+  drawStreetLife,
+  STREET_SEATS,
+  pixelTools,
+} from './street-scene.js';
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -35,6 +44,29 @@ export class Renderer {
     this.background = document.createElement('canvas');
     this.background.width = 960;
     this.background.height = 540;
+    this.actor = document.createElement('canvas');
+    this.actor.width = 180;
+    this.actor.height = 200;
+    // Keep sprite and silhouette buffers on the CPU, like the pixel-composite
+    // layer. Otherwise each player forces a GPU readback before compositing.
+    this.actorContext = this.actor.getContext('2d', { willReadFrequently: true });
+    this.shadow = document.createElement('canvas');
+    this.shadow.width = 180;
+    this.shadow.height = 200;
+    this.shadowContext = this.shadow.getContext('2d', { willReadFrequently: true });
+    this.cityLayer = document.createElement('canvas');
+    this.cityLayer.width = 980;
+    this.cityLayer.height = 550;
+    const city = this.cityLayer.getContext('2d');
+    city.translate(10, 5);
+    drawStreetCity(city);
+    this.frontLayer = document.createElement('canvas');
+    this.frontLayer.width = 980;
+    this.frontLayer.height = 550;
+    const front = this.frontLayer.getContext('2d');
+    front.translate(10, 5);
+    drawStreetForeground(front);
+    this.cameraOffset = { x: 0, y: 0 };
     this.makeBackground();
   }
   rect(x, y, w, h, color, ctx = this.ctx) {
@@ -79,13 +111,25 @@ export class Renderer {
   }
   makeBackground(theme = 'miami') {
     this.arenaTheme = theme;
-    drawArenaBackdrop(this.background.getContext('2d'), theme);
+    const c = this.background.getContext('2d');
+    c.clearRect(0, 0, 960, 540);
+    if (theme === 'miami') drawStreetArchitecture(c);
+    else drawArenaBackdrop(c, theme);
   }
   project(x, y = 0) {
-    return { x: 480 + x * 40, y: 450 - y * 42 };
+    return { x: 480 + x * 40, y: 465 - y * 42 };
   }
   logicalTransform(context) {
     const matrix = context.getTransform();
+    if (this.renderingActor)
+      return new DOMMatrix([
+        matrix.a,
+        matrix.b,
+        matrix.c,
+        matrix.d,
+        matrix.e + this.actorOrigin.x,
+        matrix.f + this.actorOrigin.y,
+      ]);
     const sx = this.renderScaleX || 1,
       sy = this.renderScaleY || 1;
     return sx === 1 && sy === 1
@@ -100,6 +144,10 @@ export class Renderer {
         ]);
   }
   drawAtmosphere(m, teams) {
+    if (m.config.arenaTheme === 'miami') {
+      this.drawStreetCrowd(m, teams);
+      return;
+    }
     const c = this.ctx,
       live = m.config.livelyBackground;
     const time = live ? m.time : 0;
@@ -146,6 +194,104 @@ export class Renderer {
       }
     }
   }
+  drawStreetCrowd(m, teams) {
+    const live = m.config.livelyBackground;
+    const time = live ? m.time : 0;
+    const ball = this.project(m.ball.x, m.ball.y);
+    const celebrate = live && ['point', 'set-end', 'finished'].includes(m.phase);
+    for (let i = 0; i < STREET_SEATS.length; i++) {
+      const [x, seat] = STREET_SEATS[i];
+      const team = i < 4 || i === 10 || i === 12 ? 0 : 1;
+      const happy = celebrate && m.pointWinner === team;
+      const disappointed = celebrate && !happy;
+      const y = seat - (happy ? Math.max(0, Math.sin(time * 9 + i)) * 5 : 0);
+      const look = live ? Math.round(clamp((ball.x - x) / 180, -2, 2)) : 0;
+      const tilt = live ? Math.round(clamp((ball.y - y) / 160, -1, 1)) : 0;
+      const skin = ['#efc39a', '#d19a73', '#e6b58c', '#b67e59'][i % 4];
+      const shirt =
+        i % 3 === 0 ? teams[team].dark : ['#d8b7a5', '#789692', '#b7a4ab', '#d6baa2'][i % 4];
+      const ink = '#52515b';
+      this.rect(x - 9, y - 14, 19, 18, ink);
+      this.rect(x - 8, y - 13, 17, 16, shirt);
+      this.rect(x - 5, y - 12, 11, 4, skin);
+      this.rect(x - 7, y - 26 + tilt, 15, 14, ink);
+      this.rect(x - 6 + look, y - 25 + tilt, 13, 12, skin);
+      this.rect(
+        x - 7 + look,
+        y - 28 + tilt,
+        15,
+        5,
+        ['#4c454c', '#876a54', '#466e70', '#b39773'][i % 4],
+      );
+      if (i % 4 === 2) this.rect(x - 8 + look, y - 25 + tilt, 18, 2, '#ead3b0');
+      const blink = live && Math.floor(time * 6 + i * 13) % 97 === 0;
+      this.rect(x - 3 + look * 2, y - 21 + tilt, 2, blink ? 1 : 3, ink);
+      this.rect(x + 3 + look * 2, y - 21 + tilt, 2, blink ? 1 : 3, ink);
+      this.rect(x + look, y - 16 + tilt, 3, happy ? 2 : 1, '#9c7061');
+      // Sitting legs, shorts, socks and lit toe caps.
+      this.rect(x - 8, y + 1, 17, 5, '#626b78');
+      for (const dx of [-7, 4]) {
+        this.rect(x + dx, y + 5, 5, 14, skin);
+        this.rect(x + dx, y + 17, 5, 4, '#ddd9c8');
+        this.rect(x + dx - 1, y + 20, 8, 3, '#4e5768');
+        this.rect(x + dx - 1, y + 20, 7, 2, '#eee3cf');
+      }
+      const c = this.ctx;
+      c.strokeStyle = skin;
+      c.lineWidth = 4;
+      c.lineCap = 'round';
+      c.beginPath();
+      if (happy) {
+        c.moveTo(x - 10, y - 10);
+        c.lineTo(x - 13, y - 28 - Math.sin(time * 11 + i) * 3);
+        c.moveTo(x + 10, y - 10);
+        c.lineTo(x + 13, y - 29 + Math.sin(time * 11 + i) * 3);
+      } else if (disappointed) {
+        c.moveTo(x - 10, y - 9);
+        c.lineTo(x - 10, y - 17);
+        c.lineTo(x - 5, y - 22);
+        c.moveTo(x + 10, y - 9);
+        c.lineTo(x + 10, y - 17);
+        c.lineTo(x + 5, y - 22);
+      } else {
+        c.moveTo(x - 10, y - 9);
+        c.lineTo(x - 10, y + 3);
+        c.lineTo(x - 4, y + 3);
+        c.moveTo(x + 10, y - 9);
+        c.lineTo(x + 10, y + 3);
+        c.lineTo(x + 4, y + 3);
+      }
+      c.stroke();
+    }
+  }
+  drawSpriteShadow(p, pos, floor) {
+    const mask = this.shadowContext;
+    const { x, y } = this.actorOrigin;
+    const width = this.actor.width,
+      height = this.actor.height;
+    if (this.shadow.width !== width || this.shadow.height !== height) {
+      this.shadow.width = width;
+      this.shadow.height = height;
+    }
+    mask.clearRect(0, 0, width, height);
+    mask.globalCompositeOperation = 'source-over';
+    mask.drawImage(this.actor, 0, 0);
+    mask.globalCompositeOperation = 'source-in';
+    mask.fillStyle = '#514f68';
+    mask.fillRect(0, 0, width, height);
+    mask.globalCompositeOperation = 'source-over';
+    const c = this.canvas.getContext('2d');
+    c.save();
+    c.globalAlpha = clamp(0.31 - p.y * 0.035, 0.12, 0.31);
+    c.translate(floor.x - p.y * 13, floor.y + 3 + p.y * 6);
+    // Project the CURRENT raster silhouette (including rigged arms) away from
+    // the setting sun. Jump height separates the shadow from the player's feet.
+    c.transform(1, 0, 0.65, -0.34, 0, 0);
+    c.translate(-pos.x, -pos.y);
+    c.imageSmoothingEnabled = false;
+    c.drawImage(this.shadow, x, y);
+    c.restore();
+  }
   draw(m, teams, dt = 1 / 60) {
     this.pixelGraphics = m.config.pixelGraphics;
     const c = this.ctx;
@@ -154,6 +300,7 @@ export class Renderer {
     this.renderScaleX = sx;
     this.renderScaleY = sy;
     c.setTransform(sx, 0, 0, sy, 0, 0);
+    c.imageSmoothingEnabled = false;
     if (
       this.foreground.width !== this.canvas.width ||
       this.foreground.height !== this.canvas.height
@@ -163,7 +310,26 @@ export class Renderer {
     }
     this.foregroundContext.setTransform(sx, 0, 0, sy, 0, 0);
     if (this.arenaTheme !== m.config.arenaTheme) this.makeBackground(m.config.arenaTheme);
+    const street = m.config.arenaTheme === 'miami';
+    const live = m.config.livelyBackground;
+    const follow = this.cameraOffset;
+    const smoothing = 1 - Math.exp(-Math.min(dt, 0.05) * 2.4);
+    const targetX = live ? clamp(m.ball.x * 0.42, -3.6, 3.6) : 0;
+    const targetY = live ? clamp((m.ball.y - 2) * 0.48, -1.1, 1.8) : 0;
+    if (live) {
+      follow.x += (targetX - follow.x) * smoothing;
+      follow.y += (targetY - follow.y) * smoothing;
+    } else {
+      follow.x = 0;
+      follow.y = 0;
+    }
+    if (street) {
+      drawStreetSky(c, live ? m.time : 0);
+      c.drawImage(this.cityLayer, -10 - follow.x * 0.65, -5 + follow.y * 0.45);
+    }
     c.drawImage(this.background, 0, 0);
+    if (m.config.arenaTheme === 'miami')
+      drawStreetLife(c, m.time, this.project(m.ball.x, m.ball.y), m.config.livelyBackground);
     this.drawAtmosphere(m, teams);
     if (m.cupStage != null) {
       c.save();
@@ -179,11 +345,13 @@ export class Renderer {
     this.foregroundContext.clearRect(0, 0, 960, 540);
     this.ctx = this.foregroundContext;
     c.save();
-    for (const x of [-COURT.halfLength, -3, 0, 3, COURT.halfLength]) {
-      const p = this.project(x);
-      this.rect(p.x - 1, 423, 2, 59, '#fff8df');
+    if (m.config.arenaTheme !== 'miami') {
+      for (const x of [-COURT.halfLength, -3, 0, 3, COURT.halfLength]) {
+        const p = this.project(x);
+        this.rect(p.x - 1, 423, 2, 59, '#fff8df');
+      }
+      this.rect(479, 422, 2, 60, '#fff8df');
     }
-    this.rect(479, 422, 2, 60, '#fff8df');
     this.drawChallenge(m);
     const previews = (m.controls || [m]).filter((state) => state.aimPreview);
     for (const state of previews) this.trajectory(state.aimPreview, m.config, true);
@@ -241,6 +409,7 @@ export class Renderer {
     c.restore();
     this.ctx = c;
     compositePixels(c, this.foreground, this.pixelGraphics, 960, 540);
+    if (street) c.drawImage(this.frontLayer, -10 + follow.x, -5 - follow.y * 0.5);
     this.canvas.style.imageRendering = 'pixelated';
     this.drawHUD(m, teams);
     const combination = m.combinations?.[0];
@@ -290,37 +459,35 @@ export class Renderer {
     pixelPresent(this.canvas, this.pixelGraphics && this.canvas.width === 960, 2);
   }
   drawPlayer(p, team, m, dt) {
-    const c = this.ctx,
-      pos = this.project(p.x, p.y),
+    let c = this.ctx;
+    const pos = this.project(p.x, p.y),
       floor = this.project(p.x),
       dir = p.diving ? Math.sign(p.diveVelocity) : p.facing || (p.team === 0 ? 1 : -1);
     const selected = m.humanSlot(p) !== null;
     if (selected) {
       c.save();
       c.fillStyle = '#fff1a54d';
-      c.strokeStyle = '#395c74';
-      c.lineWidth = 5;
+      c.strokeStyle = '#f5dfae';
+      c.lineWidth = 1.5;
       c.beginPath();
       c.ellipse(floor.x, floor.y + 3, 24, 8, 0, 0, Math.PI * 2);
       c.fill();
       c.stroke();
-      c.strokeStyle = '#ffe896';
-      c.lineWidth = 2;
-      c.stroke();
       c.restore();
     }
-    c.fillStyle = `rgba(176,142,106,${Math.max(0.12, 0.31 - p.y * 0.08)})`;
-    c.beginPath();
-    c.ellipse(
-      floor.x,
-      floor.y + 6,
-      Math.max(7, 13 - p.y * 2),
-      Math.max(2, 3 - p.y * 0.3),
-      0,
-      0,
-      Math.PI * 2,
-    );
-    c.fill();
+    const destination = c;
+    const width = Math.ceil(Math.max(180, (this.spriteScale || 2.1) * 70));
+    const height = Math.ceil(Math.max(200, (this.spriteScale || 2.1) * 80));
+    if (this.actor.width !== width || this.actor.height !== height) {
+      this.actor.width = width;
+      this.actor.height = height;
+    }
+    this.actorOrigin = { x: Math.round(pos.x - width / 2), y: Math.round(pos.y - height + 30) };
+    this.actorContext.setTransform(1, 0, 0, 1, 0, 0);
+    this.actorContext.clearRect(0, 0, width, height);
+    this.actorContext.translate(-this.actorOrigin.x, -this.actorOrigin.y);
+    c = this.ctx = this.actorContext;
+    this.renderingActor = true;
     c.save();
     c.translate(Math.round(pos.x), Math.round(pos.y));
     c.scale(dir * (this.spriteScale || 2.1), this.spriteScale || 2.1);
@@ -334,28 +501,58 @@ export class Renderer {
     }
     c.imageSmoothingEnabled = false;
     const motion = bodyOffset(p);
-    c.drawImage(this.bodySprites.get(frame, skin, team, p.id, 'feet', p.appearance), -32, -54);
     c.drawImage(
-      this.bodySprites.get(frame, skin, team, p.id, 'torso', p.appearance),
-      -32 + motion.torso * dir,
-      -54 + motion.drop,
+      this.bodySprites.get(frame, skin, team, p.id, 'feet', p.appearance),
+      -32,
+      -54,
+      64,
+      64,
     );
-    if (!p.headFly)
+    c.save();
+    c.translate(0, -9);
+    c.transform(1, 0, -(pose.lean || 0), 1, 0, 0);
+    c.translate(0, 9);
+    const drawBody = () => {
+      c.save();
+      c.translate(-motion.torso * dir, -pose.y - motion.drop);
       c.drawImage(
-        this.bodySprites.get(frame, skin, team, p.id, 'head', p.appearance),
-        -32 + motion.head * dir,
+        this.bodySprites.get(frame, skin, team, p.id, 'torso', p.appearance),
+        -32 + motion.torso * dir,
         -54 + motion.drop,
+        64,
+        64,
       );
+      if (!p.headFly) {
+        c.save();
+        c.translate(1, -25);
+        c.scale(0.98, 0.82);
+        c.translate(0, 22);
+        c.drawImage(
+          this.bodySprites.get(frame, skin, team, p.id, 'head', p.appearance),
+          -32 + motion.head * dir,
+          -54 + motion.drop,
+          64,
+          64,
+        );
+        c.restore();
+      }
+      c.restore();
+      c.save();
+      c.scale(dir, 1);
+      this.text(String(p.number), dir * 1.6, -16, 7, '#fff7e4', 'center');
+      c.restore();
+    };
     c.save();
     c.translate(motion.torso * dir, pose.y + motion.drop);
     const step = frame.state === 'run' ? (pose.r - pose.l) * 0.5 : 0;
-    this.drawArms(p, m, dt, step, frame);
-    c.save();
-    c.scale(dir, 1);
-    this.text(String(p.number), dir, -13, 7, '#fff7e4', 'center');
+    this.drawArms(p, m, dt, step, frame, drawBody);
     c.restore();
     c.restore();
     c.restore();
+    this.renderingActor = false;
+    this.ctx = c = destination;
+    this.drawSpriteShadow(p, pos, floor);
+    c.drawImage(this.actor, this.actorOrigin.x, this.actorOrigin.y);
     if (p.headFly) {
       const fly = p.headFly,
         age = fly.age;
@@ -375,7 +572,7 @@ export class Renderer {
         'head',
         p.appearance,
       );
-      c.drawImage(headImage, 0, 0, 64, 31, -32, -24, 64, 31);
+      c.drawImage(headImage, 0, 0, 128, 62, -32, -24, 64, 31);
       c.restore();
     }
     if (m.humanSlot(p) !== null) {
@@ -421,7 +618,7 @@ export class Renderer {
       this.text('···', pos.x, pos.y - 25, 15, '#a27970', 'center');
     }
   }
-  drawArms(p, m, dt, step, bodyFrame = null) {
+  drawArms(p, m, dt, step, bodyFrame = null, drawBody = null) {
     const c = this.ctx,
       spec = ARM_STYLES.whip;
     const action = m.actionForPlayer?.(p) || m.actionFor?.(p.team) || m.charge || m.pending;
@@ -510,6 +707,7 @@ export class Renderer {
       { back: '#e8c35c', low: '#78b6c9', loft: '#8aad77', drive: '#e89a70', block: '#b7a0ce' }[
         kind
       ] || '#fff1da';
+    const paint = [];
     for (let i = 0; i < 2; i++) {
       const wrist = rig.wrists[i],
         target = pose.wrists[i];
@@ -542,59 +740,123 @@ export class Renderer {
         constrainRenderedJoint(wrist, transform, this.project.bind(this), p.team, m.ball, over);
         constrainRenderedJoint(elbow, transform, this.project.bind(this), p.team, m.ball, over);
       }
-      c.lineCap = 'round';
-      c.lineJoin = 'round';
-      c.lineWidth = spec.width * m.config.armScale * m.config.armRoundness;
-      c.strokeStyle = p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62';
-      c.beginPath();
-      c.moveTo(shoulder.x, shoulder.y);
-      c.quadraticCurveTo(elbow.x, elbow.y, wrist.x, wrist.y);
-      c.stroke();
-      c.lineWidth = Math.max(1, spec.width * m.config.armScale * m.config.armRoundness - 2);
-      c.strokeStyle = pose.snap ? '#fff7dc' : p.appearance?.tone || '#f4cfac';
-      c.stroke();
-      const hand = spec.hand * m.config.armScale;
-      c.save();
-      c.translate(wrist.x, wrist.y);
-      // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
-      const neutralAngle =
-        (Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x) + Math.PI / 2) *
-        (support?.hand === i ? 1 - support.weight : 1);
-      c.rotate(neutralAngle * (1 - pose.cup) + (i ? -0.55 : 0.55) * pose.cup);
-      this.rect(
-        -hand / 2,
-        0,
-        hand,
-        2,
-        kind === 'block' && blockWindow(p, m.config) ? '#f8da75' : tint,
-      );
-      this.rect(
-        -hand / 2,
-        -hand * 0.8,
-        hand,
-        hand * 0.8,
-        p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62',
-      );
-      this.rect(
-        -hand / 2 + 0.6,
-        -hand * 0.8,
-        hand - 1.2,
-        hand * 0.8,
-        p.appearance?.tone || '#f4cfac',
-      );
-      if (pose.cup) {
-        this.rect(-hand / 2, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
-        this.rect(hand / 2 - 1.3, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
-      }
-      c.restore();
+      paint[i] = () => {
+        // Art offsets affect only drawing: the spring state and every active
+        // contact target stay in the original shared rig coordinate system.
+        const shoulder = { ...pose.shoulders[i], y: pose.shoulders[i].y - 4 };
+        const elbow = { ...rig.elbows[i], y: rig.elbows[i].y - 4 };
+        const wrist = { ...rig.wrists[i] };
+        if (pose.stage === 'Покой') {
+          wrist.y -= 1;
+          wrist.x += i ? 2 : -2;
+        }
+        c.lineCap = 'round';
+        c.lineJoin = 'round';
+        const width = (spec.width + 1) * m.config.armScale * m.config.armRoundness;
+        c.lineWidth = width;
+        c.strokeStyle = p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62';
+        c.beginPath();
+        c.moveTo(shoulder.x, shoulder.y);
+        c.quadraticCurveTo(elbow.x, elbow.y, wrist.x, wrist.y);
+        c.stroke();
+        c.lineWidth = Math.max(1, width - 1.3);
+        c.strokeStyle = pose.snap ? '#fff7dc' : p.appearance?.tone || '#f4cfac';
+        c.stroke();
+        const hand = spec.hand * m.config.armScale;
+        c.save();
+        c.translate(wrist.x, wrist.y);
+        // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
+        const neutralAngle =
+          pose.stage === 'Покой'
+            ? 0
+            : (Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x) + Math.PI / 2) *
+              (support?.hand === i ? 1 - support.weight : 1);
+        c.rotate(neutralAngle * (1 - pose.cup) + (i ? -0.55 : 0.55) * pose.cup);
+        this.rect(
+          -hand / 2,
+          0,
+          hand,
+          2,
+          kind === 'block' && blockWindow(p, m.config)
+            ? '#f8da75'
+            : kind
+              ? tint
+              : p.appearance?.tone || '#f4cfac',
+        );
+        this.rect(
+          -hand / 2,
+          -hand * 0.8,
+          hand,
+          hand * 0.8,
+          p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62',
+        );
+        this.rect(
+          -hand / 2 + 0.6,
+          -hand * 0.8,
+          hand - 1.2,
+          hand * 0.8,
+          p.appearance?.tone || '#f4cfac',
+        );
+        if (pose.cup) {
+          this.rect(-hand / 2, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
+          this.rect(hand / 2 - 1.3, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
+        }
+        if (pose.cup < 0.2)
+          this.rect(
+            -0.4,
+            -hand * 0.45,
+            0.8,
+            1.2,
+            p.appearance ? skinPalette(p.appearance.tone).mouth : '#665d62',
+          );
+        c.restore();
+      };
     }
+    // Local right shoulder is the far side of the three-quarter pose. Mirror
+    // the entire pose on turns; solve each spring once, then paint by depth.
+    paint[1]();
+    drawBody?.();
+    paint[0]();
   }
   drawNet(m) {
     const c = this.ctx,
       x = 480,
-      top = Math.round((450 - COURT.netHeight * 42) / 2) * 2;
+      top = Math.round(this.project(0, COURT.netHeight).y / 2) * 2;
     this.netRipple = netVisual(this.netRipple, m?.ball.netImpact, m.time);
     const wave = this.netRipple.wave;
+    if (m.config.arenaTheme === 'miami') {
+      const { line, rect } = pixelTools(c);
+      const farX = 478,
+        nearX = 500,
+        farTop = top - 55,
+        nearTop = top - 8;
+      for (let step = 1; step < 10; step++) {
+        const t = step / 10;
+        const px = farX + (nearX - farX) * t + Math.sin(t * Math.PI) * wave;
+        line(px, farTop + (nearTop - farTop) * t, px, 407 + 98 * t, '#a6b4ac');
+      }
+      for (let step = 0; step <= 12; step++) {
+        const t = step / 12;
+        line(
+          farX,
+          farTop + (407 - farTop) * t,
+          nearX,
+          nearTop + (505 - nearTop) * t,
+          step === 0 ? '#fff1d0' : '#a6b4ac',
+          step === 0 ? 3 : 1,
+        );
+      }
+      line(farX, farTop, farX, 407, '#e7dfc3', 2);
+      line(nearX, nearTop, nearX, 505, '#e7dfc3', 2);
+      rect(farX - 3, farTop - 14, 4, 17, '#e5ba92');
+      rect(farX - 3, farTop - 14, 4, 5, '#c57c75');
+      rect(farX - 4, 397, 6, 12, '#4f8d94');
+      rect(nearX - 5, nearTop - 3, 9, 154, '#3f7e8a');
+      rect(nearX - 4, nearTop, 3, 150, '#71b2b0');
+      rect(nearX - 4, nearTop + 8, 8, 3, '#e1c3a0');
+      rect(nearX - 6, 503, 12, 4, '#497681');
+      return;
+    }
     this.rect(x - 4, top, 2, 116, '#6b8a8099');
     this.rect(x + 4, top, 2, 116, '#6b8a8099');
     for (const [px, py, w, h] of netMesh(wave, top)) this.rect(px, py, w, h, '#87a69980');
@@ -675,46 +937,87 @@ export class Renderer {
     }
   }
   drawHUD(m, teams) {
-    this.rect(0, 0, 960, 73, '#fff8e9');
-    this.rect(0, 71, 960, 2, '#c5d0b8');
-    this.rect(29, 17, 8, 34, teams[0].color);
-    this.text(teams[0].short, 48, 34, 17, teams[0].dark);
-    this.text(m.mode === 'demo' ? 'CPU' : 'ВАША КОМАНДА', 48, 51, 9, '#839286');
-    this.rect(923, 17, 8, 34, teams[1].color);
-    this.text(teams[1].short, 912, 34, 17, teams[1].dark, 'right');
+    this.rect(0, 0, 960, 58, '#fff5e4');
+    this.rect(0, 57, 960, 1, '#d8c5bb');
+    this.rect(30, 10, 9, 38, teams[0].color);
+    this.text(teams[0].short, 49, 30, 20, teams[0].dark);
+    this.text(m.mode === 'demo' ? 'CPU' : 'ВАША КОМАНДА', 50, 44, 9, '#ae827b');
+    this.rect(920, 10, 9, 38, teams[1].dark);
+    this.text(teams[1].short, 908, 30, 20, teams[1].dark, 'right');
     this.text(
       m.mode === 'versus' ? 'ИГРОК 2' : m.challenge ? 'ИСПЫТАНИЕ' : 'КОМПЬЮТЕР',
-      912,
-      51,
+      908,
+      44,
       9,
-      '#839286',
+      '#587c80',
       'right',
     );
-    this.text(
-      m.challenge
-        ? `${m.challenge.score}`
-        : `${String(m.score[0]).padStart(2, '0')} : ${String(m.score[1]).padStart(2, '0')}`,
-      480,
-      41,
-      32,
-      '#526e5f',
-      'center',
-    );
+    const score = m.challenge
+      ? String(m.challenge.score)
+      : `${String(m.score[0]).padStart(2, '0')}:${String(m.score[1]).padStart(2, '0')}`;
+    this.drawScore(score, 480, 10);
     this.text(
       m.challenge
         ? `МЯЧ ${m.challenge.attempt} / ${m.challenge.total}`
         : `СЕТ ${m.sets[0] + m.sets[1] + 1}  /  ${m.sets.join(' — ')}`,
       480,
-      61,
+      50,
       9,
-      '#8d9b84',
+      '#596979',
       'center',
     );
     const phase = m.mode === 'test' ? 'ТЕСТ ∞' : m.teamPhases[0] === 'attack' ? 'АТАКА' : 'ЗАЩИТА';
-    this.text(m.phase === 'serve' ? 'ПОДАЧА' : phase, 265, 34, 11, '#8d7867', 'center');
-    this.text(`${m.touches[0]} / 3 КАСАНИЯ`, 265, 51, 9, '#8b998a', 'center');
-    this.text('S  W  D', 697, 32, 13, '#7d917a', 'center');
-    this.text('ЗАЖМИ → ОТПУСТИ', 697, 51, 8, '#8b998a', 'center');
+    this.text(m.phase === 'serve' ? 'ПОДАЧА' : phase, 274, 27, 11, '#5d6280', 'center');
+    for (let i = 0; i < 3; i++) {
+      const x = 251 + i * 19;
+      this.rect(x, 35, 11, 8, '#77748c');
+      this.rect(x + 2, 43, 7, 3, '#77748c');
+      this.rect(x + 1, 36, 9, 6, i < m.touches[0] ? '#817aa4' : '#fff5e4');
+      this.rect(x + 3, 42, 5, 2, i < m.touches[0] ? '#817aa4' : '#fff5e4');
+    }
+    this.text('S  W  D', 692, 26, 14, '#62657d', 'center');
+    const action = m.controls?.find((state) => state.charge || state.pending);
+    const kind = (action?.charge || action?.pending)?.kind;
+    for (const [i, type] of ['low', 'loft', 'drive'].entries())
+      this.rect(653 + i * 29, 32, 23, 4, kind === type ? '#dc9b72' : '#58928f');
+    this.text('ЗАЖМИ → ОТПУСТИ', 692, 48, 8, '#6a7183', 'center');
+  }
+  drawScore(value, center, y) {
+    const glyphs = {
+      0: ['01110', '11011', '11011', '11011', '11011', '11011', '01110'],
+      1: ['00110', '01110', '00110', '00110', '00110', '00110', '01111'],
+      2: ['01110', '11011', '00011', '00110', '01100', '11000', '11111'],
+      3: ['11110', '00011', '00011', '01110', '00011', '00011', '11110'],
+      4: ['11011', '11011', '11011', '11111', '00011', '00011', '00011'],
+      5: ['11111', '11000', '11000', '11110', '00011', '00011', '11110'],
+      6: ['01110', '11000', '11000', '11110', '11011', '11011', '01110'],
+      7: ['11111', '00011', '00011', '00110', '01100', '01100', '01100'],
+      8: ['01110', '11011', '11011', '01110', '11011', '11011', '01110'],
+      9: ['01110', '11011', '11011', '01111', '00011', '00011', '01110'],
+      ':': ['000', '010', '010', '000', '010', '010', '000'],
+    };
+    const cell = 3.4;
+    const width = [...value].reduce((sum, digit) => sum + (digit === ':' ? 5 : 6) * cell, -cell);
+    let x = center - width / 2;
+    for (const digit of value) {
+      const glyph = glyphs[digit] || glyphs[0];
+      glyph.forEach((row, iy) =>
+        [...row].forEach((pixel, ix) => {
+          if (pixel === '1') {
+            const left = Math.round(x + ix * cell),
+              top = Math.round(y + iy * cell);
+            this.rect(
+              left,
+              top,
+              Math.round(x + (ix + 1) * cell) - left,
+              Math.round(y + (iy + 1) * cell) - top,
+              '#285563',
+            );
+          }
+        }),
+      );
+      x += (digit === ':' ? 5 : 6) * cell;
+    }
   }
   drawChallenge(m) {
     const trial = m.challenge;

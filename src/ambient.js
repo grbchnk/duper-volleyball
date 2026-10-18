@@ -4,6 +4,10 @@ export function createAmbient(canvas, arena) {
   canvas.width = 960;
   canvas.height = 540;
   const c = canvas.getContext('2d');
+  const backdrop = document.createElement('canvas');
+  backdrop.width = 960;
+  backdrop.height = 540;
+  let theme = null;
   let last = -1,
     stamp = null;
   return (match, teams) => {
@@ -19,7 +23,11 @@ export function createAmbient(canvas, arena) {
     if (stamp === nextStamp && time >= last && time - last < 1 / 20) return;
     stamp = nextStamp;
     last = time;
-    drawArenaBackdrop(c, match.config.arenaTheme);
+    if (theme !== match.config.arenaTheme) {
+      theme = match.config.arenaTheme;
+      drawArenaBackdrop(backdrop.getContext('2d'), theme);
+    }
+    c.drawImage(backdrop, 0, 0);
     if (match.config.livelyBackground && ['point', 'set-end', 'finished'].includes(match.phase))
       for (let i = 0; i < 45; i++) {
         c.fillStyle = i % 2 ? teams[match.pointWinner ?? 0].color : '#fff2bb';

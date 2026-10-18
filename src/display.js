@@ -43,12 +43,14 @@ export function drawBallDesign(c, skin = 'classic', pixel = false) {
           if (radius > 10) continue;
           const angle = Math.atan2(y, x);
           let mark = false;
-          if (skin === 'ocean') mark = (x + y + 40) % 7 < 3;
+          if (skin === 'ocean') mark = Math.sin(angle * 3 + radius * 0.24) > -0.08;
           else if (skin === 'mono')
             mark = (Math.floor((x + 12) / 5) + Math.floor((y + 12) / 5)) % 2 === 0;
           else if (skin === 'neon') mark = radius < 4.8 + 2.8 * Math.cos(5 * (angle + Math.PI / 2));
           else if (skin !== 'plain') mark = Math.sin(angle * 3 + radius * 0.16) > 0.35;
-          p.fillStyle = radius > 8.8 ? '#304b50' : mark ? ink : base;
+          const oceanInk = angle > -0.8 && angle < 1.3 ? '#319f87' : ink;
+          p.fillStyle =
+            radius > 8.8 ? '#304b50' : mark ? (skin === 'ocean' ? oceanInk : ink) : base;
           p.fillRect(x + 11, y + 11, 1, 1);
         }
       ballSprites.set(skin, sprite);
@@ -72,10 +74,18 @@ export function drawBallDesign(c, skin = 'classic', pixel = false) {
   c.strokeStyle = ink;
   c.lineWidth = 2;
   if (skin === 'ocean') {
-    c.rotate(-Math.PI / 4);
-    for (const x of [-6, 0, 6]) {
-      c.fillStyle = ink;
-      c.fillRect(x - 1.5, -12, 3, 24);
+    for (let i = 0; i < 3; i++) {
+      c.save();
+      c.rotate((i * Math.PI * 2) / 3 - 0.3);
+      c.fillStyle = i === 1 ? '#319f87' : ink;
+      c.beginPath();
+      c.moveTo(-2, -9);
+      c.bezierCurveTo(-8, -3, -5, 4, 7, 9);
+      c.lineTo(11, 4);
+      c.bezierCurveTo(2, 3, -1, -2, 2, -10);
+      c.closePath();
+      c.fill();
+      c.restore();
     }
   } else if (skin === 'neon') {
     c.fillStyle = ink;

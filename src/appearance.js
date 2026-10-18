@@ -1,5 +1,5 @@
 // Cosmetic randomness is independent of the match's physics random stream.
-export const HEAD_STYLES = ['cap', 'fox', 'band', 'crop', 'bald'];
+export const HEAD_STYLES = ['cap', 'fox', 'band', 'crop', 'bald', 'bucket'];
 export const BODY_STYLES = ['classic', 'stripes', 'sleeveless', 'chevron', 'longsleeve'];
 export const SKIN_TONES = ['#f4cfac', '#edba91', '#d79b70', '#b87950', '#925b3d', '#633f30'];
 const TONE_WEIGHTS = [38, 32, 18, 7, 3, 2];
@@ -13,12 +13,12 @@ export function skinPalette(tone = SKIN_TONES[0]) {
     '#' +
     rgb
       .map((v) =>
-        Math.round(v * factor)
+        Math.min(255, Math.round(v * factor))
           .toString(16)
           .padStart(2, '0'),
       )
       .join('');
-  return { outline: shade(0.4), blush: shade(0.86), mouth: shade(0.56) };
+  return { outline: shade(0.4), blush: shade(0.86), mouth: shade(0.56), highlight: shade(1.13) };
 }
 
 export function randomAppearance(random = Math.random) {
