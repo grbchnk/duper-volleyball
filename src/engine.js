@@ -384,11 +384,14 @@ export class Match {
         homeX: this.sign(p.team) * HOMES[p.id % TEAM_SIZE],
         returnHome: false,
         returnDelay: 0,
+        clearedSerial: -1,
         releaseSlow: 0,
         stunned: 0,
         headFly: null,
         bodyMotion: null,
         moveVx: 0,
+        returnVx: 0,
+        wasControlled: false,
         lastSkid: -1,
         y: 0,
         vy: 0,
@@ -1285,6 +1288,8 @@ export class Match {
     if (this.config.dynamic) {
       p.clearLane = null;
       p.returnHome = true;
+      p.returnDelay = Math.max(p.returnDelay || 0, 0.3);
+      p.returnVx = p.moveVx = p.vx = 0;
       return;
     }
     p.returnHome = false;
@@ -1381,6 +1386,11 @@ export class Match {
     const control = this.controls[this.humanSlot(p) ?? p.team];
     const input = this.inputs?.[control.slot] || (p.team === 0 ? raw : EMPTY_INPUT);
     const controlled = this.isHuman(p.team) && p.id === this.controlledPlayer(control);
+    if (this.config.dynamic) {
+      if (!controlled || !p.wasControlled) p.moveVx = 0;
+      if (controlled) p.returnVx = 0;
+      p.wasControlled = controlled;
+    }
     const scheduledRun = this.teamRuns[p.team];
     if (
       controlled &&
@@ -1411,6 +1421,7 @@ export class Match {
     )
       p.returnHome = true;
     if (!grounded(p)) {
+      p.moveVx = p.returnVx = 0;
       if (
         this.phase === 'rally' &&
         p.jumpProfile &&
@@ -1485,12 +1496,24 @@ export class Match {
       )
         p.returnHome = false;
       if (p.returnHome) {
-        if (p.returnDelay <= 0)
-          p.x += clamp(
-            this.returnTarget(p) - p.x,
-            -this.config.playerSpeed * dt,
-            this.config.playerSpeed * dt,
-          );
+        const distance = this.returnTarget(p) - p.x;
+        if (this.config.dynamic) {
+          const settling = p.armSwing && p.armSwing.age < 0.3;
+          if (p.returnDelay > 0 || settling) p.returnVx = 0;
+          else if (Math.abs(distance) < 0.01) {
+            p.x += distance;
+            p.returnVx = 0;
+          } else {
+            const maximum = this.config.playerSpeed * 0.75;
+            const desired = clamp(distance * 8, -maximum, maximum);
+            p.returnVx = groundVelocity(p.returnVx || 0, desired, maximum, dt);
+            p.x +=
+              Math.sign(p.returnVx) === Math.sign(distance)
+                ? Math.sign(distance) * Math.min(Math.abs(distance), Math.abs(p.returnVx * dt))
+                : 0;
+          }
+        } else if (p.returnDelay <= 0)
+          p.x += clamp(distance, -this.config.playerSpeed * dt, this.config.playerSpeed * dt);
         p.facing = -this.sign(p.team);
         if (Math.abs(p.x - p.homeX) < 0.001) p.returnHome = false;
       } else if (p.id === this.controlledPlayer(control)) {
