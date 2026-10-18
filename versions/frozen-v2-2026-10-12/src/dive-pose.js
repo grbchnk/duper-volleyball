@@ -1,0 +1,23 @@
+import { playerFrame } from './sprites.js';
+import { clamp } from './physics.js';
+
+// One bounded palm target for both drawing and contact detection.
+export function diveHands(player, ball, config) {
+  const frame = playerFrame(player, { time: 0 });
+  const tilt = frame.pose.tilt;
+  const direction = Math.sign(player.diveVelocity) || player.facing || 1;
+  const shoulder = {
+    x:
+      player.x +
+      (direction * (-3 * Math.sin(tilt) + (20 - frame.pose.y) * Math.sin(tilt)) * 2.1) / 40,
+    y: player.y - ((-5 * Math.sin(tilt) + (frame.pose.y - 20) * Math.cos(tilt)) * 2.1) / 42,
+  };
+  const dx = direction * (ball.x - shoulder.x);
+  const dy = ball.y - shoulder.y;
+  const angle = clamp(Math.atan2(dy, Math.max(0.05, dx)), -0.9, 0.65);
+  const reach = clamp(Math.hypot(dx, dy), 0.45, 1.25 * config.armScale);
+  return {
+    x: shoulder.x + direction * Math.cos(angle) * reach,
+    y: Math.max(0.15, shoulder.y + Math.sin(angle) * reach),
+  };
+}

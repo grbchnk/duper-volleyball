@@ -1,0 +1,505 @@
+.dynamic-panel {
+  padding: 16px;
+  border: 1px solid #ccd9ca;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #edf5e8, #fff8e9);
+  color: #314f43;
+}
+.dynamic-panel h2 {
+  font-size: 19px;
+  margin: 0 0 14px;
+  letter-spacing: -0.5px;
+}
+.dynamic-kicker {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #847449;
+  margin: 0 0 6px;
+}
+.dynamic-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  margin: 9px 0;
+}
+.dynamic-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #bccfbb;
+  border-radius: 8px;
+  background: #fffdf5;
+  padding: 8px;
+  color: #294b3c;
+}
+.dynamic-panel details {
+  padding: 10px 0;
+  border-top: 1px solid #d8dfce;
+  font-size: 12px;
+}
+.dynamic-panel summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.dynamic-panel p:not(.dynamic-kicker) {
+  font-size: 11px;
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+.dynamic-panel .dynamic-check {
+  flex-direction: row;
+  align-items: center;
+}
+.dynamic-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.dynamic-buttons button {
+  flex: 1;
+  font-size: 12px;
+  padding: 9px 5px;
+}
+.controller-strip {
+  flex-shrink: 0;
+  color: #f4f4dd;
+  background: #365b4c;
+  border-radius: 9px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 36px;
+}
+#dynamic-analysis {
+  padding: 9px 0 0;
+  color: #667647;
+}
+#dynamic-replay-controls input {
+  width: 100%;
+}
+.game-page .topbar .brand {
+  font-size: 18px;
+}
+@media (max-width: 700px) {
+  .controller-strip {
+    font-size: 10px;
+  }
+}
+
+/* The club keeps competition and practice one click away. */
+.club-panel {
+  padding: 19px;
+  background: #244c40;
+  color: #fff5db;
+  border-radius: 16px;
+  box-shadow: 0 6px 20px #244c4015;
+}
+.club-kicker {
+  font-size: 9px;
+  letter-spacing: 1.7px;
+  margin: 0 0 10px;
+  color: #b4d1b6;
+}
+.club-coop-label {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  margin: 14px 0 9px;
+}
+.club-coop-label input {
+  accent-color: #f0ca74;
+}
+.club-coop-label small {
+  width: 100%;
+  padding-left: 22px;
+  font-size: 9px;
+  color: #b9cbb9;
+}
+.audio-preview {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #d7decb;
+}
+.audio-preview button {
+  border: 1px solid #ccd7bf;
+  border-radius: 7px;
+  padding: 9px 12px;
+  margin: 4px;
+  background: #edf2e4;
+  color: #365b4c;
+}
+.club-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.club-heading h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -1px;
+  color: #fff5db;
+}
+#club-cups {
+  color: #f0ca74;
+  font-size: 19px;
+  white-space: nowrap;
+}
+.club-stages {
+  display: flex;
+  gap: 7px;
+  margin: 18px 0 13px;
+}
+.club-stages span {
+  display: grid;
+  place-items: center;
+  height: 27px;
+  flex: 1;
+  border: 1px solid #ffffff25;
+  border-radius: 6px;
+  color: #b4c6ba;
+  font-size: 11px;
+}
+.club-stages .current {
+  color: #244c40;
+  background: #f0ca74;
+  border-color: #f0ca74;
+  font-weight: 800;
+}
+.club-stages .completed {
+  background: #416c54;
+  color: #fff4d5;
+}
+.club-panel h3 {
+  font-size: 13px;
+  margin: 8px 0;
+  color: inherit;
+}
+#club-stage-hint {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #c5d7c5;
+  margin: 8px 0 14px;
+}
+.club-panel .primary {
+  width: 100%;
+  background: #f0ca74;
+  color: #264b3e;
+  border-color: #f0ca74;
+  padding: 11px;
+  font-size: 12px;
+}
+.club-panel .primary:hover {
+  background: #ffe1a0;
+}
+.club-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 15px;
+  margin-top: 17px;
+  border-top: 1px solid #ffffff26;
+}
+.club-section-title span {
+  font-size: 10px;
+  color: #bdcdbb;
+}
+.club-challenges {
+  display: grid;
+  gap: 6px;
+  margin-top: 7px;
+}
+.club-challenge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #ffffff22;
+  background: #ffffff08;
+  color: #fff5db;
+  border-radius: 8px;
+  padding: 10px;
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.club-challenge:hover {
+  background: #ffffff18;
+  transform: translateX(2px);
+}
+.club-challenge b {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.club-challenge small {
+  display: block;
+  color: #b9cbb9;
+  font-size: 9px;
+  margin-top: 3px;
+}
+.club-record {
+  white-space: pre-line;
+  color: #f0ca74;
+  text-align: right;
+  font-size: 10px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.club-panel .club-footnote {
+  color: #afc5b2;
+  font-size: 9px;
+  line-height: 1.6;
+  margin: 13px 0 0;
+}
+.club-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #244c40;
+  color: #fff5db;
+  border-radius: 10px;
+  padding: 10px 16px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  min-height: 56px;
+}
+.club-hud[hidden] {
+  display: none;
+}
+#club-hud-kicker {
+  display: block;
+  font-size: 8px;
+  color: #d2d6ab;
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
+}
+#club-hud-title {
+  font-size: 14px;
+}
+.club-hud-stats {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+#club-hud-score {
+  font-size: 24px;
+  color: #f0ca74;
+  font-variant-numeric: tabular-nums;
+}
+#club-hud-detail {
+  font-size: 10px;
+  color: #c2d1bd;
+}
+.club-feedback {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 12px;
+  background: #f0ead6;
+  border-left: 3px solid #cba75d;
+  border-radius: 4px;
+  color: #55715c;
+  flex-shrink: 0;
+  min-height: 36px;
+  margin: 3px 0;
+}
+.club-feedback b {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.club-feedback span {
+  font-size: 10px;
+  line-height: 1.5;
+}
+.club-lobby {
+  width: min(510px, 92%);
+  padding: 25px 32px !important;
+}
+.club-lobby h2 {
+  font-size: clamp(26px, 4vw, 42px);
+  letter-spacing: -1.5px;
+  margin: 7px 0 12px;
+}
+.club-lobby .flower {
+  font-size: 28px;
+}
+.club-lobby .eyebrow {
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+.club-lobby h2 + p {
+  font-size: 13px;
+  color: #73826b;
+}
+.club-lobby-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 20px;
+}
+.club-lobby-actions button {
+  padding: 13px 10px;
+  font-size: 12px;
+}
+.club-lobby .club-lobby-actions .primary {
+  width: 100%;
+  margin: 0;
+}
+.club-quick {
+  border: 0;
+  background: transparent;
+  font-size: 11px;
+  color: #587160;
+  padding: 10px;
+  margin-top: 5px;
+}
+.club-lobby .club-selected {
+  outline: 2px solid #c5a45b;
+  outline-offset: 4px;
+}
+.club-lobby small {
+  font-size: 9px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+#club-finish-stats {
+  max-width: 370px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #71816a;
+}
+#club-next {
+  display: block;
+  width: 100%;
+  margin: 12px 0 4px;
+}
+#club-next[hidden] {
+  display: none;
+}
+.pause-card:has(#club-next:not([hidden])) #rematch {
+  background: transparent;
+  color: #607c66;
+  border: none;
+  font-size: 11px;
+}
+.controller-strip {
+  font-size: 10px;
+  padding: 6px 10px;
+  min-height: 27px;
+  background: #e5ecdc;
+  color: #5b725e;
+}
+.dynamic-panel .dynamic-kicker {
+  letter-spacing: 1px;
+}
+@media (max-width: 800px) {
+  .club-feedback {
+    flex-direction: column;
+    gap: 3px;
+  }
+  .club-hud {
+    padding: 8px 11px;
+  }
+  .club-hud-stats {
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-end;
+  }
+  #club-hud-score {
+    font-size: 20px;
+  }
+  .club-lobby {
+    padding: 16px 18px !important;
+  }
+  .club-lobby-actions {
+    margin-top: 12px;
+  }
+  .club-lobby-actions button {
+    font-size: 10px;
+    padding: 10px 6px;
+  }
+}
+@media (max-height: 760px) and (min-width: 801px) {
+  .club-lobby {
+    padding: 12px 24px !important;
+  }
+  .club-lobby .flower {
+    display: none;
+  }
+  .club-lobby h2 {
+    font-size: 30px;
+  }
+  .club-lobby-actions {
+    margin-top: 12px;
+  }
+  .controller-strip {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .club-challenge {
+    transition: none;
+  }
+}
+.club-menu,
+.club-menu-close {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .game-page .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    position: relative;
+  }
+  .game-page .sidebar {
+    display: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: min(340px, 95%);
+    z-index: 20;
+    background: #f7f5ec;
+    padding: 10px;
+    border: 1px solid #d7decb;
+    border-radius: 14px;
+    box-shadow: -12px 0 45px #244c4040;
+    overflow-y: auto;
+  }
+  .game-page .sidebar.club-open {
+    display: flex;
+  }
+  .game-page .arena-tools .club-menu {
+    display: block;
+    width: auto !important;
+    font-size: 11px;
+    white-space: nowrap;
+    padding: 5px 8px !important;
+  }
+  .club-menu-close {
+    display: block;
+    padding: 10px;
+    position: sticky;
+    top: -10px;
+    z-index: 1;
+    background: #fffdf1;
+    font-size: 12px;
+    border: 1px solid #ccd7bf;
+    border-radius: 8px;
+  }
+  .club-heading h2 {
+    font-size: 23px;
+  }
+  .controller-strip {
+    display: none;
+  }
+  .club-feedback {
+    flex-direction: column;
+    gap: 3px;
+  }
+}

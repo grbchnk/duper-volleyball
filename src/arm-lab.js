@@ -1,17 +1,25 @@
+import { drawBallDesign, pixelPresent, compositePixels } from './display.js';
 import { EMOTIONS } from './emotions.js';
 import { Match } from './engine.js';
 import { Renderer } from './renderer.js';
 import { TEAMS } from './config.js';
 import { jumpProfile, sampleJump, jumpDuration } from './motion.js';
 import { playerFrame } from './sprites.js';
+import { preparedHands } from './held-contact.js';
 
 // Uses the match renderer, including its springs and contact-to-recovery transition.
 export function createArmLab(dialog, getConfig) {
   const poseSelect = dialog.querySelector('#arm-pose');
   for (const [value, label] of Object.entries({
     ...EMOTIONS,
+    back: 'Сейв одной рукой',
+    squat: 'Приседание',
     'serve-low-left': 'Подача снизу · левая',
     'serve-low-right': 'Подача снизу · правая',
+    'serve-back-left': 'Подсечка снизу · левая',
+    'serve-back-right': 'Подсечка снизу · правая',
+    'serve-drive-left': 'Подача в прыжке · левая',
+    'serve-drive-right': 'Подача в прыжке · правая',
     'serve-loft-left': 'Подача сверху · левая',
     'serve-loft-right': 'Подача сверху · правая',
   })) {
@@ -91,9 +99,10 @@ export function createArmLab(dialog, getConfig) {
       animation: 0,
       jumpProfile: null,
       jumpTime: 0,
+      crouchAmount: 0,
     });
-    m.charge = null;
-    m.pending = null;
+    m.controls[0].charge = null;
+    m.controls[0].pending = null;
     m.phase = 'rally';
     m.serveAction = null;
     p.emotion = null;
@@ -103,9 +112,23 @@ export function createArmLab(dialog, getConfig) {
     } else if (kind.startsWith('serve-')) {
       const type = kind.split('-')[1],
         hand = kind.endsWith('left') ? 0 : 1;
+      if (type === 'drive') {
+        const profile = jumpProfile(m.config);
+        const time = phase - 0.9 + profile.windup + profile.rise;
+        if (time >= 0 && time < jumpDuration(profile)) {
+          p.jumpProfile = profile;
+          p.jumpTime = time;
+          Object.assign(p, sampleJump(profile, time));
+        }
+      }
       const vx = 5 + power * 9,
-        vy = type === 'low' ? vx * 0.8 : vx * 0.5,
-        hitY = type === 'low' ? 0.85 : 2.05;
+        vy = vx * (type === 'low' ? 0.8 : type === 'back' ? 0.3 : type === 'drive' ? 0.15 : 0.5),
+        hitY =
+          type === 'low'
+            ? 0.85
+            : type === 'back'
+              ? 0.95
+              : 2.05 + (type === 'drive' ? jumpProfile(m.config).height : 0);
       if (phase < 0.9) {
         m.phase = 'serve-motion';
         m.server = 0;
@@ -113,7 +136,10 @@ export function createArmLab(dialog, getConfig) {
         m.phaseTime = phase;
         rescueBall = {
           x: -0.5,
-          y: 1.3 + ((hitY - 1.3) * phase) / 0.9 + Math.sin((phase / 0.9) * Math.PI) * 0.7,
+          y:
+            (type === 'back' ? 0.85 : 1.3) +
+            ((hitY - (type === 'back' ? 0.85 : 1.3)) * phase) / 0.9 +
+            Math.sin((phase / 0.9) * Math.PI) * (type === 'back' ? 0.5 : 0.7),
         };
       } else {
         const age = phase - 0.9;
@@ -146,6 +172,8 @@ export function createArmLab(dialog, getConfig) {
       p.vx = 3;
       p.runTime = clock;
       p.pose = 'run';
+    } else if (kind === 'squat') {
+      p.crouchAmount = Math.max(0, Math.min(1, phase / 0.3, (1.7 - phase) / 0.3));
     } else if (kind === 'getup') {
       p.recovery = Math.max(0, 1 - phase);
       p.recoveryTotal = 1;
@@ -185,18 +213,18 @@ export function createArmLab(dialog, getConfig) {
         x: t < 0.18 ? hitX : hitX + (t - 0.18) * 3,
         y: t < 0.18 ? 0.65 : 0.65 + (t - 0.18) * 4,
       };
-    } else if (['low', 'loft', 'drive'].includes(kind)) {
+    } else if (['low', 'back', 'loft', 'drive'].includes(kind)) {
       if (phase > 0.12 && phase < 0.65) {
-        m.charge = {
+        m.controls[0].charge = {
           kind,
           power: power * Math.min(1, (phase - 0.12) / 0.35),
           age: phase - 0.12,
           playerId: 0,
         };
-        p.pose = 'ready-' + { low: 'bump', loft: 'set', drive: 'spike' }[kind];
+        p.pose = 'ready-' + { low: 'bump', back: 'backset', loft: 'set', drive: 'spike' }[kind];
       }
       if (phase >= 0.65 && phase < 0.71) {
-        m.pending = { kind, power, playerId: 0 };
+        m.controls[0].pending = { kind, power, playerId: 0 };
         p.armSwing = { kind, power, age: phase - 0.65, hit: false };
       }
       if (phase >= 0.71 && phase < 0.95)
@@ -217,7 +245,7 @@ export function createArmLab(dialog, getConfig) {
           age: phase - 0.71,
           at: cycle * 2.2 + 0.71,
           hit: true,
-          vx: 3 + power * 4,
+          vx: (kind === 'back' ? -1 : 1) * (3 + power * 4),
           vy: kind === 'drive' ? -3 : 4,
         };
     }
@@ -232,23 +260,43 @@ export function createArmLab(dialog, getConfig) {
       vy: 0,
       spin: 0,
     };
+    if (kind === 'back') {
+      const hand = preparedHands(
+        p,
+        { ...m, ball: { x: p.x - 1, y: 1, vx: 0, vy: 0 } },
+        { kind, power, age: 0.3, playerId: p.id },
+      )[0];
+      if (p.contact) Object.assign(p.contact, hand);
+      if (p.armSwing?.hit) Object.assign(p.armSwing, hand, { hand: 0 });
+      m.ball.x = hand.x - Math.abs(phase - 0.71) * (3 + power * 4);
+      m.ball.y = hand.y + (phase < 0.71 ? (0.71 - phase) * 3 : (phase - 0.71) * 4);
+    }
     if (rescueBall) Object.assign(m.ball, rescueBall);
+    renderer.pixelGraphics = getConfig().pixelGraphics;
     const c = renderer.ctx;
     c.fillStyle = '#edf1df';
     c.fillRect(0, 0, 400, 280);
     c.fillStyle = '#d6c4a1';
     c.fillRect(45, 255, 310, 3);
+    renderer.foregroundContext.clearRect(0, 0, 960, 540);
+    renderer.ctx = renderer.foregroundContext;
     renderer.drawPlayer(p, TEAMS[0], m, dt);
-    if ((['low', 'loft', 'drive'].includes(kind) || rescueBall) && phase > 0.3 && phase < 1.05) {
+    renderer.ctx = c;
+    compositePixels(c, renderer.foreground, getConfig().pixelGraphics);
+    if (
+      (['low', 'back', 'loft', 'drive'].includes(kind) || rescueBall) &&
+      phase > 0.3 &&
+      phase < 1.05
+    ) {
       const b = renderer.project(m.ball.x, m.ball.y);
-      c.fillStyle = '#f9d78b';
-      c.strokeStyle = '#91765e';
-      c.lineWidth = 2;
-      c.beginPath();
-      c.arc(b.x, b.y, 7, 0, Math.PI * 2);
-      c.fill();
-      c.stroke();
+      c.save();
+      c.translate(b.x, b.y);
+      c.scale(0.7 * getConfig().ballSize, 0.7 * getConfig().ballSize);
+      c.rotate(m.ball.angle || 0);
+      drawBallDesign(c, getConfig().ballSkin, getConfig().pixelGraphics);
+      c.restore();
     }
+    pixelPresent(renderer.canvas, getConfig().pixelGraphics);
     const body = playerFrame(p, m);
     status.textContent = `${body.label} · кадр ${body.index + 1}/${body.total} · ${renderer.armRigs.get(p.id)?.stage || 'Покой'}`;
   };

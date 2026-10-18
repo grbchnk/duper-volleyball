@@ -4,41 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#f7f5eb" />
-    <title>Super Volley Club · пиксельный волейбол 3 на 3</title>
+    <title>Duper Volleyball · Клуб</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23e7ac93'/%3E%3Cpath d='M16 2v14L4 23m12-7 12 7' fill='none' stroke='%23fff9de' stroke-width='2'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./dynamic.css" />
     <script type="module" src="./src/main.js"></script>
   </head>
-  <body>
+  <body class="game-page">
     <header class="topbar">
-      <a class="brand" href="./"
-        ><span class="brand-ball">✳</span>SUPER VOLLEY <b>CLUB</b><small>VOL. 02</small></a
+      <a class="brand" href="./index.html"
+        ><span class="brand-ball">✳</span>Duper Volleyball · Клуб</a
       >
       <nav>
-        <a href="./versions/classic-v1/index.html" target="_blank">Версия 01 ↗</a
+        <button id="settings-button">Настройки / JSON</button
+        ><button id="graphics-quick">Графика</button>
+        <button id="shots-quick">Удары и подачи</button><button id="physics-quick">Физика</button>
+        <a href="./versions/frozen-v2-2026-10-12/index.html" target="_blank">Сохранённая версия ↗</a
         ><button id="help-button">Методичка <span>↗</span></button>
       </nav>
     </header>
     <main>
-      <section class="page-heading">
-        <div>
-          <p class="eyebrow">PRECISION. TIMING. TEAMWORK.</p>
-          <h1>Точный приём.<br /><em>Командная атака.</em></h1>
-          <p class="intro">Три касания. Один мяч. План появится по ходу.</p>
-        </div>
-        <div class="heading-stamp">
-          <span>◆</span>
-          <p>Ручные касания<br />Большие комбинации</p>
-        </div>
-      </section>
       <div class="workspace">
         <section class="game-column" aria-label="Игра">
           <div class="arena-toolbar">
             <div class="mode-tabs" role="group" aria-label="Режим игры">
+              <button id="club-tour-mode">Кубок</button><button id="coop-mode">На двоих</button>
               <button id="match-mode" class="active">Матч</button
+              ><button id="versus-mode" aria-label="Два игрока друг против друга">Против</button
               ><button id="practice-mode">Разминка</button><button id="test-mode">ТЕСТ</button
               ><button id="demo-mode">Смотреть</button>
             </div>
@@ -48,7 +43,15 @@
               ><button id="fullscreen" aria-label="Полный экран">⛶</button>
             </div>
           </div>
+          <p id="controller-status" role="status" hidden></p>
+          <div id="club-hud" class="club-hud" hidden>
+            <div><span id="club-hud-kicker"></span><strong id="club-hud-title"></strong></div>
+            <div class="club-hud-stats">
+              <b id="club-hud-score"></b><span id="club-hud-detail"></span>
+            </div>
+          </div>
           <div id="arena" class="arena">
+            <canvas id="arena-background" width="960" height="540" aria-hidden="true"></canvas>
             <canvas
               id="game"
               width="960"
@@ -57,13 +60,20 @@
               aria-label="Пиксельная площадка"
             ></canvas>
             <div id="start-overlay" class="overlay">
-              <div class="start-card">
-                <span class="flower">◆</span>
-                <p class="eyebrow">SUPER VOLLEY CLUB</p>
-                <h2>Приём. Пас.<br /><em>Атака.</em></h2>
-                <p>Три игрока ждут твоих указаний.<br />Мяч ждать не собирается.</p>
-                <button id="start" class="primary">Выйти на площадку <span>↗</span></button
-                ><small>Подача: зажми A/W/D → отпусти → нажми ещё раз</small>
+              <div class="start-card club-lobby">
+                <span class="flower">✳</span>
+                <p class="eyebrow">ВОЛЕЙБОЛЬНЫЙ КЛУБ / 2026</p>
+                <h2>Ещё один мяч?</h2>
+                <p>От гула улиц до Кубка мира. В одиночку или вдвоём.</p>
+                <div class="club-lobby-actions">
+                  <button id="club-lobby-tour" class="primary">В погоню за кубком ↗</button
+                  ><button id="club-lobby-precision" class="secondary">Попасть в яблочко ◎</button>
+                </div>
+                <button id="start" class="club-quick">Просто сыграть матч →</button>
+                <button id="tutorial-start" class="text-button">
+                  Научиться играть · 6 шагов →
+                </button>
+                <small>← / → — выбор · Enter / ✕ — старт · Space / ✕ — прыжок</small>
               </div>
             </div>
             <div id="pause-overlay" class="overlay" hidden>
@@ -79,6 +89,8 @@
                 <p id="winner-label" class="eyebrow"></p>
                 <h2 id="final-score"></h2>
                 <p id="final-detail"></p>
+                <p id="club-finish-stats"></p>
+                <button id="club-next" class="primary" hidden></button>
                 <button id="rematch" class="primary">Ещё один матч ↗</button>
               </div>
             </div>
@@ -95,21 +107,22 @@
           <div class="game-status">
             <span id="status">Готов к подаче</span><span id="rule-label">ТЕМП 0.70×</span>
           </div>
+          <div class="club-feedback" role="status">
+            <b id="club-feedback-title">Точность решает.</b
+            ><span id="club-feedback-detail"
+              >Меняй силу, обманывай блок, спасай безнадёжные мячи.</span
+            >
+          </div>
           <div class="keyboard-strip">
-            <div><kbd>A</kbd><span>Снизу</span></div>
+            <div><kbd>S</kbd><span>Снизу</span></div>
+            <div><kbd>A</kbd><span>Одной рукой / мягкая подача</span></div>
             <div><kbd>W</kbd><span>Верхний пас</span></div>
             <div><kbd>D</kbd><span>Удар</span></div>
-            <div><kbd>S</kbd><span>Блок ×1</span></div>
+            <div><kbd>F</kbd><span>Блок ×1</span></div>
             <div><kbd>↑</kbd><span>Прыжок</span></div>
-            <div><kbd>↓</kbd><span>Нырок</span></div>
+            <div><kbd>↓</kbd><span>Присесть</span></div>
+            <div><kbd>Q / E</kbd><span>Бросок</span></div>
             <button id="combos-button">Все приёмы ↗</button>
-          </div>
-          <div class="bottom-note">
-            <span>✦ КАЖДЫЙ ПРИЁМ НАЧИНАЕТСЯ С ТВОЕЙ КОМАНДЫ</span>
-            <p>
-              A/W/D — держи для приёма руками или отпусти для удара. ↓ + ←/→ — бросок с одним
-              приёмом.
-            </p>
           </div>
         </section>
         <aside class="sidebar">
@@ -139,14 +152,11 @@
             <div class="versus"><span></span>VS<span></span></div>
             <label for="away-team">СОПЕРНИК</label
             ><select id="away-team"></select>
-            <div class="form-row">
-              <label for="difficulty">Сложность</label
-              ><select id="difficulty">
-                <option value="easy">Лёгкая</option>
-                <option value="normal" selected>Обычная</option>
-                <option value="hard">Высокая</option>
-              </select>
-            </div>
+            <label class="slider-label" for="difficulty"
+              >Уровень бота <output id="difficulty-value">55 / 100</output></label
+            >
+            <input id="difficulty" type="range" min="0" max="100" step="1" value="55" />
+            <div class="range-caption"><span>Спокойный</span><span>Сильный</span></div>
             <button id="new-match" class="secondary">Новый матч <span>↻</span></button>
           </section>
           <section class="panel tuning-panel">
@@ -158,10 +168,38 @@
               >Скорость игры <output id="speed-value">0.70×</output></label
             ><input id="speed" type="range" min="0.5" max="1.5" step="0.05" value="0.7" />
             <div class="range-caption"><span>Медленнее</span><span>Быстрее</span></div>
+            <label class="slider-label" for="flight-style"
+              >Мультяшный полёт <output id="flight-style-value">0%</output></label
+            >
+            <input id="flight-style" type="range" min="0" max="1" step="0.05" value="0" />
+            <div class="range-caption"><span>Обычный</span><span>Мультяшный</span></div>
+            <p class="micro">Скорость, разгон и зависание — в лаборатории физики.</p>
             <label class="toggle-row"
-              ><span>Помощь в точности паса<small>Без бега и ударов за тебя</small></span
-              ><input type="checkbox" id="assist" checked /><span class="toggle"></span></label
-            ><label class="toggle-row"
+              ><span>Помощь прыжку и броску<small>Ручной угол не меняется</small></span
+              ><input type="checkbox" id="assist" checked /><span class="toggle"></span
+            ></label>
+            <label class="toggle-row"
+              ><span>Высота прыжка от удержания<small>Кнопки ✕ / Space</small></span
+              ><input type="checkbox" id="variableJump" /><span class="toggle"></span
+            ></label>
+            <div id="profile-assistance" hidden>
+              <label class="slider-label" for="pass-assist"
+                >Коррекция автоматических пасов <output id="pass-assist-value">100%</output></label
+              >
+              <input id="pass-assist" type="range" min="0" max="1" step="0.05" value="1" />
+              <label class="slider-label" for="drive-assist"
+                >Коррекция автоматических атак <output id="drive-assist-value">100%</output></label
+              >
+              <input id="drive-assist" type="range" min="0" max="1" step="0.05" value="1" />
+              <p class="micro">
+                Ручные □ / △ / ○ всегда следуют вашему направлению и силе. Эти настройки действуют
+                на автоматические действия.
+              </p>
+              <div class="range-caption">
+                <span>Вообще без помощи</span><span>Полная помощь</span>
+              </div>
+            </div>
+            <label class="toggle-row"
               ><span>Прогноз полёта и удара</span><input type="checkbox" id="trajectory" /><span
                 class="toggle"
               ></span></label
@@ -171,12 +209,17 @@
           </section>
           <section class="panel">
             <div class="panel-heading">
-              <h2>Твой игрок</h2>
+              <h2>Внешность и управление</h2>
               <span>✋</span>
             </div>
-            <div id="skin-cards" class="skin-cards"></div>
-            <p>Форма разная. Гравитация общая.</p>
-            <button id="arms-button" class="secondary">Просмотр анимаций ↗</button>
+            <button id="graphics-button" class="secondary">Графика и внешний вид ↗</button>
+            <p class="micro">
+              Левый стик задаёт направление. L2 — мягко одной рукой, R2 — сильнее и прямее. Правый
+              стик отключён. Три нажатия направления подряд — бросок; Q / E — влево / вправо.
+            </p>
+
+            <button id="shots-button" class="secondary">Лаборатория ударов ↗</button
+            ><button id="arms-button" class="secondary">Просмотр анимаций ↗</button>
           </section>
           <section id="practice-panel" class="panel" hidden>
             <div class="panel-heading">
@@ -191,16 +234,93 @@
               <option value="set">Верхний пас</option>
               <option value="block">Блок и страховка</option>
               <option value="serve">Подача</option>
-              <option value="spike">Навес → атака у сетки</option></select
+              <option value="spike">Навес → атака у сетки</option>
+              <option value="combination">Второй пас → ручная атака</option></select
             ><button id="repeat-drill" class="secondary">Повторить мяч ↻</button>
           </section>
         </aside>
       </div>
-      <footer>
-        <span>SUPER VOLLEY CLUB / V0.2</span><span>Гравитация работает. Остальное — на тебе.</span
-        ><a href="./guide.html" target="_blank">Методичка для печати ↗</a>
-      </footer>
     </main>
+    <dialog id="graphics-dialog" aria-label="Графика и внешний вид">
+      <div class="dialog-top">
+        <h2>Графика и внешний вид</h2>
+        <button class="close" aria-label="Закрыть графику">×</button>
+      </div>
+      <div class="graphics-layout">
+        <section class="panel">
+          <h3>Отображение</h3>
+          <label class="toggle-row"
+            ><span
+              >Единая пиксельная сетка<small
+                >Выкл. — прежнее сглаживание. Вкл. — одинаковые пиксели всей сцены</small
+              ></span
+            ><input id="pixel-graphics" type="checkbox" /><span class="toggle"></span
+          ></label>
+          <div id="skin-cards" class="skin-cards" hidden></div>
+          <label><input id="ball-fire" type="checkbox" checked /> Огонь у быстрого мяча</label>
+          <label
+            ><input id="lively-background" type="checkbox" checked /> Живые трибуны и
+            конфетти</label
+          >
+          <label for="home-skin">Твоя команда</label>
+          <div class="appearance-row">
+            <select id="home-skin"></select
+            ><input id="home-color" type="color" aria-label="Цвет твоей команды" />
+          </div>
+          <label for="away-skin">Соперник</label>
+          <div class="appearance-row">
+            <select id="away-skin"></select
+            ><input id="away-color" type="color" aria-label="Цвет соперника" />
+          </div>
+          <label for="ball-skin">Мяч</label
+          ><select id="ball-skin">
+            <option value="classic">Волейбольные панели</option>
+            <option value="ocean">Диагональные полосы</option>
+            <option value="neon">Звезда</option>
+            <option value="mono">Шахматный</option>
+            <option value="plain">Без рисунка</option>
+          </select>
+          <label for="ball-size">Размер мяча <output id="ball-size-value"></output></label
+          ><input id="ball-size" type="range" min="0.7" max="1.8" step="0.05" />
+
+          <canvas
+            id="ball-preview"
+            width="240"
+            height="96"
+            aria-label="Предпросмотр рисунка мяча"
+          ></canvas>
+        </section>
+        <section class="panel">
+          <h3>Руки и анимация</h3>
+          <div id="graphics-controls"></div>
+        </section>
+      </div>
+    </dialog>
+    <dialog id="settings-dialog" aria-label="Все настройки">
+      <div class="dialog-top">
+        <h2>Все настройки · JSON</h2>
+        <button class="close" aria-label="Закрыть настройки">×</button>
+      </div>
+      <p>
+        Один файл сохраняет физику, все четыре подачи и четыре приёма, допуски контакта, параметры
+        анимации рук и прыжков, управление, помощь, правила, команды, скины, цвета и графику.
+      </p>
+      <p>
+        Это настройки игры, а не запись матча. Положение ползунка времени, пауза и выбранный пример
+        в лаборатории не сохраняются.
+      </p>
+      <div class="dialog-buttons">
+        <button id="reset-physics" class="secondary">Сбросить всё</button
+        ><button id="export-config" class="primary">Скачать все настройки ↓</button
+        ><label class="secondary file-button"
+          >Загрузить все настройки ↑<input
+            type="file"
+            id="import-config"
+            accept="application/json,.json"
+        /></label>
+      </div>
+      <p id="config-message" role="status"></p>
+    </dialog>
     <dialog id="help-dialog">
       <div class="dialog-top">
         <div>
@@ -214,6 +334,7 @@
         >Открыть методичку отдельно / печать ↗</a
       >
     </dialog>
+    <dialog id="shots-dialog" aria-label="Лаборатория ударов"></dialog>
     <dialog id="arms-dialog">
       <div class="dialog-top">
         <div>
@@ -268,24 +389,24 @@
         <button class="close" aria-label="Закрыть настройки">×</button>
       </div>
       <p>
-        Время — в игровых секундах: при темпе 0.70× реальные интервалы длиннее. Все ползунки
-        сохраняются и входят в JSON. Лимит удержания не может быть короче полного заряда + 0.05 с.
+        Время — в игровых секундах: при снижении темпа реальные интервалы длиннее. Все ползунки
+        сохраняются и входят в JSON. В ручной игре полный заряд отпускает удар автоматически.
       </p>
       <div id="physics-controls"></div>
+      <label class="toggle-row"
+        ><span
+          >Эксперимент: энергия входящего мяча<small
+            >Быстрый мяч усиливает нижний приём. L2 / Z гасит добавку.</small
+          ></span
+        ><input type="checkbox" id="receive-momentum" /><span class="toggle"></span
+      ></label>
       <label class="form-row" for="scoring"
         >Начисление очков<select id="scoring">
           <option value="sideout">На своей подаче</option>
           <option value="rally">Каждый розыгрыш</option>
         </select></label
       >
-      <div class="dialog-buttons">
-        <button id="reset-physics" class="secondary">Сбросить</button
-        ><button id="export-config" class="primary">Скачать JSON ↓</button
-        ><label class="secondary file-button"
-          >Загрузить JSON ↑<input type="file" id="import-config" accept="application/json,.json"
-        /></label>
-      </div>
-      <p id="config-message" role="status"></p>
+      <p>Сохранение и загрузка всех параметров — кнопка «Настройки / JSON» вверху страницы.</p>
     </dialog>
     <div id="toast" role="status" hidden></div>
   </body>

@@ -1,0 +1,27 @@
+{
+  "precision": [
+    [0.5, 0.06, false, false],
+    [0.3, 0.1, false, true],
+    [0.4, 0.06, false, false],
+    [0.4, 0.06, false, true],
+    [0.3, 0.03, true, false],
+    [0.55, 0.03, false, false],
+    [0.3, 0.25, true, false],
+    [0.3, 0.06, false, false],
+    [0.4, 0.03, false, true],
+    [0.4, 0.06, false, true]
+  ],
+  "serve": [
+    ["low", 0.575],
+    ["low", 0.225],
+    ["low", 0.65],
+    ["low", 0.375],
+    ["back", 0.175],
+    ["loft", 0.325],
+    ["low", 0.275],
+    ["loft", 0.5],
+    ["back", 0.4],
+    ["low", 0.45]
+  ],
+  "rescue": [0.23, 0.18, 0.24, 0.23, 0.18, 0.24, 0.23, 0.18, 0.24, 0.23]
+}

@@ -1,29 +1,82 @@
+import { SHOT_DEFAULTS, SHOT_LIMITS, SHOT_BASES } from './shot-settings.js';
+import { SERVE_DEFAULTS, SERVE_LIMITS, SERVE_BASES, serveKey } from './serve-settings.js';
 import { SKINS } from './sprites.js';
 import { ARM_STYLES } from './arms.js';
 export const FIXED_DT = 1 / 120;
-export const COURT = Object.freeze({ halfLength: 9, width: 9, netHeight: 2.43, ballRadius: 0.105 });
+export const COURT = Object.freeze({
+  halfLength: 9.25,
+  width: 9,
+  netHeight: 2.43,
+  ballRadius: 0.105,
+});
 export const DEFAULTS = Object.freeze({
-  gravity: 9.81,
+  dynamic: true,
+  duel: false,
+  floorBounce: false,
+  approachAssist: true,
+  setsToWin: 1,
+  cpuStyle: 'balanced',
+  gravity: 10.1,
   drag: 0.018,
   restitution: 0.58,
   playerSpeed: 5.6,
+  airMoveSpeed: 1.4,
   jumpSpeed: 5.2,
   hitPower: 1,
-  gameSpeed: 0.7,
+  ...SHOT_DEFAULTS,
+  backSpeedMax: 8.2,
+  ...SERVE_DEFAULTS,
+  gameSpeed: 1,
+  cartoonFlight: 0,
+  ballSpeed: 1.2,
+  attackDip: 12,
+  cartoonStart: 0.55,
+  cartoonEnd: 1.35,
+  cartoonRamp: 0.85,
+  cartoonHang: 0.4,
   assist: true,
-  scoring: 'sideout',
-  targetScore: 15,
+  passAssist: 1,
+  driveAssist: 1,
+  neutralPassAssist: 0.65,
+  neutralAttackAssist: 0,
+  receiveMomentum: false,
+  receiveTransfer: 0.25,
+  receiveDamping: 0.85,
+  thirdTouchSlowdown: 0,
+  variableJump: false,
+  scoring: 'rally',
+  targetScore: 11,
   difficulty: 'normal',
-  trajectory: true,
+  cpuSkill: 55,
+  trajectory: false,
   armStyle: 'whip',
   skin: 'club',
-  releaseWindow: 0.06,
-  chargeSeconds: 0.41,
-  maxHold: 0.56,
-  chargeMove: 0.65,
+  awaySkin: 'club',
+  homeColor: '#ee967d',
+  awayColor: '#80bda8',
+  ballSize: 1.2,
+  ballSkin: 'ocean',
+  ballFire: true,
+  fireSpeed: 14,
+  rightStickAim: false,
+  pixelGraphics: false,
+  livelyBackground: true,
+  soundMuted: false,
+  musicTrack: 'boardwalk',
+  musicVolume: 0.22,
+  arenaTheme: 'miami',
+  homeTeam: 'peach',
+  awayTeam: 'mint',
+  backArmMin: -75,
+  backArmMax: 10,
+  releaseWindow: 0.2,
+  chargeSeconds: 0.3,
+  maxHold: 0.326,
+  chargeMove: 0.2,
   jumpWindup: 0.085,
   jumpRise: 0.54,
-  jumpHang: 0.04,
+  jumpHang: 0.12,
+  jumpBallHang: 0.12,
   jumpFall: 0.45,
   blockWindow: 0.13,
   blockReach: 0.42,
@@ -54,13 +107,36 @@ export const PRESETS = {
   },
 };
 export const LIMITS = {
+  neutralPassAssist: [0, 1],
+  neutralAttackAssist: [0, 1],
+  receiveTransfer: [0, 0.6],
+  receiveDamping: [0, 1],
+  musicVolume: [0, 0.5],
+  attackDip: [0, 24],
+  setsToWin: [1, 3],
+  ballSize: [0.7, 1.8],
+  fireSpeed: [8, 25],
+  backArmMin: [-90, 90],
+  backArmMax: [-90, 90],
+  cpuSkill: [0, 100],
+  passAssist: [0, 1],
+  driveAssist: [0, 1],
   gravity: [5, 16],
   drag: [0, 0.1],
   restitution: [0.2, 0.9],
   playerSpeed: [3, 8],
+  airMoveSpeed: [0, 3],
   jumpSpeed: [3, 6.5],
   hitPower: [0.7, 1.4],
+  ...SHOT_LIMITS,
+  ...SERVE_LIMITS,
   gameSpeed: [0.5, 1.5],
+  cartoonFlight: [0, 1],
+  ballSpeed: [0.6, 1.4],
+  cartoonStart: [0.2, 1],
+  cartoonEnd: [1, 1.8],
+  cartoonRamp: [0.2, 1.6],
+  cartoonHang: [0, 0.85],
   targetScore: [5, 25],
   releaseWindow: [0, 0.35],
   chargeSeconds: [0.15, 0.9],
@@ -68,7 +144,9 @@ export const LIMITS = {
   chargeMove: [0, 1],
   jumpWindup: [0, 0.25],
   jumpRise: [0.3, 0.9],
-  jumpHang: [0, 0.15],
+  jumpHang: [0, 0.4],
+  jumpBallHang: [0, 0.5],
+  thirdTouchSlowdown: [0, 0.45],
   jumpFall: [0.25, 0.85],
   blockWindow: [0.04, 0.35],
   blockReach: [0.2, 0.75],
@@ -130,13 +208,80 @@ export function sanitizeConfig(value = {}) {
   for (const [key, [min, max]] of Object.entries(LIMITS)) {
     if (Number.isFinite(value[key])) result[key] = Math.max(min, Math.min(max, value[key]));
   }
+  // Migrate the first laboratory's multiplier and single angle once.
+  for (const [kind, base] of Object.entries(SHOT_BASES)) {
+    for (const [suffix, fallback] of [
+      ['SpeedMin', base.speed[0]],
+      ['SpeedMax', base.speed[1]],
+    ]) {
+      if (!Number.isFinite(value[kind + suffix]) && Number.isFinite(value[kind + 'Speed']))
+        result[kind + suffix] = Math.max(0, Math.min(30, fallback * value[kind + 'Speed']));
+    }
+    for (const suffix of ['AngleMin', 'AngleMax', 'AirAngleMin', 'AirAngleMax']) {
+      if (!Number.isFinite(value[kind + suffix]) && Number.isFinite(value[kind + 'Angle']))
+        result[kind + suffix] = Math.max(-90, Math.min(90, value[kind + 'Angle']));
+    }
+    for (const [low, high] of [
+      ['ElevationMin', 'ElevationMax'],
+      ['ContactMin', 'ContactMax'],
+    ]) {
+      result[kind + high] = Math.max(result[kind + low], result[kind + high]);
+    }
+  }
   result.targetScore = Math.round(result.targetScore);
+  result.setsToWin = Math.round(result.setsToWin);
+  if (['balanced', 'blocker', 'deep', 'trickster', 'patient'].includes(value.cpuStyle))
+    result.cpuStyle = value.cpuStyle;
+  for (const kind of Object.keys(SERVE_BASES)) {
+    const key = (suffix) => serveKey(kind, suffix);
+    result[key('Targeted')] = Math.round(result[key('Targeted')]);
+    result[key('NetAssist')] = Math.round(result[key('NetAssist')]);
+    result[key('ElevationMax')] = Math.max(
+      result[key('ElevationMin')],
+      result[key('ElevationMax')],
+    );
+    result[key('HitWindow')] = Math.max(result[key('PerfectWindow')], result[key('HitWindow')]);
+  }
   result.maxHold = Math.max(result.maxHold, result.chargeSeconds * 0.92 + 0.05);
-  for (const key of ['assist', 'trajectory'])
+  result.backArmMax = Math.max(result.backArmMin, result.backArmMax);
+  for (const key of [
+    'dynamic',
+    'duel',
+    'floorBounce',
+    'approachAssist',
+    'assist',
+    'receiveMomentum',
+    'trajectory',
+    'variableJump',
+    'ballFire',
+    'rightStickAim',
+    'pixelGraphics',
+    'livelyBackground',
+    'soundMuted',
+  ])
     if (typeof value[key] === 'boolean') result[key] = value[key];
   if (['sideout', 'rally'].includes(value.scoring)) result.scoring = value.scoring;
+  if (['off', 'sunset', 'boardwalk', 'ocean'].includes(value.musicTrack))
+    result.musicTrack = value.musicTrack;
+  if (['miami', 'street', 'paris', 'stadium'].includes(value.arenaTheme))
+    result.arenaTheme = value.arenaTheme;
   if (['easy', 'normal', 'hard'].includes(value.difficulty)) result.difficulty = value.difficulty;
+  if (
+    !Number.isFinite(value.cpuSkill) ||
+    (value.cpuSkill === DEFAULTS.cpuSkill && value.difficulty && value.difficulty !== 'normal')
+  )
+    result.cpuSkill = { easy: 20, normal: 55, hard: 90 }[result.difficulty];
+  result.cpuSkill = Math.round(result.cpuSkill);
   if (Object.hasOwn(ARM_STYLES, value.armStyle)) result.armStyle = value.armStyle;
   if (Object.hasOwn(SKINS, value.skin)) result.skin = value.skin;
+  if (Object.hasOwn(SKINS, value.awaySkin)) result.awaySkin = value.awaySkin;
+  if (['classic', 'ocean', 'neon', 'mono', 'plain'].includes(value.ballSkin))
+    result.ballSkin = value.ballSkin;
+  for (const key of ['homeColor', 'awayColor'])
+    if (/^#[0-9a-f]{6}$/i.test(value[key])) result[key] = value[key];
+  for (const key of ['homeTeam', 'awayTeam'])
+    if (TEAMS.some((team) => team.id === value[key])) result[key] = value[key];
+  // The removed right-stick mode is accepted only as an old-save migration.
+  result.rightStickAim = false;
   return result;
 }

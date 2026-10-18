@@ -1,4 +1,5 @@
 import { emotionArms, EMOTIONS } from './emotions.js';
+import { receiveWrists } from './receive-pose.js';
 // Presentation only: a complete pose blends back to the current locomotion pose.
 const clamp = (v, min = 0, max = 1) => Math.max(min, Math.min(max, v));
 const ease = (v) => {
@@ -22,14 +23,17 @@ export function expressivePose({
   block = false,
   diving = false,
   diveForward = false,
+  diveTarget = null,
   bodyTilt = 0,
   bodyOffsetY = 0,
   recoveryPose = null,
   step = 0,
   contactPoint = null,
   serve = null,
+  serveSupport = null,
   localVelocity = null,
-  actionDirection = 1,
+  actionDirection = kind === 'back' ? -1 : 1,
+  receiveAim = null,
   emotion = null,
   shoulderLift = 0,
 }) {
@@ -41,7 +45,11 @@ export function expressivePose({
       x: (i ? 6 : -6) + (p.x - (i ? 6 : -6)) * scale,
       y: -20 + (p.y + 20) * scale,
     }));
-  let base = idle.map((p, i) => ({ ...p, x: p.x + (i ? 1 : -1) * step * 0.5 })),
+  let base = idle.map((p, i) => ({
+      ...p,
+      x: p.x + (i ? 1 : -1) * step * 1.4,
+      y: p.y - Math.abs(step) * 0.25,
+    })),
     stage = 'Покой';
   if (jump) {
     const { profile, time } = jump,
@@ -84,19 +92,20 @@ export function expressivePose({
   }
   if (block) {
     base = [
-      { x: -6, y: -43 },
-      { x: 7, y: -43 },
+      { x: 2, y: -43 },
+      { x: 8, y: -43 },
     ];
     stage = 'Блок';
   }
   base = scaled(base);
   // Keep the reach horizontal in world space while the torso tips forward.
-  if (diving && diveForward) {
+  if (diving && (diveForward || diveTarget)) {
     base = [-1, 1].map((side) => ({
       x: side * 3 + 25 * Math.cos(bodyTilt),
       y: -20 - 25 * Math.sin(bodyTilt),
     }));
     stage = 'Руки вперёд';
+    if (diveTarget) base = [-1, 1].map((side) => ({ x: diveTarget.x + side * 2, y: diveTarget.y }));
   }
   if (recoveryPose) {
     const t = clamp(recoveryPose.progress);
@@ -128,29 +137,42 @@ export function expressivePose({
     });
   const recoveryStart = Math.max(0.09, strokeTime);
 
+  const reception =
+    !serve && !swing?.serve && !diving
+      ? receiveWrists(kind, receiveAim, amp, actionDirection)
+      : null;
+  const oneHand = !!(charge?.aim?.soft || swing?.aim?.soft);
+  const activeHands = oneHand ? [1] : reception?.hands || [0, 1];
   const ready =
-    diving && diveForward
+    diving && (diveForward || diveTarget)
       ? base
       : scaled(
-          diving
-            ? [
-                { x: 6, y: -39 },
-                { x: 10, y: -40 },
-              ]
-            : kind === 'low'
+          reception
+            ? reception.wrists
+            : diving
               ? [
-                  { x: 10, y: -9 - amp * 2 },
-                  { x: 14, y: -9 - amp * 2 },
+                  { x: 6, y: -39 },
+                  { x: 10, y: -40 },
                 ]
-              : kind === 'loft'
+              : kind === 'back'
                 ? [
-                    { x: 0, y: -37 - amp * 0.5 },
-                    { x: 7, y: -36 + amp * 2 },
+                    { x: actionDirection * 9, y: -33 - amp },
+                    { x: actionDirection * 3, y: -36 - amp },
                   ]
-                : [
-                    { x: 12, y: -27 },
-                    { x: actionDirection * (-8 - amp * 2), y: -33 - amp },
-                  ],
+                : kind === 'low'
+                  ? [
+                      { x: 5, y: -11 - amp * 2 },
+                      { x: 9, y: -11 - amp * 2 },
+                    ]
+                  : kind === 'loft'
+                    ? [
+                        { x: 1, y: -38 - amp * 0.5 },
+                        { x: 7, y: -38 - amp * 0.5 },
+                      ]
+                    : [
+                        { x: 12, y: -27 },
+                        { x: actionDirection * (-8 - amp * 2), y: -33 - amp },
+                      ],
         );
   if (charge) {
     activity = ease((charge.age ?? 0.1) / config.armWindup);
@@ -161,39 +183,50 @@ export function expressivePose({
     const age = swing.age;
     if (!swing.hit) {
       const recoil = scaled(
-        kind === 'drive'
+        kind === 'back'
           ? [
-              { x: 11, y: -28 },
-              { x: actionDirection * (-11 - amp * 2), y: -35 - amp },
+              { x: actionDirection * 5, y: -29 },
+              { x: 0, y: -32 },
             ]
-          : kind === 'loft'
+          : kind === 'drive'
             ? [
-                { x: 0, y: -33 },
-                { x: 7, y: -33 },
+                { x: 11, y: -28 },
+                { x: actionDirection * (-11 - amp * 2), y: -35 - amp },
               ]
-            : [
-                { x: 6, y: -6 },
-                { x: 10, y: -6 },
-              ],
+            : kind === 'loft'
+              ? [
+                  { x: 0, y: -33 },
+                  { x: 7, y: -33 },
+                ]
+              : [
+                  { x: 6, y: -6 },
+                  { x: 10, y: -6 },
+                ],
       );
       const end = scaled(
-        kind === 'drive'
+        kind === 'back'
           ? [
-              { x: 10, y: -23 },
-              { x: actionDirection * 15, y: -29 },
+              { x: actionDirection * 23, y: -39 },
+              { x: actionDirection * 17, y: -42 },
             ]
-          : kind === 'loft'
+          : kind === 'drive'
             ? [
-                { x: 1, y: -44 },
-                { x: 8, y: -44 },
+                { x: 10, y: -23 },
+                { x: actionDirection * 15, y: -29 },
               ]
-            : [
-                { x: 18, y: -17 },
-                { x: 22, y: -17 },
-              ],
+            : kind === 'loft'
+              ? [
+                  { x: 1, y: -44 },
+                  { x: 8, y: -44 },
+                ]
+              : [
+                  { x: 18, y: -17 },
+                  { x: 22, y: -17 },
+                ],
       );
-      const stroke =
-        age < 0.035
+      const stroke = reception
+        ? follow(ready, age, activeHands)
+        : age < 0.035
           ? pairMix(ready, recoil, ease(age / 0.035))
           : pairMix(recoil, end, ease((age - 0.035) / 0.065));
       activity = 1 - ease((age - 0.1) / 0.15);
@@ -201,22 +234,25 @@ export function expressivePose({
       stage = age < 0.1 ? 'Взмах после отпускания' : activity > 0 ? 'Возврат' : stage;
     } else {
       const point = contactPoint || { x: 10, y: kind === 'low' ? -14 : -40 };
+      const hand = swing.hand ?? (point.x < 0 ? 0 : 1);
       const hit =
-        kind === 'drive'
-          ? [
-              { x: 11, y: -25 },
-              { x: point.x, y: point.y },
-            ]
-          : kind === 'low'
+        kind === 'back'
+          ? base.map((p, i) => (i === hand ? { ...point } : p))
+          : kind === 'drive'
             ? [
-                { x: point.x - 2, y: point.y + 3 },
-                { x: point.x + 2, y: point.y + 3 },
+                { x: 11, y: -25 },
+                { x: point.x, y: point.y },
               ]
-            : [
-                { x: point.x - 3.5, y: point.y + 2 },
-                { x: point.x + 3.5, y: point.y + 2 },
-              ];
-      const stroke = follow(hit, age, kind === 'drive' ? [1] : [0, 1]);
+            : kind === 'low'
+              ? [
+                  { x: point.x - 2, y: point.y + 3 },
+                  { x: point.x + 2, y: point.y + 3 },
+                ]
+              : [
+                  { x: point.x - 3.5, y: point.y + 2 },
+                  { x: point.x + 3.5, y: point.y + 2 },
+                ];
+      const stroke = follow(hit, age, kind === 'back' ? [hand] : kind === 'drive' ? [1] : [0, 1]);
       activity = 1 - ease((age - recoveryStart) / 0.23);
       wrists = pairMix(base, stroke, activity);
       stage =
@@ -235,19 +271,48 @@ export function expressivePose({
     const hand = serve?.hand ?? swing?.hand ?? 1;
     const strikeReady = scaled([
       { x: 0, y: 0 },
-      { x: actionDirection * (type === 'low' ? -9 : -8), y: type === 'low' ? -7 : -35 },
+      {
+        x:
+          actionDirection *
+          (type === 'low' ? -9 : type === 'back' ? -14 : type === 'drive' ? -15 : -8),
+        y: type === 'low' ? -7 : type === 'back' ? -10 : type === 'drive' ? -42 : -35,
+      },
     ])[1];
     const readyServe = scaled([
       { x: -9, y: -18 },
       { x: 10, y: -18 },
     ]);
     readyServe[hand] = strikeReady;
+    if (type === 'back' && serve) {
+      // The free hand tosses low, then drops while the striking hand waits below.
+      const toss = Math.sin(Math.PI * clamp(age / 0.32));
+      readyServe[1 - hand] = { x: 9 * actionDirection, y: -17 - 8 * toss };
+    }
     if (serve) {
       wrists = pairMix(base, readyServe, ease(age / 0.4));
       stage =
-        type === 'low' ? 'Нижняя подача' : type === 'drive' ? 'Разбег и прыжок' : 'Верхняя подача';
+        type === 'low'
+          ? 'Нижняя подача'
+          : type === 'back'
+            ? 'Подброс и подсечка снизу'
+            : type === 'drive'
+              ? 'Разбег и прыжок'
+              : 'Верхняя подача';
+    } else if (!swing.hit) {
+      const end = base.map((p, i) =>
+        i === hand
+          ? { x: type === 'back' ? 19 : 13, y: type === 'low' ? -17 : type === 'back' ? -19 : -40 }
+          : p,
+      );
+      const stroke = pairMix(readyServe, end, ease(swing.age / 0.1));
+      activity = 1 - ease((swing.age - 0.1) / 0.23);
+      wrists = pairMix(base, stroke, activity);
+      stage = activity > 0 ? 'Промах на подаче' : stage;
     } else {
-      const point = contactPoint || { x: 15, y: type === 'low' ? -12 : -40 };
+      const point = contactPoint || {
+        x: 15,
+        y: type === 'low' ? -12 : type === 'back' ? -19 : -40,
+      };
       const hit = base.map((p, i) => (i === hand ? { x: point.x, y: point.y } : p));
       activity = 1 - ease((swing.age - recoveryStart) / 0.23);
       wrists = pairMix(base, follow(hit, swing.age, [hand]), activity);
@@ -260,7 +325,13 @@ export function expressivePose({
     stage = EMOTIONS[emotion.kind];
     activity = 0;
   }
+  if (oneHand && !serve && !swing?.serve) wrists[0] = { ...base[0] };
   wrists = wrists.map((p) => ({ ...p, y: p.y + shoulderLift }));
+  if (serveSupport) {
+    const { hand, point, weight } = serveSupport;
+    wrists[hand] = mix(wrists[hand], point, weight);
+    if (serveSupport.attached) stage = serve ? 'Подброс с ладони' : 'Мяч на ладони';
+  }
 
   if (recoveryPose) {
     wrists = base;
@@ -273,6 +344,7 @@ export function expressivePose({
         x: (shoulder.x + p.x) / 2 + (i ? 1 : -1) * (block ? 3 : 6) * config.armBend,
         y: (shoulder.y + p.y) / 2 + 5 * config.armBend,
       };
+      if (block) return { x: i ? 10 : -3, y: -31 + shoulderLift };
       if (kind === 'loft' && !serve && !swing?.serve)
         return mix(
           rest,
@@ -288,6 +360,7 @@ export function expressivePose({
   ];
   return {
     wrists,
+    activeHands,
     elbows,
     shoulders,
     power: activity > 0 ? power : 0.35,

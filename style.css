@@ -9,6 +9,275 @@
   --peach: #e6a68d;
   --mono: Consolas, monospace;
 }
+/* Ambient park continues behind the court's aspect-ratio margins. */
+.game-page {
+  background: var(--bg);
+}
+.game-page > .topbar,
+.game-page > main {
+  position: relative;
+  z-index: 1;
+}
+.game-page > .topbar {
+  background: #fffdf5ed;
+}
+.game-page .arena {
+  isolation: isolate;
+  background: transparent;
+}
+#arena-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: -1;
+}
+.game-page #game {
+  position: relative;
+}
+dialog .dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  padding: 10px 0;
+  box-shadow: 0 8px 0 var(--panel);
+}
+dialog .close {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+.graphics-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+#graphics-dialog {
+  width: min(920px, calc(100vw - 24px));
+}
+#graphics-dialog label[for] {
+  display: block;
+  margin: 14px 0 6px;
+}
+#graphics-dialog select,
+#graphics-controls input[type='range'] {
+  width: 100%;
+}
+#graphics-controls small {
+  display: block;
+  line-height: 1.5;
+  color: #617b70;
+}
+#ball-preview {
+  height: 96px;
+  width: 100%;
+  margin-top: 15px;
+  object-fit: contain;
+}
+#settings-dialog p {
+  max-width: 650px;
+  line-height: 1.7;
+}
+@media (max-width: 700px) {
+  .graphics-layout {
+    grid-template-columns: 1fr;
+  }
+}
+/* The match occupies the viewport; only the settings rail and dialogs scroll. */
+.game-page {
+  height: 100dvh;
+  overflow: hidden;
+}
+.game-page .topbar {
+  height: 46px;
+  padding: 0 18px;
+}
+.game-page main {
+  max-width: none;
+  height: calc(100dvh - 46px);
+  padding: 8px 12px;
+}
+.game-page .workspace {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+.game-page .game-column {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.game-page .arena {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  background: #e6eddf;
+}
+.game-page #game {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
+}
+.game-page .arena-toolbar {
+  flex: 0 0 38px;
+}
+.game-page .sidebar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+  gap: 10px;
+  padding-right: 4px;
+}
+.game-page .panel {
+  min-width: 0;
+  width: 100%;
+  flex: 0 0 auto;
+  padding: 14px;
+}
+.game-page .panel-heading {
+  margin-bottom: 10px;
+}
+.game-page .action-panel {
+  display: none;
+}
+.game-page .play-ribbon {
+  flex-shrink: 0;
+  padding: 8px 12px;
+}
+.game-page .game-status {
+  padding: 5px 8px;
+}
+.game-page .keyboard-strip {
+  padding: 6px;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.game-page .keyboard-strip span {
+  font-size: 10px;
+}
+.appearance-row {
+  display: grid;
+  grid-template-columns: 1fr 40px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.game-page .panel > label[for='ball-skin'],
+.game-page .panel > label[for='ball-size'],
+.game-page .panel > label[for='aim-mode'] {
+  display: block;
+  margin: 12px 0 6px;
+}
+.game-page #ball-skin,
+.game-page #aim-mode {
+  width: 100%;
+}
+.shot-dial.neutral #shot-needle {
+  visibility: hidden;
+}
+.appearance-row input[type='color'] {
+  width: 40px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 6px;
+}
+.timing-map {
+  display: flex;
+  height: 28px;
+  margin: 12px 0 4px;
+}
+.timing-map button {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+}
+.timing-map button[aria-pressed='true'] {
+  outline: 3px solid #233f50;
+  outline-offset: 2px;
+  z-index: 1;
+}
+.shot-dial #shot-needle {
+  stroke: #ba4933;
+  stroke-width: 5;
+}
+.shot-dial #shot-needle circle {
+  fill: #ba4933;
+}
+.shot-dial.neutral #shot-needle {
+  opacity: 0;
+}
+@media (max-width: 800px) {
+  .game-page .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .game-page nav {
+    gap: 6px;
+  }
+  .game-page nav button {
+    padding: 6px;
+  }
+  .game-page .mode-tabs {
+    gap: 5px;
+  }
+  .game-page .arena-toolbar {
+    padding: 0 5px;
+  }
+  .game-page .arena-tools {
+    gap: 3px;
+  }
+  .game-page .workspace {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+  .game-page .keyboard-strip > div:nth-child(n + 5) {
+    display: none;
+  }
+  .game-page .mode-tabs button {
+    padding: 6px;
+    font-size: 11px;
+  }
+  .game-page .topbar nav a {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .game-page .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1.3fr) minmax(0, 1fr);
+  }
+  .game-page .sidebar {
+    display: block;
+  }
+  .game-page .keyboard-strip,
+  .game-page .game-status {
+    display: none;
+  }
+  .game-page .start-card {
+    padding: 10px;
+  }
+  .game-page .start-card h2 {
+    font-size: 20px;
+  }
+  .game-page .start-card .flower,
+  .game-page .start-card p {
+    display: none;
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -217,9 +486,12 @@ canvas {
   place-items: center;
   background: #d7e7d3;
 }
-.arena:fullscreen canvas {
-  height: 100%;
-  max-width: 177.77vh;
+.arena:fullscreen #game {
+  width: min(100vw, 177.777778vh);
+  height: min(100vh, 56.25vw);
+  max-width: none;
+  max-height: none;
+  aspect-ratio: 16 / 9;
   object-fit: contain;
 }
 .overlay {
@@ -1139,4 +1411,294 @@ canvas {
 .frame-note {
   font-size: 11px !important;
   color: #718066 !important;
+}
+#shots-dialog {
+  width: min(1240px, calc(100vw - 32px));
+  max-width: 1240px;
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+}
+.shot-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 24px;
+}
+.shot-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  background: #edf1df;
+  border-radius: 12px;
+}
+.shot-controls label {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.shot-controls small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #617b70;
+}
+.shot-controls hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #cbd5be;
+}
+.shot-controls h3 {
+  margin: 0;
+}
+.shot-controls input[type='range'],
+.shot-controls select {
+  width: 100%;
+  min-width: 0;
+}
+.shot-controls input[type='checkbox'] {
+  width: auto;
+}
+.shot-controls details {
+  border-top: 1px solid #cbd5be;
+  padding: 10px 0;
+}
+.shot-controls summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.shot-field > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 8px;
+}
+.shot-field input[type='number'] {
+  width: 100%;
+  min-width: 0;
+  padding: 5px;
+}
+.shot-field label {
+  font-size: 12px;
+  gap: 6px;
+  line-height: 1.4;
+}
+.shot-controls :disabled {
+  opacity: 0.45;
+}
+.shot-dial {
+  width: min(200px, 100%);
+  margin: 4px auto;
+  touch-action: none;
+  cursor: crosshair;
+}
+.shot-dial svg {
+  display: block;
+  width: 100%;
+  fill: none;
+  stroke: #819c88;
+  stroke-width: 2;
+}
+.shot-dial text {
+  fill: #617b70;
+  stroke: none;
+  font-size: 10px;
+  text-anchor: middle;
+}
+.shot-dial .dial-cross {
+  stroke: #cbd5be;
+  stroke-dasharray: 3 5;
+}
+#shot-needle {
+  stroke: #3a8276;
+  stroke-width: 3;
+}
+.shot-dial.neutral #shot-needle,
+.shot-dial[aria-disabled='true'] {
+  opacity: 0.4;
+}
+.shot-dial:focus-visible {
+  outline: 2px solid #3a8276;
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+.shot-endpoint-buttons {
+  display: flex;
+  gap: 6px;
+}
+.shot-endpoint-buttons button {
+  flex: 1;
+  padding: 8px;
+}
+.shot-preview {
+  min-width: 0;
+}
+#shot-canvas {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  display: block;
+  border: 1px solid #cbd5be;
+  border-radius: 12px;
+}
+.shot-legend {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: #617b70;
+  font-size: 12px;
+  margin: 14px 0;
+}
+#shot-stats {
+  background: #edf1df;
+  padding: 16px;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+#shot-time {
+  width: 100%;
+}
+#sound-unlock {
+  margin: 4px 0 10px;
+  background: #f5df93;
+  color: #423e2a;
+  border: 1px solid #d2b96b;
+  font-weight: 700;
+}
+.audio-preview button {
+  margin: 4px;
+}
+#shots-button {
+  width: 100%;
+}
+@media (min-width: 801px) {
+  #shots-dialog {
+    height: calc(100dvh - 32px);
+    overflow: hidden;
+  }
+  #shots-dialog .dialog-top {
+    margin-bottom: 14px;
+  }
+  .shot-layout {
+    height: calc(100% - 76px);
+    min-height: 0;
+  }
+  .shot-controls {
+    overflow-y: auto;
+  }
+  #shots-dialog .shot-preview {
+    position: static;
+    max-height: 100%;
+    height: 100%;
+    overflow: auto;
+  }
+  #shot-canvas {
+    max-height: 44dvh;
+    object-fit: contain;
+  }
+  #shot-stats {
+    margin: 8px 0;
+    padding: 8px;
+  }
+  .shot-legend {
+    margin: 8px 0;
+    gap: 10px;
+  }
+  #shot-timing-preview p {
+    margin: 5px 0;
+  }
+}
+@media (max-width: 800px) {
+  .shot-layout {
+    grid-template-columns: 1fr;
+  }
+  .shot-preview {
+    grid-row: 1;
+  }
+}
+@media (min-width: 801px) {
+  .shot-preview {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: calc(100dvh - 96px);
+    overflow: auto;
+  }
+}
+#ambience-dialog {
+  max-width: 860px;
+}
+.arena-choices {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0;
+}
+.arena-choice {
+  padding: 7px;
+  text-align: left;
+  background: #f2f0e5;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.arena-choice[aria-pressed='true'] {
+  border-color: #779a88;
+  background: #e1ecdf;
+}
+.arena-choice canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 5px;
+  image-rendering: pixelated;
+}
+.arena-choice strong,
+.arena-choice small {
+  display: block;
+  margin: 8px 3px;
+  line-height: 1.4;
+}
+.arena-choice small {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6c7f74;
+}
+.music-settings {
+  padding: 20px;
+  background: #e8ede2;
+  border-radius: 10px;
+}
+.music-settings select,
+.music-settings input {
+  display: block;
+  width: 100%;
+  margin: 10px 0 18px;
+}
+.music-settings p {
+  font-size: 12px;
+  color: #61786e;
+  line-height: 1.6;
+}
+@media (max-width: 650px) {
+  .arena-choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.arena-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+#ambience-dialog > p {
+  margin: 8px 0;
+}
+#ambience-dialog .arena-choices {
+  margin: 16px 0;
+}
+.music-settings h3 {
+  margin: 0 0 12px;
+}
+.music-settings input {
+  margin-bottom: 12px;
+}
+.music-settings p {
+  margin-bottom: 0;
 }

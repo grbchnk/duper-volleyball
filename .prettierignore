@@ -2,4 +2,6 @@ node_modules/
 .cache/
 coverage/
 versions/classic-v1/
+versions/frozen-v2-2026-10-12/
+versions/frozen-v2-2026-10-12.sha256.json
 package-lock.json

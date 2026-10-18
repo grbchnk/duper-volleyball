@@ -1,6 +1,6 @@
 {
   "name": "super-volley-club",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Pixel volleyball for the browser with manual ball contacts, configurable physics and local training modes",
@@ -8,14 +8,22 @@
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:classic": "node --test versions/classic-v1/tests/*.test.mjs",
+    "test:dynamic": "npm test",
+    "test:compatibility": "node --test tests/compatibility/*.test.mjs",
+    "test:legacy": "node --test versions/frozen-v2-2026-10-12/tests/*.test.mjs",
+    "test:browser": "node --test tests/browser/*.test.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "verify:archives": "node versions/verify-frozen.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run format:check && npm test && npm run test:classic"
+    "check": "npm run format:check && npm test && npm run test:compatibility && npm run test:classic && npm run verify:archives",
+    "check:all": "npm run check && npm run test:browser"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "playwright": "^1.62.1",
     "prettier": "3.9.9"
   }
 }

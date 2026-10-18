@@ -1,6 +1,8 @@
 node_modules/
 .cache/
 *.log
+*-results.txt
+restore*-output.txt
 coverage/
 
 .env

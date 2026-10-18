@@ -1,4 +1,6 @@
-// Stylised vertical jump: quick ease-out, a tiny apex pause, then a faster fall.
+import { serveSettings } from './serve-settings.js';
+import { heldServeBall } from './serve-support.js';
+// Quick ease-out ascent, a short apex pause, then an accelerating fall.
 // The ball retains its independent ballistic physics.
 export function jumpProfile(config) {
   const natural = config.jumpSpeed / config.gravity;
@@ -31,12 +33,71 @@ export function blockWindow(player, config) {
   return Math.abs(player.jumpTime - apex) <= config.blockWindow / 2;
 }
 export function serveOrigin(player, kind, config, preview = false) {
+  const settings = serveSettings(config, kind);
   const dir = player.team === 0 ? 1 : -1;
   const lift = preview ? (kind === 'drive' ? jumpProfile(config).height : 0) : player.y;
   return {
-    x: player.x + dir * (0.5 + (preview && kind === 'drive' ? 1.05 : 0)),
-    y: lift + (kind === 'low' ? 0.85 : 2.05),
+    x: player.x + dir * (0.5 + (preview && kind === 'drive' ? settings.Runup : 0)),
+    y: lift + settings.ContactHeight,
     z: 4.5,
+  };
+}
+
+export function serveMotion(player, action, config) {
+  const settings = serveSettings(config, action.kind),
+    profile = jumpProfile(config);
+  const t = Math.max(0, Math.min(1, action.power)) ** settings.PowerCurve;
+  const requested = settings.IdealMin + (settings.IdealMax - settings.IdealMin) * t;
+  const jumpLead = profile.windup + profile.rise + profile.hang / 2;
+  const ideal = action.kind === 'drive' ? Math.max(requested, jumpLead + 0.05) : requested;
+  const height = serveOrigin(player, action.kind, config, true).y;
+  const jumpAt = Math.max(0.05, ideal - jumpLead);
+  const tossDelay = config.dynamic
+    ? Math.min(0.14, ideal * 0.22, action.kind === 'drive' ? jumpAt + profile.windup - 0.02 : 0.14)
+    : 0;
+  const flight = ideal - tossDelay;
+  return {
+    ...action,
+    settings,
+    profile,
+    startX: player.x,
+    ideal,
+    jumpAt,
+    jumped: false,
+    tossStart: settings.TossHeight,
+    heldStart: heldServeBall(player).y,
+    tossDelay,
+    tossSpeed: (height - settings.TossHeight + (settings.TossGravity * flight ** 2) / 2) / flight,
+  };
+}
+export function sampleServeMotion(player, action, time) {
+  const dir = player.team === 0 ? 1 : -1,
+    settings = action.settings;
+  if (action.kind === 'drive') {
+    player.x = action.startX + dir * settings.Runup * Math.min(time / action.jumpAt, 1);
+    player.vx = time < action.jumpAt ? (dir * settings.Runup) / action.jumpAt : 0;
+    player.runTime = time;
+    if (time >= action.jumpAt) {
+      player.jumpProfile = action.profile;
+      player.jumpTime = time - action.jumpAt;
+      Object.assign(player, sampleJump(action.profile, player.jumpTime));
+      action.jumped = true;
+    }
+  }
+  const delay = action.tossDelay || 0;
+  const flight = Math.max(0, time - delay);
+  const u = delay ? Math.min(1, time / delay) : 1;
+  const heldHeight =
+    (2 * u ** 3 - 3 * u ** 2 + 1) * action.heldStart +
+    (-2 * u ** 3 + 3 * u ** 2) * action.tossStart +
+    (u ** 3 - u ** 2) * delay * action.tossSpeed;
+  return {
+    x: player.x + dir * 0.5,
+    y:
+      time < delay
+        ? heldHeight
+        : action.tossStart + action.tossSpeed * flight - (settings.TossGravity * flight ** 2) / 2,
+    z: player.z,
   };
 }
 

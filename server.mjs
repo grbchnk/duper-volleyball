@@ -13,11 +13,20 @@ const mime = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
 };
-http
+const server = http
   .createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
-      const name = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
+      if (url.pathname.startsWith('/versions/dynamic-v3/')) {
+        res.writeHead(302, {
+          Location: '/' + url.pathname.slice('/versions/dynamic-v3/'.length) + url.search,
+        });
+        res.end();
+        return;
+      }
+      const name = decodeURIComponent(
+        url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname,
+      );
       const file = path.resolve(root, '.' + name);
       const relative = path.relative(root, file);
       if (
@@ -42,4 +51,6 @@ http
       res.end('Not found');
     }
   })
-  .listen(port, '127.0.0.1', () => console.log(`Super Volleyball: http://127.0.0.1:${port}`));
+  .listen(port, '127.0.0.1', () =>
+    console.log(`Super Volleyball: http://127.0.0.1:${server.address().port}`),
+  );
