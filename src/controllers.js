@@ -11,6 +11,7 @@ export function createControls(emptyInput) {
     inputPlayer: -1,
     aimPreview: null,
     contactWindow: false,
+    manualSerial: -1,
   }));
 }
 
@@ -21,11 +22,46 @@ export function controlledPlayer(match, control) {
 }
 
 export function selectControlledPlayer(match, control, id) {
+  const player = match.players[id];
+  const previousId = controlledPlayer(match, control);
+  if (
+    !player ||
+    player.team !== control.team ||
+    player.benched ||
+    player.recovery > 0 ||
+    player.diving
+  )
+    return false;
+  if (
+    match.mode === 'coop' &&
+    control.team === 0 &&
+    (!match.coopOwns(control.slot, id) || match.coopPlayer(control.slot === 2 ? 0 : 2) === id)
+  )
+    return false;
+  if (id === previousId) return false;
   if (match.mode === 'coop' && control.slot === 2) match.coopSelected = id;
   else {
     match.selected[control.team] = id;
     if (control.team === 0) match.coopPrimary = id;
   }
+  if (match.config.dynamic && match.isHuman(control.team) && match.phase === 'rally') {
+    const previous = match.players[previousId];
+    if (previous && match.humanSlot(previous) === null) {
+      previous.returnHome = true;
+      previous.clearLane = null;
+      previous.returnPark = null;
+      previous.moveVx = previous.returnVx = previous.vx = 0;
+      previous.returnDelay = previous.armSwing?.hit ? Math.max(0, 0.3 - previous.armSwing.age) : 0;
+      if (match.lastPlayer === previous.id) previous.clearedSerial = match.shotSerial;
+    }
+    player.returnHome = false;
+    player.clearLane = null;
+    player.returnPark = null;
+    player.returnDelay = 0;
+    player.moveVx = player.returnVx = player.vx = 0;
+    player.wasControlled = false;
+  }
+  return true;
 }
 
 export const aimOf = (i) => ({

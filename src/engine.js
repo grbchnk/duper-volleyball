@@ -73,7 +73,7 @@ export class Match {
     return controlledPlayer(this, control);
   }
   selectControlledPlayer(control, id) {
-    selectControlledPlayer(this, control, id);
+    return selectControlledPlayer(this, control, id);
   }
   humanControllers() {
     return this.mode === 'coop'
@@ -342,6 +342,7 @@ export class Match {
   startServe() {
     this.outMarker = null;
     this.contactTempoState = null;
+    for (const control of this.controls) control.manualSerial = -1;
     this.coopManualSerial = [-1, -1, -1];
     beginRally(this);
     this.clearControls();
@@ -391,6 +392,7 @@ export class Match {
         bodyMotion: null,
         moveVx: 0,
         returnVx: 0,
+        returnPark: null,
         wasControlled: false,
         lastSkid: -1,
         y: 0,
@@ -564,6 +566,7 @@ export class Match {
       this.players[team * TEAM_SIZE + input.select - 1]?.recovery <= 0
     ) {
       this.selectControlledPlayer(control, team * TEAM_SIZE + input.select - 1);
+      control.manualSerial = this.shotSerial;
       if (this.mode === 'coop') this.coopManualSerial[control.slot] = this.shotSerial;
     }
     if (
@@ -768,10 +771,11 @@ export class Match {
         this.updateCoopReceiver();
         continue;
       }
+      if (this.config.dynamic && this.controls[team].manualSerial === this.shotSerial) continue;
       const next = nextReceiver(this, team);
       if (next === null || next === this.selected[team]) continue;
       const old = this.active(team);
-      this.selected[team] = next;
+      this.selectControlledPlayer(this.controls[team], next);
       this.players[next].returnHome = false;
       this.players[next].clearLane = null;
       for (const key of ['charge', 'pending']) {
@@ -931,8 +935,13 @@ export class Match {
     for (let i = 1; i <= TEAM_SIZE; i++) {
       const next = control.team * TEAM_SIZE + ((current + i) % TEAM_SIZE);
       if (this.mode === 'coop' && !this.coopOwns(control.slot, next)) continue;
-      if (this.players[next].recovery <= 0 && !this.players[next].diving) {
+      if (
+        !this.players[next].benched &&
+        this.players[next].recovery <= 0 &&
+        !this.players[next].diving
+      ) {
         this.selectControlledPlayer(control, next);
+        control.manualSerial = this.shotSerial;
         if (this.mode === 'coop') this.coopManualSerial[control.slot] = this.shotSerial;
         return;
       }
@@ -949,6 +958,12 @@ export class Match {
       return;
     }
     if (this.mode === 'test') return;
+    if (
+      this.config.dynamic &&
+      this.isHuman(team) &&
+      this.controls[team].manualSerial === this.shotSerial
+    )
+      return;
     if (this.isHuman(team) && this.actionFor(team)) return;
     if (
       preferred !== null &&
@@ -956,7 +971,7 @@ export class Match {
       this.players[preferred].recovery <= 0 &&
       !this.players[preferred].diving
     ) {
-      this.selected[team] = preferred;
+      this.selectControlledPlayer(this.controls[team], preferred);
       this.players[preferred].returnHome = false;
       return;
     }
@@ -972,7 +987,7 @@ export class Match {
         a.y -
         (Math.abs(b.x - target.x) + b.recovery * 4 + b.y),
     );
-    this.selected[team] = players[0].id;
+    this.selectControlledPlayer(this.controls[team], players[0].id);
     players[0].returnHome = false;
   }
   humanJump(p) {
@@ -1325,6 +1340,27 @@ export class Match {
   returnTarget(p) {
     let target = p.homeX;
     if (this.config.dynamic && !this.isHuman(p.team)) return target;
+    if (this.config.dynamic) {
+      let lower = p.team === 0 ? -10.5 : 0.65;
+      let upper = p.team === 0 ? -0.65 : 10.5;
+      for (const other of this.players) {
+        if (other.benched || other.team !== p.team || other.id === p.id) continue;
+        const gap = this.humanSlot(other) !== null ? 1.25 : 0.85;
+        if (other.x < p.x || (other.x === p.x && other.id < p.id))
+          lower = Math.max(lower, other.x + gap);
+        else upper = Math.min(upper, other.x - gap);
+      }
+      if (lower > upper) return p.x;
+      if (target < lower || target > upper) {
+        if (Number.isFinite(p.returnPark) && p.returnPark >= lower && p.returnPark <= upper)
+          return p.returnPark;
+        p.returnPark =
+          target < lower ? Math.min(upper, lower + 0.08) : Math.max(lower, upper - 0.08);
+        return p.returnPark;
+      }
+      p.returnPark = null;
+      return target;
+    }
     // Pause before a teammate instead of crossing their reception lane. Re-evaluate
     // every frame so a blocked return resumes as soon as the space opens.
     const direction = Math.sign(target - p.x);
