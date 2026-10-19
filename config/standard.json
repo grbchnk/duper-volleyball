@@ -6,6 +6,7 @@
     "duel": false,
     "floorBounce": false,
     "approachAssist": true,
+    "feintMode": "manual",
     "setsToWin": 1,
     "cpuStyle": "balanced",
     "gravity": 10.1,

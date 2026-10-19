@@ -570,6 +570,13 @@ export class Renderer {
       }
     }
     this.drawJumpCharge(p, m, pos);
+    const run = m.teamRuns?.[p.team];
+    if (run?.feint && run.serial === m.shotSerial && !run.cancelled && m.time < run.at + 0.3) {
+      if (run.decoyId === p.id && !run.decoyCancelled && p.jumpProfile)
+        this.text('ОБМАНКА', pos.x, pos.y - 105, 9, '#ffe896', 'center');
+      else if (run.playerId === p.id)
+        this.text('АТАКА', pos.x, pos.y - 105, 9, '#83e6c3', 'center');
+    }
     if (p.stunned > 0 && !p.headFly) {
       const scale = this.spriteScale || 2.1;
       const sin = Math.sin(pose.tilt),

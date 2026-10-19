@@ -37,6 +37,13 @@ import { assistedJump } from './jump-assist.js';
 
 import { cpuSkill, planReception, chooseCPUShot } from './cpu.js';
 import { nextReceiver } from './receiver-selection.js';
+import {
+  isFeintDecoy,
+  stepFeintDecoy,
+  queueFeintAttack,
+  stepFeintAttack,
+  cancelFeintAttack,
+} from './feint-play.js';
 import { preparedHands, ballTouchesHands } from './held-contact.js';
 import { DEFAULTS, COURT, FIXED_DT, sanitizeConfig } from './config.js';
 import {
@@ -158,7 +165,13 @@ export class Match {
     if (target.x >= 0) return;
     const eligible = this.players.filter(
       (p) =>
-        p.team === 0 && !p.benched && p.id !== hitter && p.recovery <= 0 && !p.diving && !p.block,
+        p.team === 0 &&
+        !p.benched &&
+        p.id !== hitter &&
+        p.recovery <= 0 &&
+        !p.diving &&
+        !p.block &&
+        !isFeintDecoy(this, p),
     );
     eligible.sort((a, b) => Math.abs(a.x - target.x) - Math.abs(b.x - target.x));
     const receiver = eligible.find((p) => p.id === preferred) || eligible[0];
@@ -234,6 +247,7 @@ export class Match {
     return changed;
   }
   refreshAim(action, input) {
+    if (action?.comboQueued) return;
     if (this.config.dynamic && action) {
       const previous = action.aim || {};
       action.aim = aimOf(input);
@@ -243,6 +257,9 @@ export class Match {
     if (action?.aim) {
       const player = this.players[action.playerId];
       action.aim.previousPlayerId = this.lastTouch === player?.team ? this.lastPlayer : null;
+      action.aim.controlledIds = this.players
+        .filter((p) => p.team === player?.team && this.humanSlot(p) !== null)
+        .map((p) => p.id);
     }
   }
   actionFor(team) {
@@ -621,6 +638,8 @@ export class Match {
     if (this.mode === 'coop' && this.phase !== 'rally' && control.slot !== this.serverSlot())
       return;
     const press = (key) => input[key] && !control.previousInput[key];
+    if (input.select || press('switch') || press('jump') || press('dive'))
+      cancelFeintAttack(this, control);
     this.refreshAim(control.pending, input);
     const jumpHeld = input.jumpHeld ?? input.jump;
     if (!jumpHeld) control.jumpArmed = true;
@@ -959,6 +978,7 @@ export class Match {
     if (replacement) {
       const p = this.players[replaceable.playerId];
       if (!p.diving && p.recovery <= 0 && p.block <= 0 && p.swingCooldown <= 0) {
+        if (replaceable.comboQueued) cancelFeintAttack(this, control);
         // A fresh different key replaces an unconsumed attempt before it can hit.
         control.pending = null;
         control.chargeLock = false;
@@ -1011,7 +1031,22 @@ export class Match {
         this.phase !== 'serve' &&
         (a.power >= 1 || (!this.config.dynamic && a.age >= this.config.maxHold));
       if (!input[a.kind] || autoRelease) {
+        const run = this.teamRuns[p.team];
+        const queuedAim =
+          a.kind === 'drive' &&
+          run?.feint &&
+          run.mode === 'queued' &&
+          run.serial === this.shotSerial &&
+          !input[a.kind] &&
+          !input.buttonVector &&
+          !input.axis &&
+          !input.up &&
+          !input.down
+            ? { ...a.aim }
+            : null;
         this.refreshAim(a, input);
+        if (queuedAim)
+          for (const key of ['axis', 'vector', 'up', 'down']) a.aim[key] = queuedAim[key];
         control.charge = null;
         p.releaseSlow = a.kind === 'back' ? 0 : this.config.releaseWindow;
         if (autoRelease) control.chargeLock = true;
@@ -1021,6 +1056,7 @@ export class Match {
         if (this.phase === 'serve') this.beginServe(action, control);
         else {
           control.pending = action;
+          queueFeintAttack(this, control, action);
           if (!this.tryPending(this.ball, control) && action.ttl <= 0) {
             control.pending = null;
             p.swingCooldown = 0.16;
@@ -1276,7 +1312,14 @@ export class Match {
     )
       return false;
     for (const p of this.players) {
-      if (p.benched || p.team === this.lastTouch || p.recovery > 0 || p.diving || p.block > 0)
+      if (
+        p.benched ||
+        p.team === this.lastTouch ||
+        p.recovery > 0 ||
+        p.diving ||
+        p.block > 0 ||
+        isFeintDecoy(this, p)
+      )
         continue;
       const slot = this.humanSlot(p);
       // A requested reception protects the player even before the hands reach the ball.
@@ -1611,8 +1654,11 @@ export class Match {
       p.wasControlled = controlled;
     }
     const scheduledRun = this.teamRuns[p.team];
+    if (stepFeintDecoy(this, p)) return;
+    if (stepFeintAttack(this, p, dt)) return;
     if (
       controlled &&
+      !scheduledRun?.feint &&
       scheduledRun?.playerId === p.id &&
       (input.axis || input.jump || input.dive || input.select || input.switch)
     )
@@ -1667,10 +1713,11 @@ export class Match {
     const run = this.teamRuns[p.team];
     const manual =
       controlled && (input.axis || input.jump || input.dive || input.select || input.switch);
-    if (manual && run?.playerId === p.id) run.cancelled = true;
+    if (manual && !run?.feint && run?.playerId === p.id) run.cancelled = true;
     if (
       this.config.approachAssist &&
       run &&
+      !run.feint &&
       !run.cancelled &&
       run.serial === this.shotSerial &&
       this.time < run.at + 0.3 &&

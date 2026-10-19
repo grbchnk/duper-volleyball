@@ -1,6 +1,7 @@
 import { traceBall } from './physics.js';
 import { shotSettings } from './shot-settings.js';
 import { sampleJump } from './motion.js';
+import { isFeintDecoy } from './feint-play.js';
 
 // Keep manual control while interception is feasible; hand off only a lost ball.
 export function nextReceiver(
@@ -19,6 +20,17 @@ export function nextReceiver(
   const run = match.teamRuns?.[team];
   if (match.phase !== 'rally' || (ball.x < 0 ? 0 : 1) !== team) return null;
   const current = match.players[currentId];
+  if (
+    run?.feint &&
+    run.attackQueued &&
+    !run.attackCancelled &&
+    run.serial === match.shotSerial &&
+    run.playerId === currentId &&
+    match.time < run.at + 0.2 &&
+    current.recovery <= 0 &&
+    !current.diving
+  )
+    return currentId;
   // Do not steal a just-started manual jump while the ball is still approaching.
   if (current.jumpProfile && current.jumpTime < 0.15 && (ball.x - current.x) * ball.vx <= 0)
     return current.id;
@@ -58,6 +70,7 @@ export function nextReceiver(
     if (
       p.team !== team ||
       p.benched ||
+      isFeintDecoy(match, p) ||
       exclude.includes(p.id) ||
       p.recovery > 0 ||
       p.diving ||

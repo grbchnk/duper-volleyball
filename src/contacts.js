@@ -9,6 +9,7 @@ import { observeContact } from './skill-feedback.js';
 import { resolveChallenge } from './challenges.js';
 import { beginBallSmoke } from './ball-smoke.js';
 import { isZoneReceive, tryZoneReceive } from './zone-receive.js';
+import { jumpProfile } from './motion.js';
 const EMPTY_INPUT = Object.freeze({});
 export function receiveHoldTime(match, kind) {
   return match.config.dynamic && kind === 'loft' ? match.config[kind + 'ReceiveHoldTime'] || 0 : 0;
@@ -95,6 +96,10 @@ export function tryPending(
 ) {
   const a = control.pending,
     p = match.players[a.playerId];
+  if (a.comboQueued && a.comboSerial !== match.shotSerial) {
+    control.pending = null;
+    return false;
+  }
   if (isZoneReceive(match, a, p)) return tryZoneReceive(match, previous, control, true, dt);
   match.refreshAim(a, match.inputs?.[control.slot] || EMPTY_INPUT);
   if (a.receiveHold && !validReceiveHold(match, a, p)) {
@@ -184,6 +189,16 @@ export function makeContact(match, p, kind, power, impulse) {
           intent: impulse.intent,
         }
       : null;
+  if (impulse.feint && match.teamRuns[team]) {
+    const j = jumpProfile(match.config);
+    Object.assign(match.teamRuns[team], {
+      feint: true,
+      mode: match.config.feintMode,
+      decoyJumped: false,
+      decoyCancelled: false,
+      decoyAt: match.time + Math.max(0.04, impulse.arrival - j.windup - j.rise - 0.25),
+    });
+  }
   if (impulse.arrival) match.planReadBlock(1 - team, impulse);
   resetFlight(match.ball);
   match.recordContact(p, kind, power);

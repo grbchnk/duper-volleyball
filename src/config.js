@@ -18,6 +18,7 @@ export const DEFAULTS = Object.freeze({
   duel: false,
   floorBounce: false,
   approachAssist: true,
+  feintMode: 'manual',
   setsToWin: 1,
   cpuStyle: 'balanced',
   gravity: 10.1,
@@ -217,6 +218,7 @@ export function sanitizeConfig(value = {}) {
   result.setsToWin = Math.round(result.setsToWin);
   if (['balanced', 'blocker', 'deep', 'trickster', 'patient'].includes(value.cpuStyle))
     result.cpuStyle = value.cpuStyle;
+  if (['manual', 'queued'].includes(value.feintMode)) result.feintMode = value.feintMode;
   for (const kind of Object.keys(SERVE_BASES)) {
     const key = (suffix) => serveKey(kind, suffix);
     result[key('Targeted')] = Math.round(result[key('Targeted')]);

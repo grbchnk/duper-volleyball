@@ -1,6 +1,7 @@
 import { COURT } from './config.js';
 import { shotSettings } from './shot-settings.js';
 import { diveHands } from './dive-pose.js';
+import { isFeintDecoy } from './feint-play.js';
 
 export function contactBounds(player, kind, config) {
   const settings = shotSettings(config, kind);
@@ -17,6 +18,19 @@ export function contactBounds(player, kind, config) {
 export function contactReason(match, player, kind, ball = match.ball) {
   if (kind === 'back' && match.config.dynamic) return 'Используйте мягкий нижний приём';
   if (!player || player.benched) return 'Игрок недоступен';
+  if (isFeintDecoy(match, player)) return 'Ложный прыжок — без касания мяча';
+  const run = match.teamRuns?.[player.team];
+  if (
+    run?.feint &&
+    run.mode === 'queued' &&
+    run.attackQueued &&
+    !run.attackCancelled &&
+    run.serial === match.shotSerial &&
+    run.playerId === player.id &&
+    kind === 'drive' &&
+    match.time < run.at - 0.04
+  )
+    return 'Ожидание навеса для атаки';
   if (match.phase !== 'rally') return 'Сейчас нет розыгрыша';
   if (player.recovery > 0) return 'Игрок поднимается';
   if (player.block > 0) return 'Игрок выполняет блок';

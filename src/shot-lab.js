@@ -40,7 +40,12 @@ export function simulateShot(
       : {
           vector: { x: Math.cos((angle * Math.PI) / 180), y: Math.sin((angle * Math.PI) / 180) },
         };
-  Object.assign(aim, { manualControl: true, soft, fast });
+  Object.assign(aim, {
+    manualControl: true,
+    soft,
+    fast,
+    ...(soft && fast ? { play: 'feint' } : {}),
+  });
   const ball = {
     ...match.ball,
     x: player.x,

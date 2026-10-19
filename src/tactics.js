@@ -14,6 +14,7 @@ export const PLAYS = Object.freeze({
   quick: 'Быстрая атака',
   back: 'Пас за голову',
   pipe: 'Ложная → из глубины',
+  feint: 'Ложный прыжок → атака партнёра',
   dump: 'Скидка со второго',
 });
 export const STYLES = Object.freeze({

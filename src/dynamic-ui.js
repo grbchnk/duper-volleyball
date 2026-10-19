@@ -10,6 +10,8 @@ export function createDynamicUI(match, hooks) {
   panel.innerHTML = `<h2>Формат матча</h2>
     <label>Формат <select id="dynamic-format"><option value="quick">3 × 3 · один сет</option><option value="series">3 × 3 · до двух сетов</option><option value="duel">Дуэль · 1 × 1</option></select></label>
     <label>Соперник <select id="dynamic-opponent">${options(STYLES)}</select></label>
+    <label>Обманка L2 + R2 <select id="dynamic-feint"><option value="manual">1 · Ручная атака</option><option value="queued">2 · Заранее подготовленный удар</option></select></label>
+    <p>Навес □ / △ с L2 + R2. В варианте 2 заранее зарядите и отпустите ○: атакующий сам выйдет под высокий пас у сетки и прыгнет.</p>
     <details><summary>Управление командой</summary>
     <label class="dynamic-check"><input type="checkbox" id="dynamic-approach" checked>Разбег CPU после передачи</label>
     <p>Бот подбегает к своей передаче. Ваши игроки сохраняют ручное управление.</p>
@@ -32,6 +34,7 @@ export function createDynamicUI(match, hooks) {
   const team = 0;
   function sync() {
     $('opponent').value = hooks.config().cpuStyle;
+    $('feint').value = hooks.config().feintMode;
     $('approach').checked = hooks.config().approachAssist;
     $('bounce').checked = hooks.config().floorBounce;
     $('format').value = hooks.config().duel
@@ -90,6 +93,7 @@ export function createDynamicUI(match, hooks) {
     cursor = Number(e.target.value);
   };
   $('opponent').onchange = (e) => hooks.apply({ ...hooks.config(), cpuStyle: e.target.value });
+  $('feint').onchange = (e) => hooks.apply({ ...hooks.config(), feintMode: e.target.value });
   $('approach').onchange = (e) =>
     hooks.apply({ ...hooks.config(), approachAssist: e.target.checked });
   $('format').onchange = (e) => {
@@ -133,12 +137,22 @@ export function createDynamicUI(match, hooks) {
         uiElapsed = 0;
         const i = team === 0 ? left : right;
         const modifier = i.l2 && i.r2 ? 'L2 + R2' : i.l2 ? 'L2' : i.r2 ? 'R2' : 'Базовые действия';
-        const square = i.l2 ? 'Одной рукой снизу' : i.r2 ? 'Быстрый навес снизу' : 'Нижний навес';
-        const triangle = i.l2
-          ? 'Мягко одной рукой сверху'
-          : i.r2
-            ? 'Быстрый верхний'
-            : 'Верхний пас';
+        const square =
+          i.l2 && i.r2
+            ? 'Навес с обманкой'
+            : i.l2
+              ? 'Одной рукой снизу'
+              : i.r2
+                ? 'Быстрый навес снизу'
+                : 'Нижний навес';
+        const triangle =
+          i.l2 && i.r2
+            ? 'Навес с обманкой'
+            : i.l2
+              ? 'Мягко одной рукой сверху'
+              : i.r2
+                ? 'Быстрый верхний'
+                : 'Верхний пас';
         const circle = i.l2 ? 'Сопля через сетку' : i.r2 ? 'Силовой удар' : 'Удар вперёд';
         strip.textContent =
           modifier + ' · □ ' + square + ' · △ ' + triangle + ' · ○ ' + circle + ' · ✕ Прыжок';
@@ -150,7 +164,9 @@ export function createDynamicUI(match, hooks) {
         $('analysis').textContent = playing
           ? 'Повтор · Share/View — выйти'
           : run && !run.cancelled && run.serial === match.shotSerial
-            ? `${PLAYS[run.intent]} → игрок ${(run.playerId % 3) + 1}. Отпустите ○ у мяча.`
+            ? run.feint
+              ? `Обманка: игрок ${(run.decoyId % 3) + 1} прыгает без мяча → игрок ${(run.playerId % 3) + 1}. ${run.mode === 'queued' ? (run.attackQueued ? 'Удар запомнен.' : 'Заранее зарядите и отпустите ○.') : 'Прыгайте и атакуйте вручную.'}`
+              : `${PLAYS[run.intent]} → игрок ${(run.playerId % 3) + 1}. Отпустите ○ у мяча.`
             : `Касания ${match.touches[0]}/3 : ${match.touches[1]}/3. ${stats || 'Share/View — повтор'}`;
       }
       if (!playing) return match;

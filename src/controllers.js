@@ -39,6 +39,9 @@ export function selectControlledPlayer(match, control, id) {
   )
     return false;
   if (id === previousId) return false;
+  const run = match.teamRuns?.[control.team];
+  if (run?.feint && run.serial === match.shotSerial && run.decoyId === id)
+    run.decoyCancelled = true;
   if (match.mode === 'coop' && control.slot === 2) match.coopSelected = id;
   else {
     match.selected[control.team] = id;
@@ -56,7 +59,7 @@ export const aimOf = (i) => ({
   down: i.down,
   vector: i.buttonVector,
   intent: i.intent,
-  play: i.play,
+  play: i.l2 && i.r2 ? 'feint' : i.play,
 });
 export const updateAim = (action, input, preserveNeutral = false) => {
   const originalIntent = action?.aim?.intent,

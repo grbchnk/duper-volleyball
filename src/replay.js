@@ -7,6 +7,7 @@ const sceneKeys = [
   'selected',
   'touches',
   'teamPhases',
+  'teamRuns',
   'server',
   'phase',
   'time',
