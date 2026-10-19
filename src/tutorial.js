@@ -107,7 +107,7 @@ export function createTutorial(match, hooks) {
   panel.hidden = true;
   panel.innerHTML =
     '<strong id="tutorial-title"></strong><p id="tutorial-hint"></p><button id="tutorial-next" class="primary" disabled>Дальше →</button> <button id="tutorial-repeat" class="secondary">Повторить шаг</button> <button id="tutorial-exit" class="text-button">Закончить обучение</button>';
-  document.querySelector('.keyboard-strip').before(panel);
+  document.querySelector('#arena').after(panel);
   const title = panel.querySelector('#tutorial-title'),
     hint = panel.querySelector('#tutorial-hint');
   const next = panel.querySelector('#tutorial-next');

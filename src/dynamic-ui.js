@@ -7,37 +7,33 @@ export function createDynamicUI(match, hooks) {
     Object.entries(obj)
       .map(([k, v]) => `<option value="${k}">${v}</option>`)
       .join('');
-  panel.innerHTML = `<p class="dynamic-kicker">DYNAMIC / 03</p><h2>Каждый мяч — выбор</h2>
-    <label>Формат <select id="dynamic-format"><option value="quick">Быстрый матч · 11 очков</option><option value="series">Серия · до 2 сетов</option><option value="duel">Дуэль · 1 × 1</option></select></label>
+  panel.innerHTML = `<h2>Формат матча</h2>
+    <label>Формат <select id="dynamic-format"><option value="quick">3 × 3 · один сет</option><option value="series">3 × 3 · до двух сетов</option><option value="duel">Дуэль · 1 × 1</option></select></label>
     <label>Соперник <select id="dynamic-opponent">${options(STYLES)}</select></label>
     <details><summary>Управление командой</summary>
-    <label>Команда <select id="dynamic-team"><option value="0">Слева</option><option value="1">Справа</option></select></label>
     <label class="dynamic-check"><input type="checkbox" id="dynamic-approach" checked>Разбег CPU после передачи</label>
     <p>Бот подбегает к своей передаче. Ваши игроки сохраняют ручное управление.</p>
     </details>
     <details><summary>Необычные правила</summary>
-    <label class="dynamic-check"><input id="dynamic-moon" type="checkbox">Низкая гравитация</label>
     <label class="dynamic-check"><input id="dynamic-bounce" type="checkbox">Один отскок от пола</label>
     <p>Можно сочетать. Настройки применяются к обеим командам.</p></details>
-    <div class="dynamic-buttons"><button id="dynamic-replay">↶ Повтор</button><button id="dynamic-retry">Ещё попытка</button></div>
-    <div id="dynamic-replay-controls" hidden><label>Эпизод <input id="dynamic-scrub" aria-label="Позиция повтора" type="range" min="0" max="1" value="0"></label><button id="dynamic-close-replay">Вернуться в матч</button></div>
-    <p id="dynamic-analysis">Ищите свободную зону. Сила — лишь один из вариантов.</p>`;
-  document.querySelector('.sidebar').prepend(panel);
+`;
+  document.getElementById('match-settings-controls').append(panel);
   const strip = document.createElement('div');
   strip.className = 'controller-strip';
   strip.setAttribute('aria-live', 'polite');
   document.querySelector('.arena-toolbar').after(strip);
-  const $ = (id) => panel.querySelector('#dynamic-' + id);
+  const $ = (id) => document.getElementById('dynamic-' + id);
   let playing = false,
+    replayWasPaused = false,
     cursor = 0,
     replayDown = false,
-    team = 0,
     uiElapsed = 1;
+  const team = 0;
   function sync() {
     $('opponent').value = hooks.config().cpuStyle;
     $('approach').checked = hooks.config().approachAssist;
     $('bounce').checked = hooks.config().floorBounce;
-    $('moon').checked = hooks.config().gravity < 8;
     $('format').value = hooks.config().duel
       ? 'duel'
       : hooks.config().setsToWin > 1
@@ -45,9 +41,12 @@ export function createDynamicUI(match, hooks) {
         : 'quick';
   }
   function close() {
+    const wasPlaying = playing;
     playing = false;
     $('replay-controls').hidden = true;
+    document.getElementById('replay-toolbar').hidden = true;
     hooks.clear();
+    if (wasPlaying) hooks.pause(replayWasPaused);
   }
   function replay() {
     if (match.challenge) {
@@ -62,9 +61,12 @@ export function createDynamicUI(match, hooks) {
       hooks.toast('Повтор появится после первого завершённого розыгрыша.');
       return;
     }
+    replayWasPaused = hooks.paused();
     playing = true;
     cursor = 0;
+    hooks.pause(false);
     hooks.clear();
+    document.getElementById('replay-toolbar').hidden = false;
     $('replay-controls').hidden = false;
     $('scrub').max = match.replay.last.length - 1;
   }
@@ -87,10 +89,6 @@ export function createDynamicUI(match, hooks) {
   $('scrub').oninput = (e) => {
     cursor = Number(e.target.value);
   };
-  $('team').onchange = (e) => {
-    team = Number(e.target.value);
-    sync();
-  };
   $('opponent').onchange = (e) => hooks.apply({ ...hooks.config(), cpuStyle: e.target.value });
   $('approach').onchange = (e) =>
     hooks.apply({ ...hooks.config(), approachAssist: e.target.checked });
@@ -99,14 +97,10 @@ export function createDynamicUI(match, hooks) {
       ...hooks.config(),
       duel: e.target.value === 'duel',
       setsToWin: e.target.value === 'series' ? 2 : 1,
-      targetScore: e.target.value === 'duel' ? 7 : 11,
-      scoring: 'rally',
     });
     close();
     hooks.start(match.mode === 'versus' ? 'versus' : 'match');
   };
-  $('moon').onchange = (e) =>
-    hooks.apply({ ...hooks.config(), gravity: e.target.checked ? 6 : 9.81 });
   $('bounce').onchange = (e) => hooks.apply({ ...hooks.config(), floorBounce: e.target.checked });
   const drill = document.getElementById('drill');
   for (const [value, label] of [
@@ -121,6 +115,7 @@ export function createDynamicUI(match, hooks) {
   }
   sync();
   return {
+    sync,
     get playing() {
       return playing;
     },

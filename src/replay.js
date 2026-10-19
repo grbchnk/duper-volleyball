@@ -3,6 +3,7 @@ const sceneKeys = [
   'ball',
   'players',
   'trail',
+  'smokeTrail',
   'selected',
   'touches',
   'teamPhases',

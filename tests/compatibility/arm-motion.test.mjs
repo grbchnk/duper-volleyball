@@ -38,7 +38,7 @@ test('a Canvas DOMPoint produces finite spike targets and preserves its exact co
 
 test('whip is the only style; old saves migrate while preserving physics and animation tuning', () => {
   assert.deepEqual(Object.keys(ARM_STYLES), ['whip']);
-  assert.equal(DEFAULTS.armStyle, 'whip');
+  assert.equal(DEFAULTS.armStyle, undefined);
   for (const armStyle of [
     'classic',
     'compact',
@@ -54,7 +54,7 @@ test('whip is the only style; old saves migrate while preserving physics and ani
         JSON.stringify({ ...DEFAULTS, armStyle, armWindup: 0.12, armFlourish: 1, gravity: 12 }),
       ),
     );
-    assert.equal(c.armStyle, 'whip');
+    assert.equal(c.armStyle, undefined);
     assert.equal(c.armWindup, 0.12);
     assert.equal(c.gravity, 12);
     assert.equal('armFlourish' in c, false);
@@ -100,7 +100,7 @@ test('overhead cup and wide elbows blend away during recovery rather than sticki
   assert.equal(ready.cup, 1);
   assert.ok(ready.elbows[0].x < ready.wrists[0].x);
   assert.ok(ready.elbows[1].x > ready.wrists[1].x);
-  const recovering = pose({ kind: 'loft', swing: { power: 1, age: 0.27, hit: true } });
+  const recovering = pose({ kind: 'loft', swing: { power: 1, age: 0.14, hit: true } });
   assert.ok(recovering.cup > 0 && recovering.cup < 1);
   assert.notDeepEqual(recovering.elbows, ready.elbows);
 });

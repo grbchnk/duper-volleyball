@@ -2,7 +2,20 @@ import { COURT } from './config.js';
 import { shotSettings } from './shot-settings.js';
 import { diveHands } from './dive-pose.js';
 
-export function contactReason(match, player, kind) {
+export function contactBounds(player, kind, config) {
+  const settings = shotSettings(config, kind);
+  const grounded = player.y <= 0 && player.vy <= 0 && !player.jumpProfile;
+  const offset = grounded ? (player.crouchAmount || 0) * 0.4 : 0;
+  return {
+    minX: Math.max(player.x - settings.Reach, player.team === 1 ? -0.08 : -Infinity),
+    maxX: Math.min(player.x + settings.Reach, player.team === 0 ? 0.08 : Infinity),
+    minY: Math.max(0.12, settings.ContactMin + player.y - offset),
+    maxY: settings.ContactMax + player.y - offset,
+  };
+}
+
+export function contactReason(match, player, kind, ball = match.ball) {
+  if (kind === 'back' && match.config.dynamic) return 'Используйте мягкий нижний приём';
   if (!player || player.benched) return 'Игрок недоступен';
   if (match.phase !== 'rally') return 'Сейчас нет розыгрыша';
   if (player.recovery > 0) return 'Игрок поднимается';
@@ -10,7 +23,6 @@ export function contactReason(match, player, kind) {
   if (match.cooldown > 0) return 'Еще действует пауза между касаниями';
   if (player.jumpProfile && player.jumpTime < player.jumpProfile.windup)
     return 'Еще идет подготовка прыжка';
-  const ball = match.ball;
   if ((ball.x < -0.08 && player.team !== 0) || (ball.x > 0.08 && player.team !== 1))
     return 'Мяч на другой стороне сетки';
   if (!match.config.duel && match.lastPlayer === player.id && match.lastTouch === player.team)
@@ -23,11 +35,9 @@ export function contactReason(match, player, kind) {
       ? null
       : 'Мяч вне досягаемости рук в броске';
   }
-  const settings = shotSettings(match.config, kind);
-  const grounded = player.y <= 0 && player.vy <= 0 && !player.jumpProfile;
-  const offset = grounded ? (player.crouchAmount || 0) * 0.4 : 0;
-  if (Math.abs(ball.x - player.x) > settings.Reach) return 'Мяч слишком далеко';
-  if (ball.y < Math.max(0.12, settings.ContactMin + player.y - offset)) return 'Мяч слишком низко';
-  if (ball.y > settings.ContactMax + player.y - offset) return 'Мяч слишком высоко';
+  const bounds = contactBounds(player, kind, match.config);
+  if (ball.x < bounds.minX || ball.x > bounds.maxX) return 'Мяч слишком далеко';
+  if (ball.y < bounds.minY) return 'Мяч слишком низко';
+  if (ball.y > bounds.maxY) return 'Мяч слишком высоко';
   return null;
 }

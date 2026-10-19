@@ -1,5 +1,6 @@
 // Native Canvas scenery. Every object is drawn on the logical pixel grid;
 // sky, architecture, foliage, props and people remain separate animation layers.
+import { STREET_COURT } from './court-visual.js';
 export const STREET_SEATS = [
   [275, 315],
   [321, 315],
@@ -498,14 +499,16 @@ export function drawStreetArchitecture(c) {
       ['#a08d88', '#b09a8c', '#99878a', '#b39b8d'][i % 4],
     );
   }
-  // Court lines converge at the back and meet the same playable x bounds.
+  // Preserve the original perspective. Line calls intersect these end lines
+  // with the fixed gameplay lane rather than flattening the painted court.
+  const { backLeft, backRight, frontLeft, frontRight, backY, frontY } = STREET_COURT;
   path(
     [
-      [102, 408],
-      [859, 408],
-      [929, 496],
-      [33, 496],
-      [102, 408],
+      [backLeft, backY],
+      [backRight, backY],
+      [frontRight, frontY],
+      [frontLeft, frontY],
+      [backLeft, backY],
     ],
     '#f3dcc0',
     2,

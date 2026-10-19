@@ -27,7 +27,7 @@ export function localReceiveAim(player, action, ball, frame, config) {
     -((ball.y + (ball.vy || 0) * lead - player.y) * 42) / 2.1 -
     (frame?.pose.y || 0) -
     (frame?.pose.shoulders || 0);
-  const scale = config?.armScale || 1;
+  const scale = config?.armLength || 1;
   if (kind === 'back') {
     const shoulder = px < 0 ? -6 : 6;
     const dx = (px - shoulder) / (19 * scale);

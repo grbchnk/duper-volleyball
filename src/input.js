@@ -112,11 +112,9 @@ export class InputBuffer {
     const digitalX = Number(has('ArrowRight') || padRight) - Number(has('ArrowLeft') || padLeft);
     const digitalShots = {
       low: has('KeyS', 'KeyX') || square,
-      back: has('KeyA'),
       loft: has('KeyW') || triangle,
       drive: has('KeyD') || circle,
     };
-    const stickShot = null;
     return {
       intent: l2 ? 'soft' : r2 ? 'fast' : 'normal',
       play: undefined,
@@ -128,14 +126,11 @@ export class InputBuffer {
       axis: Math.max(-1, Math.min(1, digitalX + this.stickX)),
       up: modifier && (has('ArrowUp') || padUp),
       down: modifier && (has('ArrowDown') || padDown),
-      low: digitalShots.low || stickShot === 'low',
-      back: digitalShots.back || stickShot === 'back',
-      loft: digitalShots.loft || stickShot === 'loft',
-      drive: digitalShots.drive || stickShot === 'drive',
-      stickShot,
-      stickStrength: 0,
-      shotAxis: null,
-      shotVector: null,
+      low: digitalShots.low && !(['serve', 'serve-motion'].includes(phase) && l2),
+      // The fourth serve remains available as the soft lower serve.
+      back: ['serve', 'serve-motion'].includes(phase) && l2 && digitalShots.low,
+      loft: digitalShots.loft,
+      drive: digitalShots.drive,
       buttonVector: (() => {
         const x = digitalX;
         const y = Number(has('ArrowUp') || padUp) - Number(has('ArrowDown') || padDown);
@@ -168,7 +163,6 @@ export const GAME_KEYS = [
   'KeyZ',
   'KeyC',
   'KeyW',
-  'KeyA',
   'KeyX',
   'KeyS',
   'KeyF',

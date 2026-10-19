@@ -1,3 +1,4 @@
+import { courtLineBounds } from '../src/court-visual.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MUSIC_TRACKS, musicBar, Music } from '../src/music.js';
@@ -19,7 +20,7 @@ test('three original sixteen-bar themes have complete measures, bounded notes an
         4,
       );
       const notes = musicBar(id, bar);
-      assert.ok(notes.length > 12);
+      assert.ok(notes.length >= 3 && notes.length <= 8);
       for (const n of notes) {
         if (!n.drum) assert.ok(Number.isInteger(n.note) && n.note >= 28 && n.note <= 96);
         assert.ok(n.beat >= 0 && n.beat < 4);
@@ -82,7 +83,7 @@ test('music switching cancels scheduled notes and resuming skips old bars withou
     music = new Music(ctx, new Node());
   music.update('sunset', 0.22);
   const initial = [...music.nodes];
-  assert.ok(initial.length > 12);
+  assert.ok(initial.length >= 3 && initial.length <= 8);
   for (let i = 0; i < 30; i++) music.update('sunset', 0.22);
   assert.equal(music.nodes.size, initial.length, 'one bar is not scheduled twice');
   music.update('ocean', 0.22);
@@ -95,8 +96,16 @@ test('music switching cancels scheduled notes and resuming skips old bars withou
   assert.equal(music.nodes.size, 0);
   assert.equal(music.track, null);
 });
-test('four different backdrops retain the same court and save with music in JSON', () => {
-  assert.deepEqual(Object.keys(ARENAS), ['miami', 'street', 'paris', 'stadium']);
+test('seven detailed backdrops retain the same court and save with music in JSON', () => {
+  assert.deepEqual(Object.keys(ARENAS), [
+    'miami',
+    'beach',
+    'gym',
+    'farm',
+    'alpine',
+    'sky',
+    'championship',
+  ]);
   const layouts = [];
   for (const id of Object.keys(ARENAS)) {
     const rects = [];
@@ -111,12 +120,15 @@ test('four different backdrops retain the same court and save with music in JSON
       fillText() {},
     };
     drawArenaBackdrop(c, id);
-    assert.ok(rects.some((r) => r.join(',') === '60,396,840,102'));
+    assert.ok(rects.length > 1000, id);
+    assert.deepEqual(courtLineBounds({ arenaTheme: id }), courtLineBounds({ arenaTheme: 'miami' }));
     layouts.push(JSON.stringify(rects));
     const settings = sanitizeConfig({ arenaTheme: id, musicTrack: 'ocean', musicVolume: 0.17 });
     assert.deepEqual(importSettings(exportSettings(settings)), settings);
   }
-  assert.equal(new Set(layouts).size, 4);
+  assert.equal(new Set(layouts).size, 7);
+  for (const retired of ['street', 'paris', 'stadium'])
+    assert.equal(sanitizeConfig({ arenaTheme: retired }).arenaTheme, 'miami');
   const bad = sanitizeConfig({ arenaTheme: 'oops', musicTrack: 'oops', musicVolume: 100 });
   assert.equal(bad.arenaTheme, 'miami');
   assert.equal(bad.musicTrack, 'boardwalk');
@@ -160,20 +172,25 @@ test('every drum is generated as deterministic bounded PCM with a clean tail', (
     assert.ok(Math.abs(a.at(-1)) < 0.01, kind + ' fades before its source stops');
   }
 });
-test('developed drum layers are scheduled once, cached, and cancelled on track change', () => {
-  const ctx = context(),
-    music = new Music(ctx, new Node());
-  music.update('sunset', 0.22);
-  ctx.currentTime = (60 / MUSIC_TRACKS.sunset.bpm) * 4 * 8;
-  music.update('sunset', 0.22);
-  assert.ok(music.drums.size >= 4);
-  const sources = [...music.nodes].filter((n) => n.oscillator.buffer);
-  assert.ok(sources.length >= 10);
-  const count = ctx.nodes.length;
-  music.update('sunset', 0.22);
-  assert.equal(ctx.nodes.length, count);
-  music.update('ocean', 0.22);
-  assert.ok(sources.every((n) => n.oscillator.stopped === ctx.currentTime + 0.14));
-  music.update('off', 0.22);
-  assert.equal(music.nodes.size, 0);
+test('gameplay music stays sparse, low and free of growing drum layers across repeated loops', () => {
+  for (const [id, track] of Object.entries(MUSIC_TRACKS)) {
+    assert.ok(track.bpm >= 75 && track.bpm <= 90);
+    let restBeats = 0;
+    for (const bar of track.melody) {
+      for (const token of bar.split(' '))
+        if (token.startsWith('R:')) restBeats += Number(token.split(':')[1]);
+    }
+    assert.ok(restBeats >= 24, 'phrases leave breathing room');
+    for (let bar = 0; bar < 96; bar++) {
+      const events = musicBar(id, bar);
+      assert.ok(!events.some((n) => n.drum));
+      assert.ok(events.length <= 8);
+      assert.ok(events.filter((n) => n.voice === 'lead').every((n) => n.note <= 74));
+      assert.deepEqual(events, musicBar(id, bar % 16));
+    }
+    const ctx = context(),
+      music = new Music(ctx, new Node());
+    music.update(id, 0.22);
+    assert.ok([...music.nodes].every((n) => ['triangle', 'sine'].includes(n.oscillator.type)));
+  }
 });

@@ -59,7 +59,7 @@ export function tacticalAttack(ball, player, style, power, config, aim = {}) {
   if (style === 'tip' || style === 'roll' || style === 'free') {
     for (let n = 0; n < 12; n++) {
       const path = traceBall(launch, config, 4 / config.ballSpeed);
-      if (path.some((p) => p.x * forward > 0.3)) break;
+      if (!path.at(-1).netFault && path.some((p) => p.x * forward > 0.3)) break;
       launchTo(
         launch,
         { x: forward * depth, y: COURT.ballRadius, z: ball.z },
@@ -88,7 +88,7 @@ export function tacticalAttack(ball, player, style, power, config, aim = {}) {
         spin,
       };
       const path = traceBall(candidate, config, 5 / config.ballSpeed);
-      if (path.some((p) => p.x * forward > 0.35)) break;
+      if (!path.at(-1).netFault && path.some((p) => p.x * forward > 0.35)) break;
       angle = Math.min(1.35, angle + 0.06);
     }
   }

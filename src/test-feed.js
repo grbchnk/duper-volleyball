@@ -32,6 +32,7 @@ export function feedTrainingBall(match) {
   match.cooldown = 0;
   match.incomingShot = 'feed';
   match.headHitEligible = false;
+  match.headFlyEligible = false;
   match.teamPhases = ['defense', 'defense'];
   match.cpuPlans = [null, null];
   match.cpuBlockPlan = null;

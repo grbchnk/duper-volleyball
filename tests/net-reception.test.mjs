@@ -8,7 +8,7 @@ import { DEFAULTS } from '../src/config.js';
 test('reception hands never track a ball across the net on either side or facing direction', () => {
   for (const side of [-1, 1])
     for (const facing of [-1, 1])
-      for (const kind of ['back', 'low', 'loft']) {
+      for (const kind of ['low', 'loft']) {
         const p = { x: side * 0.7, y: 0, team: side < 0 ? 0 : 1, facing };
         const neutral = localReceiveAim(p, { kind }, null, null, DEFAULTS);
         for (const x of [0, -side * 0.02, -side * 1.2])

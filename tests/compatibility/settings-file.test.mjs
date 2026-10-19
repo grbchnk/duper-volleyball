@@ -1,7 +1,7 @@
 import { DEFAULTS } from './legacy-contract.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LIMITS, sanitizeConfig } from '../../src/config.js';
+import { DEFAULTS as CURRENT, LIMITS, sanitizeConfig } from '../../src/config.js';
 import { SHOT_DEFAULTS } from '../../src/shot-settings.js';
 import { SERVE_DEFAULTS } from '../../src/serve-settings.js';
 import { exportSettings, importSettings } from '../../src/settings-file.js';
@@ -22,13 +22,13 @@ test('full settings JSON restores every profile, animation, control and display 
     ballSkin: 'plain',
     scoring: 'rally',
   });
-  const expected = sanitizeConfig(edited);
+  const expected = sanitizeConfig({ ...edited, dynamic: true });
   const file = exportSettings(expected);
   const restored = importSettings(file);
   assert.deepEqual(restored, expected);
-  assert.deepEqual(Object.keys(restored).sort(), Object.keys(DEFAULTS).sort());
+  assert.deepEqual(Object.keys(restored).sort(), Object.keys(CURRENT).sort());
   for (const key of [
-    ...Object.keys(SHOT_DEFAULTS),
+    ...Object.keys(SHOT_DEFAULTS).filter((key) => !key.startsWith('back')),
     ...Object.keys(SERVE_DEFAULTS),
     'armScale',
     'armWindup',

@@ -8,6 +8,17 @@ const ease = (v) => {
 };
 const mix = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
 const pairMix = (a, b, t) => a.map((point, i) => mix(point, b[i], t));
+const lowerOverheadHand = (from, to, t, side, scale) => {
+  const u = 1 - t;
+  const outside = to.x + side * 10 * Math.max(1, scale);
+  return {
+    x: u ** 3 * from.x + 3 * u * t * outside + t ** 3 * to.x,
+    y:
+      u ** 3 * from.y +
+      3 * u * u * t * Math.min(from.y, -49 * Math.max(1, scale)) +
+      (3 * u * t * t + t ** 3) * to.y,
+  };
+};
 const idle = [
   { x: -9, y: -12 },
   { x: 10, y: -12 },
@@ -29,6 +40,7 @@ export function expressivePose({
   recoveryPose = null,
   step = 0,
   contactPoint = null,
+  receiveHoldPoint = null,
   serve = null,
   serveSupport = null,
   localVelocity = null,
@@ -39,7 +51,7 @@ export function expressivePose({
 }) {
   const power = clamp(charge?.power ?? serve?.power ?? swing?.power ?? 0.35),
     amp = 1.3 * power * config.armPowerMotion;
-  const scale = spec.size * config.armScale;
+  const scale = spec.size * (config.armLength ?? 1);
   const scaled = (points) =>
     points.map((p, i) => ({
       x: (i ? 6 : -6) + (p.x - (i ? 6 : -6)) * scale,
@@ -128,8 +140,13 @@ export function expressivePose({
     y: kind === 'drive' ? 70 + power * 50 : -100 - power * 80,
   };
   const speed = Math.hypot(velocity.x, velocity.y),
-    travel = 5 * scale;
-  const strokeTime = speed > 0 ? travel / speed : 0.08;
+    travel = (config.armFollowThrough ?? 5) * scale;
+  const upperReceive = kind === 'loft' && !serve && !swing?.serve;
+  const strokeTime = upperReceive
+    ? Math.min(0.035, speed > 0 ? travel / speed : 0)
+    : speed > 0
+      ? travel / speed
+      : 0.08;
   const follow = (hit, age, indices = [0, 1]) =>
     hit.map((p, i) => {
       const time = Math.min(Math.max(age, 0), strokeTime);
@@ -178,6 +195,17 @@ export function expressivePose({
     activity = ease((charge.age ?? 0.1) / config.armWindup);
     wrists = pairMix(base, ready, activity);
     stage = 'Подготовка';
+    if (charge.receiveHold && receiveHoldPoint && ['low', 'loft'].includes(kind)) {
+      const spread = kind === 'low' ? 2 : 3.5;
+      const below = kind === 'low' ? 3 : 2;
+      const target = [-1, 1].map((side) => ({
+        x: receiveHoldPoint.x + side * spread,
+        y: receiveHoldPoint.y + below - shoulderLift,
+      }));
+      activity = 1;
+      wrists = pairMix(base, target, activity);
+      stage = 'Сопровождение мяча';
+    }
   }
   if (swing && !charge && !block && kind !== 'block') {
     const age = swing.age;
@@ -253,12 +281,18 @@ export function expressivePose({
                   { x: point.x + 3.5, y: point.y + 2 },
                 ];
       const stroke = follow(hit, age, kind === 'back' ? [hand] : kind === 'drive' ? [1] : [0, 1]);
-      activity = 1 - ease((age - recoveryStart) / 0.23);
-      wrists = pairMix(base, stroke, activity);
+      const overhead = kind === 'loft';
+      activity =
+        1 - ease((age - (overhead ? strokeTime : recoveryStart)) / (overhead ? 0.22 : 0.23));
+      wrists = overhead
+        ? stroke.map((point, i) =>
+            lowerOverheadHand(point, base[i], 1 - activity, i ? 1 : -1, scale),
+          )
+        : pairMix(base, stroke, activity);
       stage =
         age < strokeTime
           ? 'Контакт!'
-          : age < recoveryStart
+          : !overhead && age < recoveryStart
             ? 'Проводка'
             : activity > 0
               ? 'Возврат'
@@ -314,8 +348,20 @@ export function expressivePose({
         y: type === 'low' ? -12 : type === 'back' ? -19 : -40,
       };
       const hit = base.map((p, i) => (i === hand ? { x: point.x, y: point.y } : p));
-      activity = 1 - ease((swing.age - recoveryStart) / 0.23);
-      wrists = pairMix(base, follow(hit, swing.age, [hand]), activity);
+      const upperServe = type === 'loft' || type === 'drive';
+      // A serve is a compact palm strike, not the longer rally follow-through.
+      // Keep the exact contact point, then release the arm promptly instead
+      // of stretching it another five rig pixels and holding it above the head.
+      const serveFollow = upperServe
+        ? hit.map((p, i) => {
+            const time = Math.min(Math.max(swing.age, 0), speed > 0 ? (1.4 * scale) / speed : 0);
+            return i === hand ? { x: p.x + velocity.x * time, y: p.y + velocity.y * time } : p;
+          })
+        : follow(hit, swing.age, [hand]);
+      activity = upperServe
+        ? 1 - ease((swing.age - 0.035) / 0.18)
+        : 1 - ease((swing.age - recoveryStart) / 0.23);
+      wrists = pairMix(base, serveFollow, activity);
       stage = activity > 0 ? 'Подача одной рукой' : stage;
     }
     if (serve) activity = 1;
@@ -353,7 +399,11 @@ export function expressivePose({
         );
       return { ...rest, x: rest.x + (i ? 1 : -1) * amp * 3 * config.armBend * activity };
     })
-    .map((p) => ({ ...p, y: p.y - (config.elbowHeight || 0) }));
+    .map((p, i) => ({
+      ...p,
+      x: p.x + (i ? 1 : -1) * 10 * ((config.armLength ?? 1) - 1),
+      y: p.y - (config.elbowHeight || 0),
+    }));
   const shoulders = [
     { x: -spec.shoulder, y: -20 + shoulderLift },
     { x: spec.shoulder, y: -20 + shoulderLift },

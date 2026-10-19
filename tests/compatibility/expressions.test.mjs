@@ -19,13 +19,17 @@ test('contact follow-through matches outgoing velocity, direction and short reac
           args = { kind, localVelocity, contactPoint: point };
         const sample = (age) =>
           pose({ ...args, swing: { serve: true, hand, hit: true, age, power: 1 } });
+        const travel = kind === 'low' ? 5 : 1.4;
+        const dt = Math.min(0.01, travel / Math.hypot(localVelocity.x, localVelocity.y));
         const a = sample(0),
           b = sample(0.01),
-          c = sample(0.06);
+          c = sample(kind === 'low' ? 0.06 : 0.03);
         assert.deepEqual(a.wrists[hand], point);
-        assert.ok(Math.abs(b.wrists[hand].x - point.x - localVelocity.x * 0.01) < 1e-8);
-        assert.ok(Math.abs(b.wrists[hand].y - point.y - localVelocity.y * 0.01) < 1e-8);
-        assert.ok(Math.hypot(c.wrists[hand].x - point.x, c.wrists[hand].y - point.y) <= 5.00001);
+        assert.ok(Math.abs(b.wrists[hand].x - point.x - localVelocity.x * dt) < 1e-8);
+        assert.ok(Math.abs(b.wrists[hand].y - point.y - localVelocity.y * dt) < 1e-8);
+        assert.ok(
+          Math.hypot(c.wrists[hand].x - point.x, c.wrists[hand].y - point.y) <= travel + 0.00001,
+        );
         assert.deepEqual(sample(0.6).wrists, pose({ kind: null }).wrists);
       }
 });

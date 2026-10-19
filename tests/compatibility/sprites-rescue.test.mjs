@@ -126,7 +126,7 @@ test('dive commits direction, cannot be steered or spammed and clears on landing
   assert.equal(p.diveArmed, false);
   assert.equal(p.diveAge, 0);
 });
-test('dive cancels the old charge and transfers fresh shot input to the teammate', () => {
+test('dive cancels preparation and immediately hands control to a teammate', () => {
   const m = setup(),
     p = m.active();
   m.tick(FIXED_DT, { low: true });
@@ -134,11 +134,14 @@ test('dive cancels the old charge and transfers fresh shot input to the teammate
   m.tick(FIXED_DT, { low: true, dive: true, axis: 1 });
   assert.equal(m.charge, null);
   assert.equal(m.pending, null);
+  const receiverId = m.active().id;
+  assert.notEqual(receiverId, p.id);
   m.tick();
   m.tick(FIXED_DT, { drive: true });
-  assert.notEqual(m.active().id, p.id);
-  assert.equal(m.charge.playerId, m.active().id);
+  assert.equal(m.active().id, receiverId);
   assert.equal(p.diveArmed, true);
+  m.tick(FIXED_DT, { switch: true });
+  assert.notEqual(m.active().id, p.id);
 });
 test('forward/back drills are playable, and skin choice leaves their physics identical', () => {
   for (const drill of ['dive-forward', 'dive-back']) {

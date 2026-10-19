@@ -1,3 +1,4 @@
+import { LEGACY_BACK } from './legacy-profile.js';
 // Shared schema for the game, JSON validation and the laboratory.
 export const SHOT_BASES = {
   low: {
@@ -11,17 +12,7 @@ export const SHOT_BASES = {
     max: 1.35,
     reach: 1.15,
   },
-  back: {
-    speed: [3.8, 5.8],
-    angle: 65,
-    air: 65,
-    floor: 25,
-    ceiling: 90,
-    spin: 0,
-    min: 0.12,
-    max: 2.45,
-    reach: 1.35,
-  },
+  back: LEGACY_BACK,
   loft: {
     speed: [5.8, 11.8],
     angle: 71,

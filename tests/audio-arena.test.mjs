@@ -82,6 +82,40 @@ async function enabledSound() {
   return s;
 }
 
+test('receive timbre follows incoming velocity even when outgoing charge is identical', () => {
+  const receive = (incomingSpeed) =>
+    soundCue({ type: 'hit', kind: 'low', power: 0.5, incomingSpeed });
+  const soft = receive(3),
+    hard = receive(19);
+  assert.ok(hard[0].volume > soft[0].volume);
+  assert.ok(hard[0].frequency > soft[0].frequency);
+  assert.ok(hard[1].duration > soft[1].duration);
+  assert.ok(soft.some((n) => n.type === 'sine' && n.frequency === 523.25));
+  const m = new Match();
+  m.phase = 'rally';
+  Object.assign(m.ball, { x: m.players[0].x, y: 2, vx: 12, vy: -5, vz: 0 });
+  assert.ok(m.makeContact(m.players[0], 'low', 0.5, { vx: 1, vy: 6, vz: 0 }));
+  assert.equal(m.events.findLast((e) => e.type === 'hit').incomingSpeed, 13);
+});
+
+test('floor landing and rebound have a rounded impact and react to speed', () => {
+  const soft = soundCue({ type: 'floor-touch', speed: 3 });
+  const hard = soundCue({ type: 'floor-touch', speed: 18 });
+  assert.ok(soft.length > 0);
+  assert.ok(hard[0].volume > soft[0].volume);
+  assert.deepEqual(hard, soundCue({ type: 'floor', speed: 18 }));
+});
+
+test('combination preview uses the actual three contact sounds and a final consonant answer', () => {
+  const cue = soundCue({ type: 'combination-preview' });
+  for (const [i, frequency] of [523.25, 659.25, 783.99].entries())
+    assert.ok(cue.some((n) => n.frequency === frequency && n.delay >= i * 0.5));
+  assert.ok(cue.some((n) => n.frequency === 1046.5 && n.delay > 1));
+  assert.ok(
+    !soundCue({ type: 'hit', kind: 'drive', comboStage: 0 }).some((n) => n.frequency === 1046.5),
+  );
+});
+
 test('all removed crowd calls stay silent and winning points use melody and applause only', async () => {
   const s = await enabledSound();
   for (const type of ['crowd-wow', 'crowd-hurrah', 'crowd-boo']) {

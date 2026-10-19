@@ -73,12 +73,14 @@ test('net tape grazing hops forward while lower mesh contacts rebound, on either
       assert.equal(collideNet(b, previous, config.restitution, config), true);
       assert.equal(Math.sign(b.vx), -sign);
       assert.ok(Math.abs(b.vx) < 8 && b.vy > 0);
+      assert.ok(b.vy > 1.4, 'a tape hit gets a clear elastic pop');
       assert.ok(b.y > COURT.netHeight + 0.295 * size);
       assert.equal(b.netImpact.direction, -sign);
       const lower = { ...previous, y: 1.5 };
       const hit = { ...lower, x: 0 };
       assert.equal(collideNet(hit, lower, config.restitution, config), true);
       assert.equal(Math.sign(hit.vx), sign);
+      assert.ok(Math.abs(hit.vx) > 8 * config.restitution * 0.65);
       assert.ok(Math.abs(hit.x) >= 0.295 * size - 1e-9, 'visible ball stays outside the mesh');
     }
 });

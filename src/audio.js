@@ -2,6 +2,12 @@ import { Music } from './music.js';
 import { chargePulse, refereeWhistle } from './charge-whistle.js';
 // Entirely code-generated console effects, applause and music.
 export function soundCue(event) {
+  if (event.type === 'combination-preview')
+    return ['low', 'loft', 'drive'].flatMap((kind, i) =>
+      soundCue({ type: 'hit', kind, power: 0.65, incomingSpeed: 12, comboStage: i + 1 }).map(
+        (voice) => ({ ...voice, delay: voice.delay + i * 0.5 }),
+      ),
+    );
   const p = Math.max(0, Math.min(1, event.power ?? 0.5)),
     gain = 0.07 + p * 0.055;
   const note = (
@@ -24,7 +30,14 @@ export function soundCue(event) {
     return [note(800, 0.1, 0, 'noise', 400, 0.008), note(140, 0.1, 0, 'sine', 220, 0.009)];
   if (event.type === 'dive')
     return [note(1100, 0.14, 0, 'noise', 300, 0.022), note(180, 0.09, 0.07, 'triangle', 75, 0.03)];
-  if (event.type === 'floor') return [note(90, 0.07, 0, 'sine', 45, 0.035)];
+  if (event.type === 'floor' || event.type === 'floor-touch') {
+    const impact = Math.max(0, Math.min(1, (event.speed ?? 6) / 18));
+    return [
+      note(155 + impact * 45, 0.11 + impact * 0.035, 0, 'sine', 55, 0.035 + impact * 0.035),
+      note(760, 0.025, 0, 'noise', 240, 0.008 + impact * 0.014),
+      note(310, 0.065, 0.008, 'triangle', 140, 0.012),
+    ];
+  }
   if (event.type === 'skid')
     return [
       note(1100, 0.045, 0, 'noise', 350, 0.018),
@@ -46,27 +59,49 @@ export function soundCue(event) {
       note(f, 0.12, i * 0.1, 'triangle', f, 0.04),
     );
   if (event.type === 'hit') {
+    // Incoming energy describes the catch; charge describes the outgoing shot.
+    const impact = Math.max(0, Math.min(1, (event.incomingSpeed ?? p * 14) / 20));
     const cue =
       event.kind === 'loft' || event.kind === 'back'
         ? [
-            note(520 + p * 240, 0.065, 0, 'triangle', 880 + p * 260),
-            note(1040 + p * 480, 0.055, 0.018, 'square', 780, 0.025 + p * 0.025),
+            note(330 + p * 80, 0.095, 0, 'triangle', 590 + p * 100, 0.045),
+            note(783.99, 0.13, 0.025, 'sine', 783.99, 0.025),
+            note(1200, 0.018, 0, 'noise', 500, 0.006 + impact * 0.012),
           ]
         : event.kind === 'low'
           ? [
-              note(190 + p * 90, 0.085, 0, 'triangle', 90),
-              note(650, 0.025, 0, 'noise', 200, 0.025 + p * 0.035),
+              note(
+                205 + impact * 110,
+                0.09 + impact * 0.04,
+                0,
+                'triangle',
+                110,
+                0.04 + impact * 0.04,
+              ),
+              note(
+                950 + impact * 700,
+                0.018 + impact * 0.02,
+                0,
+                'noise',
+                260,
+                0.009 + impact * 0.025,
+              ),
+              note(523.25, 0.115, 0.012, 'sine', 523.25, 0.024),
             ]
           : [
-              note(340 + p * 240, 0.065, 0, 'square', 75),
-              note(1800, 0.045, 0, 'noise', 200, 0.035 + p * 0.05),
+              note(310 + p * 200, 0.085, 0, 'triangle', 70, 0.065 + p * 0.035),
+              note(1800, 0.03 + p * 0.018, 0, 'noise', 200, 0.025 + p * 0.035),
+              note(155, 0.09, 0.005, 'sine', 65, 0.035 + p * 0.02),
             ];
     if (event.serve) cue.push(note(880, 0.04, 0.06, 'triangle', 440, 0.035));
     if (event.intent === 'soft') for (const voice of cue) voice.volume *= 0.7;
     if (!event.serve && event.comboStage > 0) {
       const melody = [523.25, 659.25, 783.99][event.comboStage - 1];
-      if (melody) cue.push(note(melody, 0.1, 0.012, 'triangle', melody, 0.026));
-      if (event.comboStage === 3) cue.push(note(1046.5, 0.13, 0.055, 'triangle', 1046.5, 0.02));
+      if (melody) cue.push(note(melody, 0.18, 0.018, 'triangle', melody, 0.038));
+      if (event.comboStage === 3) {
+        cue.push(note(1046.5, 0.22, 0.085, 'triangle', 1046.5, 0.028));
+        cue.push(note(659.25, 0.2, 0.085, 'sine', 659.25, 0.016));
+      }
     }
     return cue;
   }

@@ -107,6 +107,7 @@ test('only a fast frontal head impact detaches a cosmetic head, medium impact ke
     m.phase = 'rally';
     const target = m.active(0);
     m.headHitEligible = true;
+    m.headFlyEligible = fast;
     m.incomingShot = 'drive';
     m.lastTouch = 1;
     const before = { ...m.ball, x: target.x, y: 2.6 };
@@ -128,12 +129,37 @@ test('a fast sideways head hit is swept correctly, while a nearby miss does not 
     const p = m.active(0);
     m.lastTouch = 1;
     m.headHitEligible = true;
+    m.headFlyEligible = offset === 0;
     m.incomingShot = 'drive';
     const before = { ...m.ball, x: p.x + 0.7, y: p.y + 1.9 + offset };
     Object.assign(m.ball, { x: p.x - 0.7, y: before.y, vx: -25, vy: 0 });
     assert.equal(m.tryHeadHit(before), offset === 0);
     assert.equal(!!p.headFly, offset === 0);
   }
+});
+
+test('a full-power hit keeps the head detached and the body down until the next round', () => {
+  const m = new Match();
+  m.phase = 'rally';
+  const target = m.active(0);
+  m.headHitEligible = true;
+  m.headFlyEligible = true;
+  m.incomingShot = 'drive';
+  m.lastTouch = 1;
+  const before = { ...m.ball, x: target.x, y: 2.6 };
+  Object.assign(m.ball, { x: target.x, y: 1.9, vx: -12, vy: -4 });
+  assert.equal(m.tryHeadHit(before), true);
+  assert.ok(target.headFly);
+  for (let i = 0; i < 600; i++) m.animatePlayers(FIXED_DT);
+  assert.equal(target.headFly, null, 'the detached head finishes its flight');
+  assert.equal(target.headDetached, true, 'the head stays absent from the body');
+  assert.ok(target.recovery > 0, 'the body remains down');
+  assert.equal(target.pose, 'belly');
+
+  m.startServe();
+  assert.equal(target.headDetached, false);
+  assert.equal(target.recovery, 0);
+  assert.equal(target.pose, 'idle');
 });
 
 test('full-screen backing size follows screen density and preserves 16:9', () => {

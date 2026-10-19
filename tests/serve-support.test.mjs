@@ -75,3 +75,40 @@ test('the support palm reaches its exact target independently of arm shape, then
   m.phaseTime += 0.1;
   assert.equal(serveSupport(m, p), null);
 });
+
+test('upper serves keep exact contact and use a short follow-through with prompt recovery', () => {
+  for (const kind of ['loft', 'drive'])
+    for (const hand of [0, 1])
+      for (const armLength of [0.7, 1, 1.3])
+        for (const velocity of [
+          { x: 300, y: -200 },
+          { x: -300, y: -200 },
+          { x: 0, y: 500 },
+        ]) {
+          const config = { ...DEFAULTS, armLength };
+          const contactPoint = { x: hand ? 10 : -10, y: -42 };
+          const poseAt = (age) =>
+            expressivePose({
+              spec: ARM_STYLES.whip,
+              config,
+              kind,
+              contactPoint,
+              localVelocity: velocity,
+              swing: { serve: true, hit: true, hand, kind, age, power: 1 },
+            });
+          const initial = poseAt(0);
+          assert.deepEqual(initial.wrists[hand], contactPoint);
+          const shoulder = initial.shoulders[hand];
+          const contactReach = Math.hypot(contactPoint.x - shoulder.x, contactPoint.y - shoulder.y);
+          for (let i = 0; i <= 30; i++) {
+            const pose = poseAt(i / 120);
+            const wrist = pose.wrists[hand];
+            assert.ok(
+              Math.hypot(wrist.x - shoulder.x, wrist.y - shoulder.y) <=
+                contactReach + 1.4 * armLength + 1e-9,
+            );
+          }
+          const rest = expressivePose({ spec: ARM_STYLES.whip, config });
+          assert.deepEqual(poseAt(0.22).wrists, rest.wrists);
+        }
+});

@@ -10,7 +10,7 @@ import { expressivePose } from '../../src/arm-motion.js';
 import { ARM_STYLES } from '../../src/arms.js';
 import { preparedHands } from '../../src/held-contact.js';
 
-test('down crouches without a shot or dive; X receives and A passes back', () => {
+test('down crouches without a shot or dive; X receives and retired A is inert', () => {
   const input = new InputBuffer(() => []);
   input.down('ArrowDown');
   assert.equal(input.read().crouch, true);
@@ -20,7 +20,7 @@ test('down crouches without a shot or dive; X receives and A passes back', () =>
   assert.equal(input.read().low, true);
   input.clear();
   input.down('KeyA');
-  assert.equal(input.read().back, true);
+  assert.equal(input.read().back, false);
   assert.equal(input.read().low, false);
 });
 

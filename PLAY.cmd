@@ -1,5 +1,6 @@
 @echo off
 cd /d "%~dp0"
+set "PORT=4173"
 where node >nul 2>nul
 if errorlevel 1 (
   echo Install Node.js 20 or newer from https://nodejs.org

@@ -7,6 +7,7 @@ import { preparedHands } from '../../src/held-contact.js';
 import { shotImpulse } from '../../src/moves.js';
 import { expressivePose } from '../../src/arm-motion.js';
 import { ARM_STYLES } from '../../src/arms.js';
+import { HOMES } from '../../src/formation.js';
 
 test('both teams walk back after either winner, landing and recovering before moving', () => {
   for (const winner of [0, 1]) {
@@ -33,7 +34,7 @@ test('both teams walk back after either winner, landing and recovering before mo
     assert.ok(walked);
     assert.equal(m.phase, 'serve');
     for (const p of m.players) {
-      const home = p.id === m.server * 3 ? COURT.halfLength + 0.15 : [7, 3.7, 0.8][p.id % 3];
+      const home = p.id === m.server * 3 ? COURT.halfLength + 0.15 : HOMES[p.id % 3];
       assert.equal(p.x, m.sign(p.team) * home);
       assert.equal(p.y, 0);
     }

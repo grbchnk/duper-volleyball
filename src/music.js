@@ -1,6 +1,4 @@
-import { percussionBar, synthDrum } from './percussion.js';
-// Three original sixteen-bar themes, developed with a thirty-two-bar drum arrangement.
-// Warm console timbres and major sevenths evoke a quiet American evening in the 1980s.
+// Short original handheld-console motifs, with room between phrases.
 const notes = {
   C: 0,
   'C#': 1,
@@ -22,7 +20,7 @@ export function midi(name) {
 export const MUSIC_TRACKS = {
   sunset: {
     name: 'Персиковый закат',
-    bpm: 102,
+    bpm: 82,
     chords: [
       'D3 F#3 A3 C#4 E4',
       'B2 D3 F#3 A3',
@@ -42,27 +40,27 @@ export const MUSIC_TRACKS = {
       'D3 F#3 A3 C#4',
     ],
     melody: [
-      'F#5:1 A5:0.5 E5:0.5 F#5:1 E5:0.5 D5:0.5',
-      'R:0.5 D5:0.5 F#5:1 A5:0.5 F#5:0.5 E5:1',
-      'B4:1 D5:0.5 F#5:0.5 A5:1 F#5:1',
-      'E5:0.5 C#5:0.5 B4:1 C#5:0.5 E5:0.5 R:1',
-      'A4:0.5 D5:0.5 F#5:1 E5:0.5 F#5:0.5 A5:1',
-      'G#5:1 E5:0.5 C#5:0.5 A4:1 C#5:1',
-      'D5:0.5 F#5:0.5 B5:1 A5:0.5 F#5:0.5 E5:1',
-      'C#5:1 B4:0.5 C#5:0.5 E5:1 R:1',
-      'F#5:0.5 A5:0.5 B5:1 A5:0.5 F#5:0.5 D5:1',
-      'C#5:1 E5:0.5 F#5:0.5 A5:1 G#5:1',
-      'F#5:1 D5:0.5 B4:0.5 D5:0.5 E5:0.5 F#5:1',
-      'E5:1 F#5:0.5 A5:0.5 D6:1 A5:1',
-      'G5:0.5 F#5:0.5 E5:1 B4:1 D5:1',
-      'C#5:0.5 E5:0.5 B5:1 A5:0.5 E5:0.5 C#5:1',
-      'B4:0.5 D5:0.5 F#5:1 E5:0.5 D5:0.5 B4:1',
-      'A4:0.5 C#5:0.5 D5:2 R:1',
+      'F#4:1 A4:0.5 B4:0.5 R:2',
+      'A4:1 F#4:1 R:2',
+      'D4:1 F#4:1 A4:1 R:1',
+      'E4:1 R:3',
+      'F#4:1 A4:0.5 B4:0.5 R:2',
+      'A4:1 E4:1 R:2',
+      'F#4:1 E4:0.5 D4:1.5 R:1',
+      'R:4',
+      'F#4:1 A4:0.5 B4:0.5 R:2',
+      'C#5:1 A4:1 R:2',
+      'B4:1 A4:0.5 F#4:0.5 R:2',
+      'E4:1 F#4:1 R:2',
+      'G4:1 F#4:1 E4:1 R:1',
+      'E4:1 C#4:1 R:2',
+      'D4:1 F#4:1 E4:1 R:1',
+      'D4:2 R:2',
     ],
   },
   boardwalk: {
     name: 'Ночной променад',
-    bpm: 112,
+    bpm: 88,
     chords: [
       'F2 A2 C3 E3',
       'E2 G2 B2 D3',
@@ -82,27 +80,27 @@ export const MUSIC_TRACKS = {
       'C3 E3 G3 A3',
     ],
     melody: [
-      'R:0.5 A4:0.5 C5:0.5 E5:1 G5:0.5 E5:1',
-      'D5:0.5 B4:0.5 G4:1 B4:0.5 D5:0.5 E5:1',
-      'F5:0.5 E5:0.5 C5:1 A4:0.5 C5:0.5 D5:1',
-      'B4:0.5 D5:1 A4:0.5 G4:1 R:1',
-      'E5:1 G5:0.5 B5:0.5 A5:0.5 G5:0.5 E5:1',
-      'C5:0.5 E5:0.5 G5:1 B5:0.5 A5:0.5 G5:1',
-      'F5:1 E5:0.5 D5:0.5 C5:0.5 A4:0.5 D5:1',
-      'B4:0.5 D5:0.5 F5:1 E5:0.5 D5:0.5 R:1',
-      'C5:0.5 E5:1 A5:0.5 G5:1 E5:1',
-      'G5:0.5 E5:0.5 D5:1 B4:0.5 D5:0.5 G5:1',
-      'E5:0.5 A5:0.5 B5:1 G5:0.5 E5:0.5 C5:1',
-      'A4:1 C5:0.5 D5:0.5 F5:1 E5:1',
-      'C5:0.5 E5:0.5 A5:1 C6:0.5 A5:0.5 G5:1',
-      'A5:0.5 G5:0.5 D5:1 B4:0.5 D5:0.5 F5:1',
-      'E5:1 D5:0.5 B4:0.5 C5:1 G4:1',
-      'E5:0.5 D5:0.5 C5:2 R:1',
+      'E4:1 G4:0.5 A4:0.5 R:2',
+      'G4:1 E4:1 R:2',
+      'F4:1 E4:0.5 D4:0.5 R:2',
+      'D4:1 R:3',
+      'E4:1 G4:0.5 A4:0.5 R:2',
+      'C5:1 G4:1 R:2',
+      'A4:1 G4:0.5 F4:0.5 R:2',
+      'R:4',
+      'E4:1 G4:0.5 A4:0.5 R:2',
+      'B4:1 G4:1 R:2',
+      'A4:1 G4:1 E4:1 R:1',
+      'F4:1 E4:0.5 D4:0.5 R:2',
+      'A4:1 G4:1 E4:1 R:1',
+      'D4:1 G4:1 R:2',
+      'E4:1 D4:1 C4:1 R:1',
+      'C4:2 R:2',
     ],
   },
   ocean: {
     name: 'Окна над океаном',
-    bpm: 96,
+    bpm: 78,
     chords: [
       'A2 C3 E3 B3',
       'F2 A2 C3 E3',
@@ -122,22 +120,22 @@ export const MUSIC_TRACKS = {
       'A2 C3 E3 B3',
     ],
     melody: [
-      'B4:1 E5:1 C5:0.5 B4:0.5 A4:1',
-      'G4:0.5 A4:0.5 C5:1 E5:1 R:1',
-      'F5:1 E5:0.5 D5:0.5 C5:1 A4:1',
-      'B4:1 D5:0.5 E5:0.5 G5:1 E5:1',
-      'B5:1 G5:0.5 E5:0.5 D5:1 C5:1',
-      'B4:1 G4:0.5 B4:0.5 D5:1 E5:1',
-      'C5:1 A4:0.5 G4:0.5 A4:1 C5:1',
-      'B4:0.5 G#4:0.5 E4:1 G#4:1 R:1',
-      'E5:1 G5:0.5 B5:0.5 A5:1 E5:1',
-      'D5:0.5 E5:0.5 G5:1 B5:1 A5:1',
-      'G5:1 E5:0.5 C5:0.5 A4:1 C5:1',
-      'E5:1 D5:0.5 B4:0.5 G4:1 E5:1',
-      'F5:0.5 E5:0.5 D5:1 A4:1 C5:1',
-      'B4:1 G#4:0.5 B4:0.5 D5:1 E5:1',
-      'C5:0.5 E5:0.5 A5:1 G5:0.5 E5:0.5 C5:1',
-      'B4:1 A4:2 R:1',
+      'E4:1 A4:1 B4:1 R:1',
+      'A4:1 E4:1 R:2',
+      'F4:1 E4:0.5 D4:0.5 R:2',
+      'G4:1 R:3',
+      'E4:1 G4:1 B4:1 R:1',
+      'G4:1 E4:1 R:2',
+      'A4:1 G4:0.5 E4:0.5 R:2',
+      'R:4',
+      'E4:1 A4:1 B4:1 R:1',
+      'D5:1 B4:1 R:2',
+      'C5:1 A4:1 G4:1 R:1',
+      'E4:1 G4:1 R:2',
+      'F4:1 E4:1 D4:1 R:1',
+      'E4:1 B4:1 R:2',
+      'A4:1 G4:1 E4:1 R:1',
+      'A4:2 R:2',
     ],
   },
 };
@@ -157,30 +155,18 @@ export function musicBar(id, index) {
         duration: duration * 0.88,
         note: midi(name),
         voice: 'lead',
-        level: 0.075,
+        level: 0.048,
       });
     beat += duration;
   }
-  chord
-    .slice(1)
-    .forEach((note) => events.push({ beat: 0, duration: 3.85, note, voice: 'pad', level: 0.026 }));
+  // Two quiet harmony notes and one bass pluck leave the lead and ball audible.
+  for (const note of [chord[1], chord[2]])
+    events.push({ beat: 0, duration: 2.8, note, voice: 'pad', level: 0.012 });
   const bassRoot = chord[0] < 48 ? chord[0] : chord[0] - 12;
-  for (const [beat, note] of [
-    [0, bassRoot],
-    [1.5, chord[0]],
-    [2.5, bassRoot],
-    [3.5, chord[2] - 12],
-  ])
-    events.push({ beat, duration: 0.44, note, voice: 'bass', level: 0.075 });
-  for (let i = 0; i < 8; i++)
-    events.push({
-      beat: i / 2,
-      duration: 0.27,
-      note: chord[1 + (i % (chord.length - 1))] + 12,
-      voice: 'bell',
-      level: 0.016,
-    });
-  return [...events, ...percussionBar(id, index)];
+  events.push({ beat: 0, duration: 1.3, note: bassRoot, voice: 'bass', level: 0.035 });
+  if (bar % 4 === 2)
+    events.push({ beat: 2.5, duration: 0.6, note: chord[2], voice: 'bell', level: 0.012 });
+  return events;
 }
 export class Music {
   constructor(ctx, output) {
@@ -192,7 +178,6 @@ export class Music {
     this.track = null;
     this.bar = 0;
     this.next = 0;
-    this.drums = new Map();
   }
   stop() {
     const now = this.ctx.currentTime;
@@ -237,41 +222,17 @@ export class Music {
     const ctx = this.ctx,
       start = barStart + event.beat * beatSeconds,
       end = start + event.duration * beatSeconds;
-    if (event.drum) {
-      const source = ctx.createBufferSource(),
-        gain = ctx.createGain();
-      if (!this.drums.has(event.drum)) this.drums.set(event.drum, synthDrum(ctx, event.drum));
-      source.buffer = this.drums.get(event.drum);
-      gain.gain.setValueAtTime(event.level, start);
-      source.connect(gain);
-      gain.connect(this.output);
-      const node = { oscillator: source, gain };
-      this.nodes.add(node);
-      source.onended = () => {
-        source.disconnect();
-        gain.disconnect();
-        this.nodes.delete(node);
-      };
-      source.start(start);
-      source.stop(start + source.buffer.duration + 0.01);
-      return;
-    }
     const oscillator = ctx.createOscillator(),
       gain = ctx.createGain(),
       filter = ctx.createBiquadFilter();
-    oscillator.type =
-      event.voice === 'lead' || event.voice === 'bell'
-        ? 'square'
-        : event.voice === 'bass'
-          ? 'triangle'
-          : 'sine';
+    oscillator.type = ['lead', 'bass'].includes(event.voice) ? 'triangle' : 'sine';
     oscillator.frequency.value = 440 * 2 ** ((event.note - 69) / 12);
     filter.type = 'lowpass';
-    filter.frequency.value = event.voice === 'lead' ? 1850 : event.voice === 'bell' ? 2100 : 1100;
+    filter.frequency.value = event.voice === 'lead' ? 1450 : event.voice === 'bell' ? 1600 : 850;
     filter.Q.value = 0.3;
     gain.gain.setValueAtTime(0, start);
     const level = event.level * (event.voice === 'lead' ? 0.65 : event.voice === 'bell' ? 0.5 : 1);
-    gain.gain.linearRampToValueAtTime(level, start + (event.voice === 'pad' ? 0.18 : 0.012));
+    gain.gain.linearRampToValueAtTime(level, start + (event.voice === 'pad' ? 0.22 : 0.018));
     gain.gain.setValueAtTime(level, Math.max(start + 0.1, end - 0.1));
     gain.gain.linearRampToValueAtTime(0, end + 0.12);
     oscillator.connect(filter);

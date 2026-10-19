@@ -1,0 +1,319 @@
+/* Shared settings frame. Header/navigation never participate in content scroll. */
+dialog.settings-panel {
+  width: min(1180px, calc(100vw - 32px));
+  height: calc(100dvh - 32px);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+}
+dialog.settings-panel[open] {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  grid-template-rows: 86px minmax(0, 1fr);
+}
+.settings-panel > .dialog-top {
+  grid-column: 1 / -1;
+  position: static;
+  margin: 0;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+  min-height: 0;
+}
+.settings-panel > .dialog-top h2 {
+  font-size: 24px;
+  margin: 0;
+}
+.settings-panel > .dialog-top .eyebrow {
+  display: none;
+}
+.settings-panel > .settings-nav {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin: 0;
+  padding: 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: #f3f3e9;
+}
+.settings-nav > strong {
+  font-size: 11px;
+  color: #617b70;
+  padding: 12px 8px 5px;
+}
+.settings-panel .settings-nav button {
+  text-align: left;
+  width: 100%;
+  white-space: normal;
+  padding: 9px 10px;
+}
+.settings-panel > .dialog-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.settings-section-select {
+  display: none;
+}
+.settings-panel .team-preview {
+  position: static;
+  background: var(--panel);
+  padding: 0;
+}
+.settings-panel .team-editor-layout {
+  grid-template-columns: 1fr;
+}
+.settings-panel .team-presets {
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 16px;
+}
+.settings-panel .team-presets summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 8px 0;
+}
+.settings-panel #team-preset-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.settings-panel #team-roster-preview {
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+}
+.settings-panel .team-custom {
+  padding: 0;
+}
+.settings-panel .team-custom h3 {
+  margin: 18px 0 10px;
+}
+.settings-panel .team-preview .hint {
+  display: block;
+}
+.settings-panel .team-custom select,
+.settings-panel .team-custom button {
+  scroll-margin-top: 20px;
+}
+.settings-panel .graphics-layout {
+  grid-template-columns: 1fr;
+}
+.settings-panel .arm-live-preview {
+  position: static;
+}
+.settings-panel .arm-live-preview canvas {
+  height: 200px;
+}
+.settings-panel .shot-layout {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  align-items: stretch;
+}
+.settings-panel > .dialog-content:has(.shot-layout) {
+  overflow: hidden;
+}
+.settings-panel .shot-controls,
+.settings-panel .shot-preview {
+  position: static;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.settings-panel .shot-controls > * {
+  flex-shrink: 0;
+}
+.settings-panel .shot-profile-editor .settings-fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shot-profile-editor {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.settings-panel #shot-canvas {
+  width: 100%;
+  height: auto;
+  max-height: none;
+}
+.settings-panel .arm-tools {
+  flex-wrap: wrap;
+}
+.settings-panel .music-settings {
+  border-top: 0;
+}
+.settings-panel .panel {
+  margin: 0 0 20px;
+}
+.settings-panel .settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+}
+.contact-profile-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.contact-profile-picker label {
+  display: grid;
+  gap: 8px;
+}
+.head-gallery {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.head-gallery h4 {
+  grid-column: 1 / -1;
+  margin: 16px 0 4px;
+}
+.head-choice {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 4px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: #f5f5e8;
+  color: var(--text);
+  font-size: 11px;
+}
+.head-choice canvas {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+}
+.head-choice[aria-pressed='true'] {
+  border-color: var(--sage);
+  background: #e0ecd7;
+}
+.settings-panel fieldset:disabled .head-choice {
+  pointer-events: none;
+}
+#startup-error {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 100;
+  background: #fff2de;
+  padding: 20px;
+  border: 2px solid #b75e43;
+  border-radius: 12px;
+}
+.replay-toolbar {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+#dynamic-replay-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+#dynamic-replay-controls label {
+  display: flex;
+  align-items: center;
+  flex: 1 1 200px;
+  gap: 12px;
+  font-size: 11px;
+}
+#dynamic-scrub {
+  min-width: 0;
+  flex: 1;
+}
+.pause-replay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.pause-replay-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.replay-toolbar button {
+  background: #f5f5e8;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+#dynamic-replay-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+@media (max-width: 800px) {
+  dialog.settings-panel {
+    width: calc(100vw - 16px);
+    height: calc(100dvh - 16px);
+  }
+  dialog.settings-panel[open] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 68px 50px minmax(0, 1fr);
+  }
+  .settings-panel > .dialog-top {
+    padding: 12px 16px;
+  }
+  .settings-panel > .dialog-top h2 {
+    font-size: 20px;
+  }
+  .settings-panel > .settings-nav {
+    display: none;
+  }
+  .settings-section-select {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 4px 16px 8px;
+    min-width: 0;
+  }
+  .settings-panel > .dialog-content {
+    padding: 16px;
+  }
+  .settings-panel .shot-layout,
+  .settings-panel .settings-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-panel .shot-preview {
+    grid-row: 1;
+  }
+  .settings-panel .shot-layout {
+    grid-template-rows: minmax(0, 36dvh) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .settings-panel .shot-controls {
+    padding: 12px;
+  }
+  .settings-panel #team-preset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .head-gallery {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .settings-panel #team-roster-preview {
+    height: 150px;
+  }
+}

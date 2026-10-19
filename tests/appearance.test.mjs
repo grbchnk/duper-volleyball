@@ -9,7 +9,7 @@ import {
   skinPalette,
   randomAppearance,
 } from '../src/appearance.js';
-import { paintBody, frameOf } from '../src/sprites.js';
+import { paintBody, frameOf, BODY_CLIPS } from '../src/sprites.js';
 
 test('skin outlines are darker than every skin tone and the weighted palette favours lighter tones', () => {
   for (const tone of SKIN_TONES) {
@@ -32,7 +32,7 @@ test('skin outlines are darker than every skin tone and the weighted palette fav
   assert.ok(HEAD_STYLES.includes('cap') && HEAD_STYLES.includes('fox'));
 });
 
-test('round and square heads have different silhouettes with the same body', () => {
+test('all heads are square, including old round appearances from replays', () => {
   const team = { color: '#f00', dark: '#900', light: '#faa' };
   const render = (shape, layer) => {
     const pixels = new Set();
@@ -52,15 +52,55 @@ test('round and square heads have different silhouettes with the same body', () 
     return pixels;
   };
   assert.equal(render('square', 'head').has('-7,-22'), true);
-  assert.equal(render('round', 'head').has('-7,-22'), false);
+  assert.deepEqual(render('round', 'head'), render('square', 'head'));
   assert.deepEqual(render('square', 'torso'), render('round', 'torso'));
+});
+
+test('every hairstyle is distinct, preserves the eyes and fits animated head sprite bounds', () => {
+  assert.ok(HEAD_STYLES.length >= 30);
+  const team = { color: '#ee967d', dark: '#bc645d', light: '#ffd0a4' };
+  const pictures = new Set();
+  for (const head of HEAD_STYLES) {
+    const appearance = {
+      head,
+      body: 'classic',
+      headShape: 'square',
+      tone: '#f4cfac',
+      hair: '#302b32',
+    };
+    const pixels = new Map();
+    const c = {
+      fillRect(x, y, w, h) {
+        assert.ok([x, y, w, h].every(Number.isInteger));
+        assert.ok(x >= -32 && x + w <= 32 && y >= -54 && y + h <= 10, `${head} clipped`);
+        for (let px = x; px < x + w; px++)
+          for (let py = y; py < y + h; py++) pixels.set(`${px},${py}`, this.fillStyle);
+      },
+    };
+    paintBody(c, frameOf('idle'), 'club', team, 0, 'head', appearance);
+    const ink = skinPalette(appearance.tone).outline;
+    for (const x of [-3, -2, 3, 4])
+      for (let y = -29; y < -26; y++) assert.equal(pixels.get(`${x},${y}`), ink);
+    pictures.add(JSON.stringify([...pixels].sort()));
+    for (const [state, clip] of Object.entries(BODY_CLIPS))
+      for (let i = 0; i < clip.frames.length; i++)
+        paintBody(
+          c,
+          { state, index: i, pose: clip.frames[i] },
+          'club',
+          team,
+          0,
+          'head',
+          appearance,
+        );
+  }
+  assert.equal(pictures.size, HEAD_STYLES.length);
 });
 
 test('player appearance survives points, playback and retry without consuming physics randomness', () => {
   const match = new Match();
   const initial = match.players.map((p) => ({ ...p.appearance }));
-  for (const p of match.players)
-    assert.equal(p.appearance.headShape, p.team === 0 ? 'square' : 'round');
+  for (const p of match.players) assert.equal(p.appearance.headShape, 'square');
   for (const a of initial) {
     assert.ok(HEAD_STYLES.includes(a.head));
     assert.ok(BODY_STYLES.includes(a.body));

@@ -176,11 +176,12 @@ test('flight solver and trajectory preview use the same clock at slow and fast s
     }
 });
 
-test('flight settings are bounded and survive old and new JSON imports', () => {
+test('legacy flight settings are bounded and survive JSON roundtrips in the legacy profile', () => {
   const old = sanitizeConfig({ gravity: 10 });
-  assert.equal(old.cartoonFlight, 0);
+  assert.equal(old.cartoonFlight, undefined);
   assert.equal(old.ballSpeed, 1.2);
   const config = sanitizeConfig({
+    ...DEFAULTS,
     cartoonFlight: 3,
     ballSpeed: -2,
     cartoonHang: 9,

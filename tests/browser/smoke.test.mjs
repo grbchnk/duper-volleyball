@@ -1,3 +1,4 @@
+import { openSettingsSection, settleSettings } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -28,35 +29,102 @@ test(
     t.after(() => browser.close());
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const errors = [];
-    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('pageerror', (e) => errors.push(e.stack || e.message));
     await page.goto(base);
+    await page.waitForSelector('#club-sidebar');
     await page.waitForSelector('#club-lobby-tour');
     assert.equal(await page.title(), 'Duper Volleyball · Клуб');
+    assert.equal(await page.locator('.sidebar > .club-panel').count(), 1);
+    assert.equal(await page.locator('.sidebar .panel').count(), 0);
+    assert.equal(await page.locator('#match-settings-controls #away-team').count(), 1);
+    assert.equal(await page.locator('#arena #status').count(), 1);
+    assert.equal(await page.locator('#replay-toolbar').isVisible(), false);
+    assert.equal(await page.locator('.play-ribbon, #charge-label').count(), 0);
+    assert.equal(await page.locator('.keyboard-guide').count(), 1);
     await page.locator('#tutorial-start').click();
+    await settleSettings(page);
     await page.keyboard.down('ArrowRight');
     await page.waitForFunction(() => !document.querySelector('#tutorial-next').disabled);
     await page.keyboard.up('ArrowRight');
     await page.locator('#tutorial-next').click();
+    await settleSettings(page);
     assert.match(await page.locator('#tutorial-title').innerText(), /Подготовка/);
     await page.locator('#tutorial-exit').click();
+    await settleSettings(page);
     await page.waitForFunction(() => document.querySelector('#start-overlay').hidden);
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
     await page.locator('#resume').click();
+    await settleSettings(page);
     await page.waitForFunction(() => document.querySelector('#pause-overlay').hidden);
+    assert.equal(await page.locator('.play-ribbon, #charge-label').count(), 0);
+    assert.doesNotMatch(await page.locator('#arena').innerText(), /Зажмите S, A, W или D/);
+    await page.locator('#arena').screenshot({ path: '.cache/cleanup-audit/banner-removed.png' });
 
-    await page.locator('#graphics-quick').click();
+    await page.locator('#match-mode').click();
+    await page.locator('#pause').click();
+    await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
+    assert.equal(await page.locator('#pause-overlay #dynamic-replay').isDisabled(), true);
+    assert.equal(await page.locator('#pause-overlay #dynamic-retry').isDisabled(), true);
+    const arenaBeforeReplay = await page.locator('#arena').boundingBox();
+    await page.evaluate(async () => {
+      const { match } = await import('/src/main.js');
+      match.phase = 'rally';
+      match.replay.record(match);
+      match.time += 0.1;
+      match.replay.record(match);
+      match.point(0, 'Проверка повтора');
+      match.replay.record(match);
+    });
+    await page.waitForFunction(() => !document.querySelector('#dynamic-replay').disabled);
+    await page.locator('#dynamic-replay').click();
+    await page.waitForFunction(() => document.querySelector('#pause-overlay').hidden);
+    assert.equal(await page.locator('#arena #replay-toolbar').isVisible(), true);
+    assert.deepEqual(await page.locator('#arena').boundingBox(), arenaBeforeReplay);
+    await page.locator('#arena').screenshot({ path: '.cache/cleanup-audit/replay-view.png' });
+    await page.locator('#dynamic-close-replay').click();
+    await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
+    assert.equal(await page.locator('#replay-toolbar').isVisible(), false);
+    await page.screenshot({ path: '.cache/cleanup-audit/replay-pause.png' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const id of ['dynamic-replay', 'dynamic-retry']) {
+      const box = await page.locator('#' + id).boundingBox();
+      assert.ok(box.x >= 0 && box.x + box.width <= 390);
+      assert.ok(box.y >= 0 && box.y + box.height <= 844);
+    }
+    await page.screenshot({ path: '.cache/cleanup-audit/replay-pause-mobile.png' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.locator('#dynamic-retry').click();
+    await page.waitForFunction(() => document.querySelector('#pause-overlay').hidden);
+    assert.equal(await page.evaluate(async () => (await import('/src/main.js')).match.score[0]), 0);
+
+    await openSettingsSection(page, 'Руки и анимация');
+    assert.equal(
+      await page.locator('#graphics-arm-preview').evaluate((el) => getComputedStyle(el).position),
+      'static',
+    );
+    await openSettingsSection(page, 'Мяч и графика');
     await page.locator('#ball-fire').uncheck();
+    await settleSettings(page);
     await page.locator('#lively-background').uncheck();
+    await settleSettings(page);
+    await openSettingsSection(page, 'Руки и анимация');
+    await page.locator('#random-arms').check();
+    await settleSettings(page);
     await page.keyboard.press('Escape');
     await page.reload();
-    await page.locator('#graphics-quick').click();
+    await openSettingsSection(page, 'Руки и анимация');
+    assert.equal(await page.locator('#random-arms').isChecked(), true);
+    await page.locator('#random-arms').uncheck();
+    await settleSettings(page);
+    await openSettingsSection(page, 'Мяч и графика');
     assert.equal(await page.locator('#ball-fire').isChecked(), false);
     assert.equal(await page.locator('#lively-background').isChecked(), false);
-    const fireChangesPixels = await page.evaluate(async () => {
+    const fireResults = await page.evaluate(async () => {
       const { Match } = await import('/src/engine.js');
       const { Renderer } = await import('/src/renderer.js');
       const m = new Match();
+      m.phase = 'rally';
       Object.assign(m.ball, { x: 0, y: 3, vx: 20, vy: 0 });
       const canvas = document.createElement('canvas');
       canvas.width = 960;
@@ -70,40 +138,65 @@ test(
           .getImageData(380, 290, 100, 70)
           .data.reduce((sum, value) => sum + value, 0);
       };
-      return picture(true) !== picture(false);
+      const ignition = picture(true) !== picture(false);
+      picture(true);
+      m.ball.vx = 2;
+      const extinguishesImmediately = picture(true) === picture(false);
+      m.ball.vx = 20;
+      picture(true);
+      m.ball.vx = 2;
+      m.time += 1.6;
+      const expires = picture(true) === picture(false);
+      m.ball.vx = 20;
+      picture(true);
+      m.ball.vx = 2;
+      m.phase = 'serve';
+      const resets = picture(true) === picture(false);
+      return { ignition, extinguishesImmediately, expires, resets };
     });
-    assert.equal(fireChangesPixels, true);
+    assert.deepEqual(fireResults, {
+      ignition: true,
+      extinguishesImmediately: true,
+      expires: true,
+      resets: true,
+    });
     await page.keyboard.press('Escape');
 
-    await page.locator('#physics-quick').click();
+    await openSettingsSection(page, 'Физика и помощь');
     assert.equal(await page.locator('#receive-momentum').isChecked(), false);
     assert.equal(await page.locator('#physics-receiveTransfer').isDisabled(), true);
     await page.locator('#receive-momentum').check();
+    await settleSettings(page);
     assert.equal(await page.locator('#physics-receiveTransfer').isDisabled(), false);
     await page.keyboard.press('Escape');
     await page.reload();
-    await page.locator('#physics-quick').click();
+    await openSettingsSection(page, 'Физика и помощь');
     assert.equal(await page.locator('#receive-momentum').isChecked(), true);
     await page.keyboard.press('Escape');
 
-    await page.locator('#shots-quick').click();
+    await openSettingsSection(page, 'Приёмы и подачи');
     await page.locator('#shot-kind').selectOption('low');
+    await settleSettings(page);
     await page.locator('#shot-incoming-speed').evaluate((input) => {
       input.value = '20';
     });
     await page.locator('#shot-incoming-speed').dispatchEvent('input');
     assert.match(await page.locator('#shot-stats').innerText(), /перенос \+[1-9]/);
     await page.locator('#shot-kind').selectOption('drive');
+    await settleSettings(page);
     await page.locator('#shot-soft').check();
-    assert.equal(await page.locator('#shot-number-SpeedMin').isDisabled(), true);
-    assert.equal(await page.locator('#shot-automatic-controls').isVisible(), false);
+    await settleSettings(page);
+    assert.equal(await page.locator('#shot-number-SpeedMin').count(), 0);
+    assert.equal(await page.locator('#shot-automatic-controls').count(), 0);
     await page.locator('#shot-mode').selectOption('serve');
+    await settleSettings(page);
     await page.waitForFunction(
       () => document.querySelector('#shot-timing-map').children.length === 71,
     );
     await page.keyboard.press('Escape');
 
     await page.locator('#test-mode').click();
+    await settleSettings(page);
     await page.waitForFunction(async () => {
       const { match } = await import('/src/main.js');
       return match.mode === 'test' && match.players.filter((p) => !p.benched).length === 1;
@@ -114,7 +207,12 @@ test(
     );
 
     await page.locator('#club-tour-mode').click();
+    await settleSettings(page);
     assert.match(await page.locator('#club-hud-title').innerText(), /Гул улиц/);
+    await page.locator('#pause').click();
+    await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
+    assert.equal(await page.locator('#dynamic-retry').isVisible(), false);
+    await page.locator('#resume').click();
     await page.evaluate(async () => {
       const { match } = await import('/src/main.js');
       for (let i = 0; i < 7; i++) {
@@ -126,12 +224,15 @@ test(
     await page.waitForFunction(() => !document.querySelector('#finish-overlay').hidden);
     assert.equal(await page.locator('#winner-label').innerText(), 'ЭТАП ПРОЙДЕН!');
     await page.locator('#club-next').click();
+    await settleSettings(page);
     await page.waitForFunction(
       () => document.querySelector('#club-hud-title').textContent === 'Стена мегаполиса',
     );
     await page.locator('#match-mode').click();
+    await settleSettings(page);
     assert.equal(await page.locator('#club-hud').isVisible(), false);
     await page.locator('#fullscreen').click();
+    await settleSettings(page);
     await page.waitForFunction(
       () =>
         document.fullscreenElement?.id === 'arena' && document.querySelector('#game').width > 960,
@@ -166,6 +267,7 @@ test(
       navigator.getGamepads = () => window.testPads;
     });
     await page.locator('#coop-mode').click();
+    await settleSettings(page);
     await page.waitForFunction(async () => (await import('/src/main.js')).match.mode === 'coop');
     await page.evaluate(async () => {
       const { match } = await import('/src/main.js');

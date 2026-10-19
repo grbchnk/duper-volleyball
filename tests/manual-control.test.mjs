@@ -64,7 +64,7 @@ test('right stick and click stay inert even with old saved right-stick mode enab
     i.poll();
     const s = i.read();
     for (const key of ['low', 'loft', 'drive', 'back', 'dive', 'jump']) assert.equal(s[key], false);
-    assert.equal(s.stickShot, null);
+    assert.equal(Object.hasOwn(s, 'stickShot'), false);
     assert.equal(s.buttonVector, null);
   }
   for (const [key, axis] of [
@@ -124,7 +124,10 @@ test('partners fill free space and wait before the human instead of crossing the
     assert.equal(human.x, sign * 7);
     const bots = m.players.filter((p) => p.team === team && p.id !== human.id);
     assert.ok(bots.some((p) => Math.abs(p.x - sign * 0.8) < 0.1));
-    assert.ok(bots.some((p) => Math.abs(p.x - sign * (team === 0 ? 8.25 : 3.7)) < 0.1));
+    assert.ok(
+      bots.some((p) => sign * (p.x - human.x) >= 1.25),
+      'the rear partner parks behind the human instead of crossing through them',
+    );
     assert.ok(bots.every((p) => Math.abs(p.x - human.x) >= 1.24));
     const homes = bots.map((p) => p.homeX);
     for (let n = 0; n < 120; n++) {
@@ -139,10 +142,10 @@ test('partners fill free space and wait before the human instead of crossing the
   }
 });
 
-test('full charge releases every shot once and requires a fresh button press', () => {
+test('full charge releases each shot once and requires a fresh button press', () => {
   for (const kind of ['low', 'loft', 'drive'])
     for (const modifier of [{}, { l2: true }, { r2: true }]) {
-      const m = new Match();
+      const m = new Match({ ...DEFAULTS, lowReceiveHoldTime: 0, loftReceiveHoldTime: 0 });
       m.reset('versus');
       m.phase = 'rally';
       Object.assign(m.ball, { x: -4, y: 12, vx: 0, vy: 0 });

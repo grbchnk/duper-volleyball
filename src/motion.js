@@ -26,6 +26,36 @@ export function sampleJump(profile, time) {
 }
 export const jumpDuration = (profile) =>
   profile.windup + profile.rise + profile.hang + profile.fall;
+
+// Charge during the original ascent, without delaying takeoff or changing height.
+export function updateJumpButtonHold(player, held, dt, config) {
+  const hold = player.jumpButtonHold;
+  if (!hold?.tracking || !player.jumpProfile) return;
+  if (!held || player.block > 0) {
+    hold.tracking = false;
+    return;
+  }
+  const ascent = player.jumpProfile.windup + player.jumpProfile.rise;
+  if (player.jumpTime >= ascent) {
+    hold.tracking = false;
+    return;
+  }
+  const chargeEnd = ascent / 1.5;
+  hold.maximum ??= config.jumpHoldHang;
+  // Even a long configured tap guard must leave room to finish charging.
+  hold.threshold ??= Math.min(config.jumpHoldThreshold, chargeEnd * 0.9);
+  hold.elapsed = Math.min(chargeEnd, hold.elapsed + dt);
+  hold.power = Math.max(
+    0,
+    Math.min(1, (hold.elapsed - hold.threshold) / Math.max(1e-9, chargeEnd - hold.threshold)),
+  );
+  if (hold.power > 1 - 1e-9) hold.power = 1;
+  const bonus = hold.maximum * hold.power;
+  player.jumpProfile.hang += bonus - (hold.bonus || 0);
+  hold.bonus = bonus;
+  hold.applied = bonus > 0;
+  if (hold.power === 1) hold.tracking = false;
+}
 export const SERVE_WINDUP = 43 / 120;
 export function blockWindow(player, config) {
   if (!player.jumpProfile || !player.block || player.blockUsed) return false;
@@ -97,6 +127,11 @@ export function sampleServeMotion(player, action, time) {
       time < delay
         ? heldHeight
         : action.tossStart + action.tossSpeed * flight - (settings.TossGravity * flight ** 2) / 2,
+    vy:
+      time < delay
+        ? ((6 * u * u - 6 * u) * (action.heldStart - action.tossStart)) / delay +
+          (3 * u * u - 2 * u) * action.tossSpeed
+        : action.tossSpeed - settings.TossGravity * flight,
     z: player.z,
   };
 }

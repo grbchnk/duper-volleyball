@@ -44,23 +44,6 @@ export function selectControlledPlayer(match, control, id) {
     match.selected[control.team] = id;
     if (control.team === 0) match.coopPrimary = id;
   }
-  if (match.config.dynamic && match.isHuman(control.team) && match.phase === 'rally') {
-    const previous = match.players[previousId];
-    if (previous && match.humanSlot(previous) === null) {
-      previous.returnHome = true;
-      previous.clearLane = null;
-      previous.returnPark = null;
-      previous.moveVx = previous.returnVx = previous.vx = 0;
-      previous.returnDelay = previous.armSwing?.hit ? Math.max(0, 0.3 - previous.armSwing.age) : 0;
-      if (match.lastPlayer === previous.id) previous.clearedSerial = match.shotSerial;
-    }
-    player.returnHome = false;
-    player.clearLane = null;
-    player.returnPark = null;
-    player.returnDelay = 0;
-    player.moveVx = player.returnVx = player.vx = 0;
-    player.wasControlled = false;
-  }
   return true;
 }
 

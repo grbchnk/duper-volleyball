@@ -8,7 +8,7 @@ import { traceBall } from '../../src/physics.js';
 import { expressivePose } from '../../src/arm-motion.js';
 import { ARM_STYLES } from '../../src/arms.js';
 
-test('three face buttons select serves; modifiers preserve type and Cross remains a jump', () => {
+test('three face buttons select serves; soft modifier selects the lower scoop and Cross remains a jump', () => {
   const pad = {
     connected: true,
     mapping: 'standard',
@@ -18,7 +18,7 @@ test('three face buttons select serves; modifiers preserve type and Cross remain
   const input = new InputBuffer(() => [pad]);
   for (const [keys, kind] of [
     [[2], 'low'],
-    [[2, 6], 'low'],
+    [[2, 6], 'back'],
     [[3], 'loft'],
     [[1], 'drive'],
   ]) {
@@ -62,12 +62,12 @@ test('four serves have distinct windups and full charge only tosses before a fre
   assert.ok(outs > 0, 'maximum power must not be silently corrected into court');
 });
 
-test('partial serve power waits for manual release instead of a timer', () => {
+test('retired analog shot fields cannot cap charge or bypass full-charge toss', () => {
   const m = new Match();
   for (let i = 0; i < 90; i++)
     m.tick(FIXED_DT, { low: true, stickShot: 'low', stickStrength: 0.5 });
-  assert.equal(m.phase, 'serve');
-  assert.equal(m.charge.power, 0.5);
+  assert.equal(m.phase, 'serve-motion');
+  assert.equal(m.serveAction.power, 1);
   m.tick();
   assert.equal(m.phase, 'serve-motion');
   assert.equal(m.stats.serves[0], 0);

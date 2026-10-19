@@ -80,12 +80,18 @@ test('all ten precision targets are reachable with real jump, charge, release an
   for (let i = 0; i < 15000 && m.phase !== 'finished'; i++) {
     const c = m.challenge,
       t = c.elapsed,
-      [start, length, soft, down] = recipes[c.attempt - 1];
+      [start, length, soft, down, buttonVector] = recipes[c.attempt - 1];
     step(
       m,
       c.waiting
         ? {}
-        : { jump: t >= 0.05 && t < 0.08, drive: t >= start && t < start + length, l2: soft, down },
+        : {
+            jump: t >= 0.05 && t < 0.08,
+            drive: t >= start && t < start + length,
+            l2: soft,
+            down,
+            buttonVector,
+          },
     );
   }
   assert.equal(m.phase, 'finished');

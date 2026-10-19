@@ -82,10 +82,12 @@ for (const [kind, base] of Object.entries(SERVE_BASES)) {
   SERVE_LIMITS[serveKey(kind, 'Targeted')] = [0, 1];
 }
 export function serveSettings(config, kind) {
-  return Object.fromEntries(
+  const settings = Object.fromEntries(
     [...Object.keys(SERVE_FIELDS), 'Targeted'].map((suffix) => [
       suffix,
       config[serveKey(kind, suffix)] ?? SERVE_DEFAULTS[serveKey(kind, suffix)],
     ]),
   );
+  if (config.dynamic) settings.ChargeSeconds = 2 * (config.chargeSeconds ?? 0.3);
+  return settings;
 }

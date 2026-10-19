@@ -1,0 +1,42 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { expressivePose } from '../src/arm-motion.js';
+import { challengeProfileKey } from '../src/records.js';
+import { ARM_STYLES } from '../src/arms.js';
+import { DEFAULTS, sanitizeConfig } from '../src/config.js';
+import { exportSettings, importSettings } from '../src/settings-file.js';
+
+test('follow-through tuning preserves contact, controls travel and returns to rest', () => {
+  const pose = (reach, age) =>
+    expressivePose({
+      spec: ARM_STYLES.whip,
+      config: { ...DEFAULTS, armFollowThrough: reach },
+      kind: 'drive',
+      swing: { hit: true, age, power: 1 },
+      contactPoint: { x: 15, y: -40 },
+      localVelocity: { x: 200, y: 0 },
+    });
+  for (const reach of [0, 5, 12]) {
+    assert.deepEqual(pose(reach, 0).wrists[1], { x: 15, y: -40 });
+    assert.equal(pose(reach, 0.07).wrists[1].x, 15 + reach);
+    assert.deepEqual(pose(reach, 1).wrists, pose(5, 1).wrists);
+  }
+  assert.equal(
+    challengeProfileKey({ ...DEFAULTS, armFollowThrough: 12 }),
+    challengeProfileKey(DEFAULTS),
+  );
+  assert.equal(sanitizeConfig({ armFollowThrough: 100 }).armFollowThrough, 15);
+  assert.equal(
+    importSettings(exportSettings({ ...DEFAULTS, armFollowThrough: 12 })).armFollowThrough,
+    12,
+  );
+});
+
+test('current settings retire cartoon flight while legacy profiles remain readable', () => {
+  assert.equal(sanitizeConfig({ ...DEFAULTS, cartoonFlight: 1 }).cartoonFlight, undefined);
+  assert.equal(
+    importSettings(JSON.stringify({ version: 3, config: { cartoonFlight: 1 } })).cartoonFlight,
+    undefined,
+  );
+  assert.equal(sanitizeConfig({ ...DEFAULTS, dynamic: false, cartoonFlight: 1 }).cartoonFlight, 1);
+});

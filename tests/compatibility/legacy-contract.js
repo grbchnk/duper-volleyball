@@ -1,3 +1,5 @@
+import { LEGACY_DEFAULTS } from '../../src/legacy-profile.js';
+import { SHOT_DEFAULTS } from '../../src/shot-settings.js';
 // Explicit v2 physics profile for inherited regression contracts.
 // Controller contracts are migrated to v3; dynamic-mechanics tests use real v3 defaults.
 import { Match as CoreMatch, EMPTY_INPUT } from '../../src/engine.js';
@@ -5,6 +7,8 @@ import { DEFAULTS as CURRENT } from '../../src/config.js';
 export { EMPTY_INPUT };
 export const DEFAULTS = {
   ...CURRENT,
+  ...SHOT_DEFAULTS,
+  ...LEGACY_DEFAULTS,
   gravity: 9.81,
   ballSpeed: 1,
   backSpeedMax: 5.8,

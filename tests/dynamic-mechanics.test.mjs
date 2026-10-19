@@ -60,6 +60,28 @@ test('Square receives a real incoming ball on prepared forearms in Dynamic', () 
   assert.equal(p.jumpProfile, null);
   assert.ok(m.ball.vy > 0);
 });
+test('only a strongly charged drive can knock down; head detaches only at full power', () => {
+  for (const [power, shouldKnockDown, shouldDetachHead] of [
+    [0.79, false, false],
+    [0.8, true, false],
+    [1, true, true],
+  ]) {
+    const m = new Match();
+    m.reset('versus');
+    m.phase = 'rally';
+    m.lastTouch = 0;
+    m.lastPlayer = 0;
+    const attacker = m.players[3],
+      target = m.players[0];
+    const impulse = { vx: -14, vy: -6, vz: 0 };
+    assert.equal(m.makeContact(attacker, 'drive', power, impulse), true);
+    const previous = { ...m.ball, x: target.x, y: 2.6 };
+    Object.assign(m.ball, { x: target.x, y: 1.9, ...impulse });
+    assert.equal(m.tryHeadHit(previous), shouldKnockDown);
+    assert.equal(target.recovery > 0, shouldKnockDown);
+    assert.equal(!!target.headFly, shouldDetachHead);
+  }
+});
 test('triggers change strength without changing contact type', () => {
   for (const [button, kind] of [
     [2, 'low'],
@@ -241,7 +263,7 @@ test('edge block continues over hands; central block reflects to attacker', () =
   assert.ok(blockImpulse(b, p, true, DEFAULTS).vy < 0);
   assert.ok(blockImpulse({ ...b, y: 3.37 }, p, false, DEFAULTS).vx > 0);
 });
-test('duel benches four players and allows up to three consecutive touches', () => {
+test('duel benches four players and faults immediately after the fourth consecutive hit', () => {
   const m = new Match({ ...DEFAULTS, duel: true });
   m.reset('versus');
   m.phase = 'rally';
@@ -249,7 +271,11 @@ test('duel benches four players and allows up to three consecutive touches', () 
   const p = m.players[0];
   const r = { vx: 2, vy: 4, vz: 0, spin: 0, targetId: null };
   for (let i = 0; i < 3; i++) assert.equal(m.makeContact(p, 'low', 0.4, r), true);
-  assert.equal(m.makeContact(p, 'low', 0.4, r), false);
+  assert.equal(m.phase, 'rally');
+  assert.equal(m.makeContact(p, 'low', 0.4, r), true);
+  assert.equal(m.contacts, 4);
+  assert.equal(m.pointReason, 'ЧЕТВЁРТОЕ КАСАНИЕ');
+  assert.equal(m.phase, 'point');
   assert.equal(m.pointWinner, 1);
   m.autoSelect(0, 2);
   assert.equal(m.selected[0], 0);

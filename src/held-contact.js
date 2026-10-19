@@ -12,13 +12,14 @@ export function preparedHands(
   a = m.actionForPlayer?.(p) || m.actionFor?.(p.team) || m.charge,
 ) {
   if (!a || a.playerId !== p.id) return [];
+  const config = { ...m.config, armScale: 1, armLength: 1, armPowerMotion: 1, armJumpMotion: 1 };
   const frame = playerFrame(p, m),
     pose = expressivePose({
       spec: ARM_STYLES.whip,
-      config: m.config,
+      config,
       kind: a.kind,
       charge: a,
-      receiveAim: localReceiveAim(p, a, m.ball, frame, m.config),
+      receiveAim: localReceiveAim(p, a, m.ball, frame, config),
       actionDirection:
         Math.sign(
           a.aim?.vector?.x || a.aim?.axis || (p.team === 0 ? 1 : -1) * (a.kind === 'back' ? -1 : 1),

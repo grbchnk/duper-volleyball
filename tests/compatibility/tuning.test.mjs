@@ -158,12 +158,21 @@ test('blocks work only near the apex, soften at the edges, and cannot hit twice 
   miss.m.ball.x += 0.6;
   assert.equal(miss.m.tryBlocks(), false);
 });
-test('a blocked rally still allows a new human reception and the blocker must recover', () => {
+test('block recovery prevents that player from blocking again but permits a free teammate', () => {
   const { m, p } = atBlock();
   assert.equal(m.tryBlocks(), true);
   ticks(m, 45);
   assert.ok(p.blockCooldown > 0);
+  const partners = m.players.filter((other) => other.team === p.team && other.id !== p.id);
+  for (const other of partners) other.benched = true;
   assert.equal(m.requestBlock(0), false);
+  for (const other of partners) other.benched = false;
+  const jump = p.jumpProfile;
+  const jumpTime = p.jumpTime;
+  assert.equal(m.requestBlock(0), true);
+  assert.equal(p.jumpProfile, jump, 'the recovering blocker does not start a new jump');
+  assert.equal(p.jumpTime, jumpTime);
+  assert.ok(partners.some((other) => other.block > 0));
 });
 test('front-player selection, windup and manual spike complete the new drill', () => {
   const m = new Match();
@@ -195,13 +204,13 @@ test('all arm choices and physics controls survive JSON roundtrip and validation
         }),
       ),
     );
-    assert.equal(config.armStyle, armStyle);
+    assert.equal(config.armStyle, undefined);
     assert.equal(config.releaseWindow, 0.2);
     assert.equal(config.jumpWindup, 0.12);
     assert.equal(config.armScale, 0.75);
     assert.equal(config.blockWindow, 0.09);
   }
-  assert.equal(sanitizeConfig({ armStyle: 'unknown' }).armStyle, 'whip');
+  assert.equal(sanitizeConfig({ armStyle: 'unknown' }).armStyle, undefined);
   assert.equal(sanitizeConfig({ releaseWindow: -5 }).releaseWindow, 0);
   const capped = sanitizeConfig({ chargeSeconds: 0.9, maxHold: 0.2 });
   assert.ok(capped.maxHold >= 0.9 * 0.92 + 0.05);

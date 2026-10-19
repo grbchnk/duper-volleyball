@@ -1,3 +1,4 @@
+import { LEGACY_SHOT } from './legacy-profile.js';
 import { SERVE_BASES } from './serve-settings.js';
 import { SHOT_BASES } from './shot-settings.js';
 import { manualImpulse } from './manual-impulse.js';
@@ -9,13 +10,15 @@ export { manualImpulse } from './manual-impulse.js';
 export const SHOTS = Object.freeze(
   Object.fromEntries(
     Object.entries({
-      back: { key: 'A', name: 'Сейв одной рукой', pose: 'backset' },
       low: { key: 'S', name: 'Приём снизу', pose: 'bump' },
       loft: { key: 'W', name: 'Верхний пас', pose: 'set' },
       drive: { key: 'D', name: 'Направленный удар', pose: 'spike' },
     }).map(([kind, metadata]) => [kind, { ...SHOT_BASES[kind], ...metadata }]),
   ),
 );
+export const shotDefinition = (kind) => SHOTS[kind] || (kind === 'back' ? LEGACY_SHOT : undefined);
+export const shotKinds = (config, serving = false) =>
+  serving || !config.dynamic ? ['low', 'back', 'loft', 'drive'] : Object.keys(SHOTS);
 export const SERVES = Object.freeze(SERVE_BASES);
 
 // Human direction and automatic/serve profiles are distinct models with an explicit dispatch.

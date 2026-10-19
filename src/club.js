@@ -1,3 +1,4 @@
+import { TEAMS } from './teams.js';
 import { DEFAULTS } from './config.js';
 import { CHALLENGES, challengeStars, startChallenge } from './challenges.js';
 import { challengeProfileKey, profileRecords, sanitizeRecordProfiles } from './records.js';
@@ -6,50 +7,57 @@ export const TOUR = Object.freeze([
   {
     name: 'Гул улиц',
     style: 'balanced',
-    skill: 30,
+    skill: 0,
     team: 'mint',
+    arena: 'miami',
     hint: 'Освой подачу и отправляй мяч в свободное место.',
   },
   {
     name: 'Стена мегаполиса',
     style: 'blocker',
-    skill: 47,
-    team: 'lilac',
+    skill: 20,
+    team: 'bears',
+    arena: 'gym',
     hint: 'Ранний блок: задержи удар или обмани мягкой скидкой Z / L2.',
   },
   {
     name: 'Берег чемпионов',
     style: 'deep',
-    skill: 62,
-    team: 'lemon',
+    skill: 40,
+    team: 'sakura',
+    arena: 'farm',
     hint: 'Глубокая защита: попробуй короткий мяч за сетку.',
   },
   {
     name: 'Ночной квартал',
     style: 'trickster',
-    skill: 76,
-    team: 'mint',
+    skill: 60,
+    team: 'nigeria',
+    arena: 'beach',
     hint: 'Соперник меняет темп. Береги третий контакт и готовь бросок.',
   },
   {
     name: 'Континентальный финал',
     style: 'patient',
-    skill: 90,
-    team: 'lilac',
+    skill: 80,
+    team: 'pumpkins',
+    arena: 'alpine',
     hint: 'Терпеливый соперник. Чередуй силу, высоту и направление.',
   },
   {
     name: 'Мировая арена',
     style: 'blocker',
-    skill: 94,
-    team: 'lemon',
+    skill: 92,
+    team: 'robots',
+    arena: 'sky',
     hint: 'Плотный блок и быстрые ответы. Разыгрывайте мяч на двоих.',
   },
   {
     name: 'Кубок мира',
     style: 'patient',
-    skill: 98,
-    team: 'lilac',
+    skill: 100,
+    team: 'rabbits',
+    arena: 'championship',
     hint: 'Финал до 11 очков. Терпение, обман и точный третий удар.',
   },
 ]);
@@ -93,6 +101,7 @@ export function createClub(match, hooks) {
   panel.className = 'club-panel';
   panel.innerHTML = `<p class="club-kicker">ТВОЙ ВОЛЕЙБОЛЬНЫЙ КЛУБ</p>
     <div class="club-heading"><h2>Кубок мира</h2><span id="club-cups" aria-label="Выигранные кубки"></span></div>
+    <div class="club-feedback" role="status"><b id="club-feedback-title">Точность решает.</b><span id="club-feedback-detail"></span></div>
     <label class="club-coop-label"><input id="club-coop" type="checkbox">На двоих · одна команда<small>P1 красный / P2 синий · задние ↔ передний после нашего очка</small></label>
     <div id="club-stages" class="club-stages"></div>
     <h3 id="club-stage-name"></h3><p id="club-stage-hint"></p>
@@ -235,7 +244,12 @@ export function createClub(match, hooks) {
     activity = id;
     settled = false;
     newRecord = false;
-    hooks.apply({ ...DEFAULTS, ...original, ...options, ...testingOverrides });
+    const settings = { ...DEFAULTS, ...original, ...options, ...testingOverrides };
+    if (id === 'tour') {
+      // Stage identity and progression always come from the new round.
+      for (const key of ['arenaTheme', 'cpuSkill', 'cpuStyle']) settings[key] = options[key];
+    }
+    hooks.apply(settings);
     hooks.start(id === 'tour' ? (coop ? 'coop' : 'match') : 'challenge');
     match.clubLocked = true;
     hud.hidden = false;
@@ -251,6 +265,8 @@ export function createClub(match, hooks) {
       cpuStyle: stage.style,
       cpuSkill: stage.skill,
       awayTeam: stage.team,
+      arenaTheme: stage.arena,
+      awayColor: TEAMS.find((t) => t.id === stage.team).color,
       targetScore: profile.stage === TOUR.length - 1 ? 11 : 7,
       duel: false,
       setsToWin: 1,

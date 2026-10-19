@@ -6,7 +6,13 @@ import { sampleJump } from './motion.js';
 export function nextReceiver(
   match,
   team,
-  { exclude = [], currentId = match.selected[team], keepReachable = false } = {},
+  {
+    exclude = [],
+    currentId = match.selected[team],
+    keepReachable = false,
+    preferCurrent = false,
+    rescueOnly = false,
+  } = {},
 ) {
   const { ball, config } = match;
   if (config.duel) return team * 3;
@@ -83,7 +89,9 @@ export function nextReceiver(
   }
   candidates.sort((a, b) => a.time - b.time || a.distance - b.distance);
   const currentOption = candidates.find((p) => p.id === currentId);
-  if (keepReachable && currentOption) return currentId;
+  // Running to receive is a manual commitment. A nearer teammate must not
+  // take control while this player still has a valid interception.
+  if (preferCurrent && currentOption) return currentId;
   // A theoretical sprint is not a good reason to keep a player the ball has passed.
   // Switch to someone farther along its flight, while preserving the front/back owners in co-op.
   const receding =
@@ -102,7 +110,31 @@ export function nextReceiver(
         (!currentOption || option.time <= currentOption.time + 0.15)
       );
     });
+  if (rescueOnly && (match.lastTouch === team || Math.abs(ball.vx) < 3)) return null;
   if (farther) return farther.id;
+  // Prefer a defender already near the predicted contact over a long sprint.
+  // A full metre of advantage and progress along the flight prevent small
+  // forecast changes from toggling control between neighbouring players.
+  if (match.lastTouch !== team && Math.abs(ball.vx) >= 3 && currentOption) {
+    const reception = path.find(
+      (b) => (b.x < 0 ? 0 : 1) === team && b.vy < 0 && b.y <= profiles[0].ContactMax && b.y > 0.12,
+    );
+    const better =
+      reception &&
+      candidates.find(
+        (option) =>
+          option.id !== currentId &&
+          option.time <= currentOption.time + 0.15 &&
+          Math.abs(match.players[option.id].x - reception.x) + 1 <
+            Math.abs(current.x - reception.x) &&
+          (match.players[option.id].x - current.x) * ball.vx > 0,
+      );
+    if (better) return better.id;
+  }
+  // Movement input may protect a reasonable receiver, but cannot pin control to
+  // someone who has no interception while a teammate can still save this ball.
+  if (rescueOnly) return currentOption ? null : (candidates[0]?.id ?? null);
+  if (keepReachable && currentOption) return currentId;
   if (
     run &&
     !run.cancelled &&

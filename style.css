@@ -38,26 +38,6 @@
 .game-page #game {
   position: relative;
 }
-dialog .dialog-top {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--panel);
-  padding: 10px 0;
-  box-shadow: 0 8px 0 var(--panel);
-}
-dialog .close {
-  flex: 0 0 auto;
-  align-self: flex-start;
-}
-.graphics-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-#graphics-dialog {
-  width: min(920px, calc(100vw - 24px));
-}
 #graphics-dialog label[for] {
   display: block;
   margin: 14px 0 6px;
@@ -81,9 +61,38 @@ dialog .close {
   max-width: 650px;
   line-height: 1.7;
 }
+.match-settings-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+.match-settings-layout > .panel {
+  margin: 0;
+}
+.keyboard-guide {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+.keyboard-guide h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.keyboard-guide > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8b9385;
+  font-size: 12px;
+}
 @media (max-width: 700px) {
-  .graphics-layout {
+  .match-settings-layout {
     grid-template-columns: 1fr;
+  }
+  .keyboard-guide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 /* The match occupies the viewport; only the settings rail and dialogs scroll. */
@@ -95,6 +104,18 @@ dialog .close {
   height: 46px;
   padding: 0 18px;
 }
+.game-page .topbar nav {
+  gap: 6px;
+}
+.game-page .topbar nav a {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid #d5ddc9;
+  border-radius: 7px;
+  background: #e9eedf;
+  text-decoration: none;
+}
 .game-page main {
   max-width: none;
   height: calc(100dvh - 46px);
@@ -103,7 +124,7 @@ dialog .close {
 .game-page .workspace {
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 260px;
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   gap: 12px;
@@ -114,6 +135,7 @@ dialog .close {
   flex-direction: column;
 }
 .game-page .arena {
+  position: relative;
   min-height: 0;
   flex: 1;
   display: grid;
@@ -152,12 +174,24 @@ dialog .close {
 .game-page .action-panel {
   display: none;
 }
-.game-page .play-ribbon {
-  flex-shrink: 0;
-  padding: 8px 12px;
-}
 .game-page .game-status {
-  padding: 5px 8px;
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  width: min(420px, calc(100% - 20px));
+  padding: 6px 10px;
+  background: #fffdf5e8;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.game-page .overlay {
+  z-index: 3;
+}
+.game-page .game-status > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .game-page .keyboard-strip {
   padding: 6px;
@@ -580,59 +614,6 @@ canvas {
   font-size: 12px;
   color: var(--muted);
 }
-.play-ribbon {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 18px;
-  background: #fffdf5;
-  border: 1px solid var(--line);
-  border-top: 0;
-}
-.phase-pill {
-  background: #e5eddc;
-  color: #5e7c62;
-  border-radius: 5px;
-  padding: 8px 10px;
-  font: 10px var(--mono);
-  min-width: 72px;
-  text-align: center;
-}
-.phase-pill.defense {
-  background: #f4e1d4;
-  color: #a0725d;
-}
-.charge-info {
-  flex: 1;
-  max-width: 340px;
-}
-.charge-info > span {
-  font-size: 10px;
-  color: #909786;
-}
-.power-meter {
-  height: 5px;
-  background: #e6e9d8;
-  border-radius: 3px;
-  margin-top: 7px;
-  overflow: hidden;
-}
-.power-meter i {
-  display: block;
-  width: 0;
-  height: 100%;
-  background: #88a481;
-  transition: width 0.06s linear;
-}
-#charge-value {
-  font: 11px var(--mono);
-  color: #7c9075;
-}
-.touch-count {
-  margin-left: auto;
-  font: 10px var(--mono);
-  color: #9b9e8a;
-}
 .game-status {
   display: flex;
   justify-content: space-between;
@@ -942,9 +923,6 @@ dialog {
   border: 1px solid #cbd7be;
   border-radius: 12px;
   padding: 30px;
-  max-width: 850px;
-  width: calc(100% - 32px);
-  max-height: 88vh;
   box-shadow: 0 25px 80px #46674f30;
 }
 dialog::backdrop {
@@ -1201,20 +1179,6 @@ dialog > p {
     font-size: 8px;
     margin-top: 10px;
   }
-  .play-ribbon {
-    padding: 10px;
-    gap: 9px;
-  }
-  .phase-pill {
-    font-size: 8px;
-    min-width: 60px;
-  }
-  .charge-info > span {
-    font-size: 8px;
-  }
-  .touch-count {
-    font-size: 9px;
-  }
   .game-status {
     font-size: 9px;
     padding: 10px;
@@ -1278,7 +1242,6 @@ canvas {
 .action-panel p,
 .guide p,
 .guide li,
-.charge-info > span,
 .keyboard-strip > div,
 .game-status {
   color: #65725e;
@@ -1300,8 +1263,6 @@ canvas {
   font-size: 12px;
 }
 #arms-dialog {
-  max-width: 720px;
-  max-height: calc(100dvh - 32px);
   padding: 24px;
 }
 #arm-cards {
@@ -1364,9 +1325,6 @@ canvas {
   padding-bottom: 9px;
   margin: 0;
 }
-#physics-dialog {
-  max-width: 960px;
-}
 #physics-controls small {
   display: block;
   font-size: 10px;
@@ -1411,12 +1369,6 @@ canvas {
 .frame-note {
   font-size: 11px !important;
   color: #718066 !important;
-}
-#shots-dialog {
-  width: min(1240px, calc(100vw - 32px));
-  max-width: 1240px;
-  max-height: calc(100dvh - 32px);
-  padding: 24px;
 }
 .shot-layout {
   display: grid;
@@ -1556,13 +1508,6 @@ canvas {
 #shot-time {
   width: 100%;
 }
-#sound-unlock {
-  margin: 4px 0 10px;
-  background: #f5df93;
-  color: #423e2a;
-  border: 1px solid #d2b96b;
-  font-weight: 700;
-}
 .audio-preview button {
   margin: 4px;
 }
@@ -1570,10 +1515,6 @@ canvas {
   width: 100%;
 }
 @media (min-width: 801px) {
-  #shots-dialog {
-    height: calc(100dvh - 32px);
-    overflow: hidden;
-  }
   #shots-dialog .dialog-top {
     margin-bottom: 14px;
   }
@@ -1622,9 +1563,6 @@ canvas {
     max-height: calc(100dvh - 96px);
     overflow: auto;
   }
-}
-#ambience-dialog {
-  max-width: 860px;
 }
 .arena-choices {
   display: grid;
@@ -1701,4 +1639,196 @@ canvas {
 }
 .music-settings p {
   margin-bottom: 0;
+}
+.settings-nav button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.settings-nav [aria-current='page'] {
+  background: var(--sage);
+  color: white;
+}
+.arm-live-preview .arm-card {
+  margin: 0;
+  padding: 0;
+}
+.arm-live-preview canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: contain;
+}
+.arm-live-preview .arm-stage {
+  font-size: 11px;
+  margin: 4px;
+}
+.arm-live-preview small {
+  display: block;
+  color: #617b70;
+  font-size: 11px;
+}
+#graphics-dialog .arm-live-preview label[for] {
+  margin: 4px 0;
+}
+.arm-live-preview input[type='range'] {
+  width: 100%;
+}
+@media (max-height: 700px), (max-width: 700px) {
+  .arm-live-preview canvas {
+    height: 100px;
+  }
+  .arm-live-preview > small {
+    display: none;
+  }
+}
+
+#graphics-dialog label.slider-label {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  color: var(--text);
+  font-size: 12px;
+}
+#graphics-controls .slider-label output {
+  white-space: nowrap;
+}
+
+@media (min-width: 801px) {
+  #shots-dialog > .dialog-top,
+  #shots-dialog > .settings-nav {
+    flex-shrink: 0;
+  }
+  #shots-dialog > .shot-layout {
+    height: auto;
+    flex: 1;
+    min-height: 0;
+  }
+}
+.team-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+#team-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.team-preset {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 8px;
+  padding: 10px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  min-width: 0;
+}
+.team-preset canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+.team-preset small {
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: normal;
+}
+.team-preset[aria-pressed='true'] {
+  border-color: var(--sage);
+  background: #edf1df;
+}
+#team-roster-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  image-rendering: pixelated;
+}
+.team-custom h3 {
+  margin: 18px 0 10px;
+}
+.team-custom label {
+  display: block;
+  margin: 16px 0 8px;
+}
+.team-custom select {
+  width: 100%;
+}
+.team-custom fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 18px;
+  min-width: 0;
+}
+.team-custom fieldset:disabled {
+  opacity: 0.5;
+}
+.color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.color-swatch {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  border: 3px solid var(--panel);
+  background: var(--swatch);
+  outline: 1px solid #c4cabc;
+  padding: 0;
+}
+.color-swatch[aria-pressed='true'] {
+  outline: 3px solid #43564a;
+}
+.color-swatch[aria-pressed='true']::after {
+  content: '✓';
+  color: #fff;
+  text-shadow: 0 1px 2px #43564a;
+  font-size: 20px;
+}
+.team-player-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.team-player-tabs button {
+  padding: 8px;
+  font-size: 12px;
+}
+.team-player-tabs [aria-pressed='true'] {
+  background: var(--sage);
+  color: white;
+}
+#team-restore-roster {
+  margin-top: 16px;
+}
+@media (max-width: 800px) {
+  .team-editor-layout {
+    grid-template-columns: 1fr;
+  }
+  .team-custom {
+    grid-row: 1;
+  }
+  #team-roster-preview {
+    max-height: 180px;
+    object-fit: contain;
+  }
+}
+@media (max-width: 800px) {
+  #team-roster-preview {
+    max-height: 140px;
+  }
+  .team-custom select,
+  .team-custom button,
+  .team-custom input {
+    scroll-margin-top: 310px;
+  }
+  .team-custom {
+    padding-bottom: 100px;
+  }
 }

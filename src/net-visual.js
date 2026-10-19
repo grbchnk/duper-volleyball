@@ -12,10 +12,10 @@ export function netVisual(previous, hit, time) {
     };
   const age = impact ? Math.max(0, time - impact.at) : Infinity;
   const wave =
-    age < 1.2
-      ? Math.sin(age * 22) *
-        Math.exp(-age * 4.5) *
-        Math.min(3.5, impact.speed * 0.28) *
+    age < 2.2
+      ? (Math.sin(age * 16) + Math.sin(age * 29) * 0.18) *
+        Math.exp(-age * 2.6) *
+        Math.min(11, impact.speed * 0.8) *
         impact.direction
       : 0;
   return { time, impact, wave };

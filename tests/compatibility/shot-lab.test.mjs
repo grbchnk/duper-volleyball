@@ -53,7 +53,7 @@ test('shot tuning survives JSON, is bounded and changes only the selected shot',
   assert.equal(config.backSpeedMin, 5);
   assert.equal(config.backSpeedMax, 7);
   assert.equal(config.backAngleMin, 62);
-  assert.equal(sanitizeConfig({ backSpeedMax: 100 }).backSpeedMax, 30);
+  assert.equal(sanitizeConfig({ dynamic: false, backSpeedMax: 100 }).backSpeedMax, 30);
   const b = simulateShot({ ...config, assist: false }, { kind: 'back', power: 0.5 });
   assert.ok(Math.abs(Math.hypot(b.impulse.vx, b.impulse.vy) - 6) < 1e-12);
   assert.ok(Math.abs((Math.atan2(b.impulse.vy, -b.impulse.vx) * 180) / Math.PI - 62) < 1e-12);

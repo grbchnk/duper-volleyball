@@ -1,8 +1,20 @@
+import { preparedHands } from './held-contact.js';
+import { isZoneReceive } from './zone-receive.js';
+import { drawZoneSpectator } from './zone-crowd.js';
+import {
+  isZone,
+  drawZoneSky,
+  drawZoneDistance,
+  drawZoneArchitecture,
+  drawZoneForeground,
+  drawZoneLife,
+  zoneSeats,
+} from './zone-scene.js';
 import { skinPalette } from './appearance.js';
 import { netVisual, netMesh } from './net-visual.js';
 import { constrainRenderedJoint } from './net-reach.js';
 import { drawOutCross } from './landing-visual.js';
-import { drawArenaBackdrop, spectatorPlace } from './arenas.js';
+import { drawArenaBackdrop } from './arenas.js';
 import { activeEmotion } from './emotions.js';
 import { pixelPresent, drawBallDesign, compositePixels } from './display.js';
 import { BodySprites, playerFrame, frameOf } from './sprites.js';
@@ -13,8 +25,16 @@ import { clamp, traceBall } from './physics.js';
 import { springPoint, blockWindow } from './motion.js';
 import { ARM_STYLES } from './arms.js';
 import { expressivePose } from './arm-motion.js';
+import { armContour, blendAngle, drawOpenArm } from './arm-contour.js';
+import { playerArmConfig } from './player-arms.js';
 import { diveHands } from './dive-pose.js';
 import { localReceiveAim } from './receive-pose.js';
+import {
+  projectCourt,
+  projectStreetNet,
+  NET_BOTTOM,
+  usesPerspectiveCourt,
+} from './court-visual.js';
 import {
   drawStreetSky,
   drawStreetCity,
@@ -24,14 +44,27 @@ import {
   STREET_SEATS,
   pixelTools,
 } from './street-scene.js';
+
+function shotChargeColor(power) {
+  const progress = clamp(power, 0, 1) * 2;
+  const green = [131, 230, 195],
+    yellow = [255, 232, 150],
+    red = [220, 128, 109];
+  const from = progress <= 1 ? green : yellow;
+  const to = progress <= 1 ? yellow : red;
+  const blend = progress <= 1 ? progress : progress - 1;
+  return `rgb(${from.map((channel, i) => Math.round(channel + (to[i] - channel) * blend)).join(', ')})`;
+}
+
 export class Renderer {
-  constructor(canvas) {
+  constructor(canvas, { scene = true } = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.bodySprites = new BodySprites();
     this.camera = 0;
     this.particles = [];
     this.impacts = [];
+    this.floorRipples = [];
     this.armRigs = new Map();
     this.shake = 0;
     this.netRipple = null;
@@ -41,9 +74,11 @@ export class Renderer {
     this.foreground.width = 960;
     this.foreground.height = 540;
     this.foregroundContext = this.foreground.getContext('2d', { willReadFrequently: true });
-    this.background = document.createElement('canvas');
-    this.background.width = 960;
-    this.background.height = 540;
+    if (scene) {
+      this.background = document.createElement('canvas');
+      this.background.width = 960;
+      this.background.height = 540;
+    }
     this.actor = document.createElement('canvas');
     this.actor.width = 180;
     this.actor.height = 200;
@@ -54,20 +89,15 @@ export class Renderer {
     this.shadow.width = 180;
     this.shadow.height = 200;
     this.shadowContext = this.shadow.getContext('2d', { willReadFrequently: true });
-    this.cityLayer = document.createElement('canvas');
-    this.cityLayer.width = 980;
-    this.cityLayer.height = 550;
-    const city = this.cityLayer.getContext('2d');
-    city.translate(10, 5);
-    drawStreetCity(city);
-    this.frontLayer = document.createElement('canvas');
-    this.frontLayer.width = 980;
-    this.frontLayer.height = 550;
-    const front = this.frontLayer.getContext('2d');
-    front.translate(10, 5);
-    drawStreetForeground(front);
-    this.cameraOffset = { x: 0, y: 0 };
-    this.makeBackground();
+    if (scene) {
+      this.cityLayer = document.createElement('canvas');
+      this.cityLayer.width = 980;
+      this.cityLayer.height = 550;
+      this.frontLayer = document.createElement('canvas');
+      this.frontLayer.width = 980;
+      this.frontLayer.height = 550;
+      this.makeBackground();
+    }
   }
   rect(x, y, w, h, color, ctx = this.ctx) {
     ctx.fillStyle = color;
@@ -89,7 +119,11 @@ export class Renderer {
         const data = c.getImageData(0, 0, image.width, image.height);
         for (let i = 3; i < data.data.length; i += 4) data.data[i] = data.data[i] >= 110 ? 255 : 0;
         c.putImageData(data, 0, 0);
-        if (this.textSprites.size > 400) this.textSprites.clear();
+        if (this.textSprites.size >= 400)
+          this.textSprites.delete(this.textSprites.keys().next().value);
+        this.textSprites.set(key, image);
+      } else {
+        this.textSprites.delete(key);
         this.textSprites.set(key, image);
       }
       ctx.save();
@@ -113,22 +147,35 @@ export class Renderer {
     this.arenaTheme = theme;
     const c = this.background.getContext('2d');
     c.clearRect(0, 0, 960, 540);
-    if (theme === 'miami') drawStreetArchitecture(c);
+    if (isZone(theme)) drawZoneArchitecture(c, theme);
+    else if (theme === 'miami') drawStreetArchitecture(c);
     else drawArenaBackdrop(c, theme);
+    for (const [layer, draw] of [
+      [this.cityLayer, isZone(theme) ? drawZoneDistance : drawStreetCity],
+      [this.frontLayer, isZone(theme) ? drawZoneForeground : drawStreetForeground],
+    ]) {
+      const context = layer.getContext('2d');
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, layer.width, layer.height);
+      context.save();
+      context.translate(10, 5);
+      draw(context, theme);
+      context.restore();
+    }
   }
   project(x, y = 0) {
-    return { x: 480 + x * 40, y: 465 - y * 42 };
+    return projectCourt(x, y);
   }
   logicalTransform(context) {
     const matrix = context.getTransform();
     if (this.renderingActor)
       return new DOMMatrix([
-        matrix.a,
-        matrix.b,
-        matrix.c,
-        matrix.d,
-        matrix.e + this.actorOrigin.x,
-        matrix.f + this.actorOrigin.y,
+        matrix.a / this.actorScaleX,
+        matrix.b / this.actorScaleY,
+        matrix.c / this.actorScaleX,
+        matrix.d / this.actorScaleY,
+        matrix.e / this.actorScaleX + this.actorOrigin.x,
+        matrix.f / this.actorScaleY + this.actorOrigin.y,
       ]);
     const sx = this.renderScaleX || 1,
       sy = this.renderScaleY || 1;
@@ -144,69 +191,32 @@ export class Renderer {
         ]);
   }
   drawAtmosphere(m, teams) {
-    if (m.config.arenaTheme === 'miami') {
-      this.drawStreetCrowd(m, teams);
-      return;
-    }
-    const c = this.ctx,
-      live = m.config.livelyBackground;
-    const time = live ? m.time : 0;
-    const point = ['point', 'set-end', 'finished'].includes(m.phase);
-    const ball = this.project(m.ball.x, m.ball.y);
-    const celebrate = live && ['point', 'set-end', 'finished'].includes(m.phase);
-    for (let i = 0; i < 18; i++) {
-      const { x, y: seatY } = spectatorPlace(i),
-        fanTeam = i < 9 ? 0 : 1;
-      const happy = celebrate && m.pointWinner === fanTeam;
-      const jump = happy ? Math.max(0, Math.sin(time * 10 + i)) * 6 : 0;
-      const y = seatY - jump;
-      const look = live ? Math.round(clamp((ball.x - x) / 90, -3, 3)) : 0;
-      const lookY = live ? Math.round(clamp((ball.y - 330) / 100, -2, 1)) : 0;
-      const shirt =
-        i % 3 === 0 ? teams[fanTeam].color : ['#d4acb6', '#b0b8d2', '#d6c488', '#a4c5b0'][i % 4];
-      this.rect(x - 8, y, 17, 14, shirt);
-      const skin = ['#f3d2ac', '#c79270', '#e6b78e'][i % 3];
-      this.rect(x - 6 + look, y - 12 + lookY, 13, 13, skin);
-      this.rect(x - 7 + look, y - 15 + lookY, 15, 6, i % 3 === 0 ? '#b2886d' : '#575f5c');
-      this.rect(x - 3 + look * 2, y - 7 + lookY, 2, 2, '#414d4a');
-      this.rect(x + 3 + look * 2, y - 7 + lookY, 2, 2, '#414d4a');
-      if (happy) {
-        this.rect(x - 12, y - 11, 4, 18, skin);
-        this.rect(x + 9, y - 13, 4, 20, skin);
-        this.rect(x - 1 + look, y - 3, 4, 2, '#8f6457');
-      } else {
-        this.rect(x - 11, y + 3, 3, 9, skin);
-        this.rect(x + 9, y + 3, 3, 9, skin);
-      }
-      if (m.config.arenaTheme === 'miami') {
-        this.rect(x - 3, y + 14, 4, 8, '#8b9691');
-        this.rect(x + 4, y + 14, 4, 8, '#8b9691');
-        this.rect(x - 4, y + 21, 6, 3, '#786d6b');
-        this.rect(x + 4, y + 21, 6, 3, '#786d6b');
-      } else {
-        this.rect(x - 3, y + 14, 4, 4, '#786d6b');
-        this.rect(x + 4, y + 14, 4, 4, '#786d6b');
-      }
-      if (happy && i % 2 === 0) {
-        const flutter = Math.round(Math.sin(time * 9 + i) * 3);
-        this.rect(x + 14, y - 26, 2, 28, '#786d6b');
-        this.rect(x + 16, y - 26 + flutter, 16, 9, teams[fanTeam].color);
-      }
-    }
+    this.drawStreetCrowd(m, teams);
   }
   drawStreetCrowd(m, teams) {
     const live = m.config.livelyBackground;
     const time = live ? m.time : 0;
     const ball = this.project(m.ball.x, m.ball.y);
     const celebrate = live && ['point', 'set-end', 'finished'].includes(m.phase);
-    for (let i = 0; i < STREET_SEATS.length; i++) {
-      const [x, seat] = STREET_SEATS[i];
+    const seats = isZone(m.config.arenaTheme) ? zoneSeats(m.config.arenaTheme) : STREET_SEATS;
+    for (let i = 0; i < seats.length; i++) {
+      const [x, seat] = seats[i];
       const team = i < 4 || i === 10 || i === 12 ? 0 : 1;
       const happy = celebrate && m.pointWinner === team;
       const disappointed = celebrate && !happy;
       const y = seat - (happy ? Math.max(0, Math.sin(time * 9 + i)) * 5 : 0);
       const look = live ? Math.round(clamp((ball.x - x) / 180, -2, 2)) : 0;
       const tilt = live ? Math.round(clamp((ball.y - y) / 160, -1, 1)) : 0;
+      if (isZone(m.config.arenaTheme)) {
+        drawZoneSpectator(this.ctx, m.config.arenaTheme, i, x, y, {
+          time,
+          look,
+          happy,
+          disappointed,
+          live,
+        });
+        continue;
+      }
       const skin = ['#efc39a', '#d19a73', '#e6b58c', '#b67e59'][i % 4];
       const shirt =
         i % 3 === 0 ? teams[team].dark : ['#d8b7a5', '#789692', '#b7a4ab', '#d6baa2'][i % 4];
@@ -289,7 +299,7 @@ export class Renderer {
     c.transform(1, 0, 0.65, -0.34, 0, 0);
     c.translate(-pos.x, -pos.y);
     c.imageSmoothingEnabled = false;
-    c.drawImage(this.shadow, x, y);
+    c.drawImage(this.shadow, x, y, width / this.actorScaleX, height / this.actorScaleY);
     c.restore();
   }
   draw(m, teams, dt = 1 / 60) {
@@ -309,28 +319,23 @@ export class Renderer {
       this.foreground.height = this.canvas.height;
     }
     this.foregroundContext.setTransform(sx, 0, 0, sy, 0, 0);
+    this.foregroundContext.imageSmoothingEnabled = false;
     if (this.arenaTheme !== m.config.arenaTheme) this.makeBackground(m.config.arenaTheme);
-    const street = m.config.arenaTheme === 'miami';
+    const street = usesPerspectiveCourt(m.config.arenaTheme);
     const live = m.config.livelyBackground;
-    const follow = this.cameraOffset;
-    const smoothing = 1 - Math.exp(-Math.min(dt, 0.05) * 2.4);
-    const targetX = live ? clamp(m.ball.x * 0.42, -3.6, 3.6) : 0;
-    const targetY = live ? clamp((m.ball.y - 2) * 0.48, -1.1, 1.8) : 0;
-    if (live) {
-      follow.x += (targetX - follow.x) * smoothing;
-      follow.y += (targetY - follow.y) * smoothing;
-    } else {
-      follow.x = 0;
-      follow.y = 0;
-    }
     if (street) {
-      drawStreetSky(c, live ? m.time : 0);
-      c.drawImage(this.cityLayer, -10 - follow.x * 0.65, -5 + follow.y * 0.45);
+      if (isZone(m.config.arenaTheme)) drawZoneSky(c, m.config.arenaTheme, live ? m.time : 0);
+      else drawStreetSky(c, live ? m.time : 0);
+      c.drawImage(this.cityLayer, -10, -5);
     }
     c.drawImage(this.background, 0, 0);
     if (m.config.arenaTheme === 'miami')
       drawStreetLife(c, m.time, this.project(m.ball.x, m.ball.y), m.config.livelyBackground);
+    if (isZone(m.config.arenaTheme)) drawZoneLife(c, m.config.arenaTheme, m.time, live, m.score);
     this.drawAtmosphere(m, teams);
+    this.drawFloorRipples(dt);
+    this.drawBallSmoke(m);
+    this.drawBallShadow(m);
     if (m.cupStage != null) {
       c.save();
       c.globalAlpha = 0.1;
@@ -345,7 +350,7 @@ export class Renderer {
     this.foregroundContext.clearRect(0, 0, 960, 540);
     this.ctx = this.foregroundContext;
     c.save();
-    if (m.config.arenaTheme !== 'miami') {
+    if (!usesPerspectiveCourt(m.config.arenaTheme)) {
       for (const x of [-COURT.halfLength, -3, 0, 3, COURT.halfLength]) {
         const p = this.project(x);
         this.rect(p.x - 1, 423, 2, 59, '#fff8df');
@@ -366,19 +371,6 @@ export class Renderer {
         '#547260',
         'center',
       );
-    const b = this.project(m.ball.x);
-    c.fillStyle = `rgba(175,153,115,${Math.max(0.12, 0.38 - m.ball.y * 0.035)})`;
-    c.beginPath();
-    c.ellipse(
-      b.x,
-      456,
-      Math.max(4, 9 - m.ball.y * 0.55),
-      Math.max(1.5, 3 - m.ball.y * 0.12),
-      0,
-      0,
-      Math.PI * 2,
-    );
-    c.fill();
     if (m.prediction && m.phase === 'rally' && m.ball.x < 0) {
       const p = this.project(m.prediction.x);
       c.strokeStyle = '#698c8070';
@@ -386,7 +378,8 @@ export class Renderer {
       c.strokeRect(p.x - 12, 449, 24, 8);
       c.setLineDash([]);
     }
-    for (const p of m.players.filter((p) => !p.benched)) this.drawPlayer(p, teams[p.team], m, dt);
+    const players = m.players.filter((p) => !p.benched);
+    for (const p of players.filter((p) => p.x >= 0)) this.drawPlayer(p, teams[p.team], m, dt);
     if (m.mode === 'test' && m.testNext) {
       const server = m.players[m.testNext.playerId];
       const waiting = this.project(server.x - 0.35, 1.2);
@@ -398,6 +391,7 @@ export class Renderer {
       this.text('СЛЕДУЮЩАЯ ПОДАЧА', waiting.x, waiting.y - 57, 8, '#526b68', 'center');
     }
     this.drawNet(m);
+    for (const p of players.filter((p) => p.x < 0)) this.drawPlayer(p, teams[p.team], m, dt);
     this.drawBall(m);
     if (m.outMarker) {
       const marker = this.project(m.outMarker.x, 0);
@@ -409,7 +403,7 @@ export class Renderer {
     c.restore();
     this.ctx = c;
     compositePixels(c, this.foreground, this.pixelGraphics, 960, 540);
-    if (street) c.drawImage(this.frontLayer, -10 + follow.x, -5 - follow.y * 0.5);
+    if (street) c.drawImage(this.frontLayer, -10, -5);
     this.canvas.style.imageRendering = 'pixelated';
     this.drawHUD(m, teams);
     const combination = m.combinations?.[0];
@@ -476,15 +470,23 @@ export class Renderer {
       c.restore();
     }
     const destination = c;
-    const width = Math.ceil(Math.max(180, (this.spriteScale || 2.1) * 70));
-    const height = Math.ceil(Math.max(200, (this.spriteScale || 2.1) * 80));
+    this.actorScaleX = this.renderScaleX || 1;
+    this.actorScaleY = this.renderScaleY || 1;
+    const logicalWidth = Math.ceil(Math.max(180, (this.spriteScale || 2.1) * 70));
+    const logicalHeight = Math.ceil(Math.max(200, (this.spriteScale || 2.1) * 80));
+    const width = Math.ceil(logicalWidth * this.actorScaleX);
+    const height = Math.ceil(logicalHeight * this.actorScaleY);
     if (this.actor.width !== width || this.actor.height !== height) {
       this.actor.width = width;
       this.actor.height = height;
     }
-    this.actorOrigin = { x: Math.round(pos.x - width / 2), y: Math.round(pos.y - height + 30) };
+    this.actorOrigin = {
+      x: Math.round(pos.x - logicalWidth / 2),
+      y: Math.round(pos.y - logicalHeight + 30),
+    };
     this.actorContext.setTransform(1, 0, 0, 1, 0, 0);
     this.actorContext.clearRect(0, 0, width, height);
+    this.actorContext.scale(this.actorScaleX, this.actorScaleY);
     this.actorContext.translate(-this.actorOrigin.x, -this.actorOrigin.y);
     c = this.ctx = this.actorContext;
     this.renderingActor = true;
@@ -501,58 +503,34 @@ export class Renderer {
     }
     c.imageSmoothingEnabled = false;
     const motion = bodyOffset(p);
+    c.drawImage(this.bodySprites.get(frame, skin, team, p.id, 'feet', p.appearance), -32, -54);
     c.drawImage(
-      this.bodySprites.get(frame, skin, team, p.id, 'feet', p.appearance),
-      -32,
-      -54,
-      64,
-      64,
+      this.bodySprites.get(frame, skin, team, p.id, 'torso', p.appearance),
+      -32 + motion.torso * dir,
+      -54 + motion.drop,
     );
-    c.save();
-    c.translate(0, -9);
-    c.transform(1, 0, -(pose.lean || 0), 1, 0, 0);
-    c.translate(0, 9);
-    const drawBody = () => {
-      c.save();
-      c.translate(-motion.torso * dir, -pose.y - motion.drop);
+    if (!p.headDetached)
       c.drawImage(
-        this.bodySprites.get(frame, skin, team, p.id, 'torso', p.appearance),
-        -32 + motion.torso * dir,
+        this.bodySprites.get(frame, skin, team, p.id, 'head', p.appearance),
+        -32 + motion.head * dir,
         -54 + motion.drop,
-        64,
-        64,
       );
-      if (!p.headFly) {
-        c.save();
-        c.translate(1, -25);
-        c.scale(0.98, 0.82);
-        c.translate(0, 22);
-        c.drawImage(
-          this.bodySprites.get(frame, skin, team, p.id, 'head', p.appearance),
-          -32 + motion.head * dir,
-          -54 + motion.drop,
-          64,
-          64,
-        );
-        c.restore();
-      }
-      c.restore();
-      c.save();
-      c.scale(dir, 1);
-      this.text(String(p.number), dir * 1.6, -16, 7, '#fff7e4', 'center');
-      c.restore();
-    };
     c.save();
     c.translate(motion.torso * dir, pose.y + motion.drop);
     const step = frame.state === 'run' ? (pose.r - pose.l) * 0.5 : 0;
-    this.drawArms(p, m, dt, step, frame, drawBody);
-    c.restore();
+    this.drawArms(p, m, dt, step, frame, team);
     c.restore();
     c.restore();
     this.renderingActor = false;
     this.ctx = c = destination;
     this.drawSpriteShadow(p, pos, floor);
-    c.drawImage(this.actor, this.actorOrigin.x, this.actorOrigin.y);
+    c.drawImage(
+      this.actor,
+      this.actorOrigin.x,
+      this.actorOrigin.y,
+      width / this.actorScaleX,
+      height / this.actorScaleY,
+    );
     if (p.headFly) {
       const fly = p.headFly,
         age = fly.age;
@@ -572,7 +550,7 @@ export class Renderer {
         'head',
         p.appearance,
       );
-      c.drawImage(headImage, 0, 0, 128, 62, -32, -24, 64, 31);
+      c.drawImage(headImage, 0, 0, 64, 31, -32, -24, 64, 31);
       c.restore();
     }
     if (m.humanSlot(p) !== null) {
@@ -588,15 +566,10 @@ export class Renderer {
       const action = m.actionForPlayer(p);
       if (action?.playerId === p.id) {
         this.rect(pos.x - 22, pos.y - 91, 44, 4, '#314e64');
-        this.rect(
-          pos.x - 21,
-          pos.y - 90,
-          42 * action.power,
-          2,
-          action.power > 0.88 ? '#dc806d' : '#ffe896',
-        );
+        this.rect(pos.x - 21, pos.y - 90, 42 * action.power, 2, shotChargeColor(action.power));
       }
     }
+    this.drawJumpCharge(p, m, pos);
     if (p.stunned > 0 && !p.headFly) {
       const scale = this.spriteScale || 2.1;
       const sin = Math.sin(pose.tilt),
@@ -618,13 +591,47 @@ export class Renderer {
       this.text('···', pos.x, pos.y - 25, 15, '#a27970', 'center');
     }
   }
-  drawArms(p, m, dt, step, bodyFrame = null, drawBody = null) {
+  drawJumpCharge(p, m, pos = this.project(p.x, p.y)) {
+    const hold = p.jumpButtonHold;
+    if (
+      !m.config.dynamic ||
+      !m.isHuman(p.team) ||
+      !p.jumpProfile ||
+      !hold ||
+      hold.slot == null ||
+      p.block > 0 ||
+      p.diving ||
+      p.recovery > 0
+    )
+      return;
+    const progress = clamp(hold.power ?? (hold.applied ? 1 : 0), 0, 1);
+    const color = progress === 1 ? '#83e6c3' : hold.tracking ? '#ffe896' : '#a8b6bd';
+    const x = Math.round(clamp(pos.x - 22, 1, 915));
+    const y = Math.round(Math.min(535, pos.y + 8));
+    const c = this.ctx;
+    c.save();
+    this.rect(x, y, 44, 4, '#314e64');
+    this.rect(x + 1, y + 1, 42 * progress, 2, color);
+    c.restore();
+  }
+  drawArms(p, m, dt, step, bodyFrame = null, team = null) {
     const c = this.ctx,
       spec = ARM_STYLES.whip;
+    const config = playerArmConfig(p, m.config);
     const action = m.actionForPlayer?.(p) || m.actionFor?.(p.team) || m.charge || m.pending;
-    const charge = m.phase !== 'serve' && action?.playerId === p.id ? action : null;
+    let charge = m.phase !== 'serve' && action?.playerId === p.id ? action : null;
+    const zonePreparation = charge && m.isHuman(p.team) && isZoneReceive(m, charge, p);
+    if (zonePreparation) {
+      charge = {
+        ...charge,
+        age:
+          charge.receiveReadyAt == null
+            ? charge.age
+            : Math.max(0, m.config.armWindup - Math.max(0, charge.receiveReadyAt - m.time)),
+      };
+    }
     const serving =
-      m.phase === 'serve-motion' && p.id === (m.serverPlayer?.().id ?? m.selected[m.server]);
+      m.phase === 'serve-motion' && p.id === (m.serverPlayer?.()?.id ?? m.selected?.[m.server]);
     const swing = p.armSwing,
       kind =
         p.block > 0
@@ -635,7 +642,14 @@ export class Renderer {
             (p.diving ? 'low' : null);
     let rig = this.armRigs.get(p.id);
     if (!rig || rig.player !== p) {
-      rig = { player: p, wrists: null, elbows: null, contactKey: null, contactPoint: null };
+      rig = {
+        player: p,
+        wrists: null,
+        elbows: null,
+        contours: [],
+        contactKey: null,
+        contactPoint: null,
+      };
       this.armRigs.set(p.id, rig);
     }
     const newContact = swing?.hit && rig.contactKey !== (swing.at ?? swing);
@@ -654,23 +668,30 @@ export class Renderer {
     }
     const support =
       Math.abs(this.project(p.x).x - this.project(0).x) > 1 ? serveSupport(m, p) : null;
+    const waitingToServe =
+      m.phase === 'serve' && p.id === (m.serverPlayer?.()?.id ?? m.selected?.[m.server]);
+    const servePose = waitingToServe || serving || !!support || !!swing?.serve;
+    rig.serveBend = servePose ? 1 : Math.max(0, (rig.serveBend || 0) - dt / 0.18);
     const supportScreen = support ? this.project(m.ball.x, m.ball.y) : null;
     if (support) {
       supportScreen.y +=
         10 * (m.config.ballSize || 1.2) * 1.18 +
-        spec.hand * m.config.armScale * (this.spriteScale || 2.1) * 0.65;
+        spec.hand * config.armScale * (this.spriteScale || 2.1) * 0.65;
       support.point = this.logicalTransform(c).inverse().transformPoint(supportScreen);
     }
     const pose = expressivePose({
+      receiveHoldPoint: charge?.receiveHold
+        ? this.logicalTransform(c).inverse().transformPoint(this.project(m.ball.x, m.ball.y))
+        : null,
       serveSupport: support,
       diveTarget: p.diving
         ? this.logicalTransform(c)
             .inverse()
             .transformPoint(
-              this.project(diveHands(p, m.ball, m.config).x, diveHands(p, m.ball, m.config).y),
+              this.project(diveHands(p, m.ball, config).x, diveHands(p, m.ball, config).y),
             )
         : null,
-      receiveAim: localReceiveAim(p, charge || swing, m.ball, bodyFrame, m.config),
+      receiveAim: localReceiveAim(p, charge || swing, m.ball, bodyFrame, config),
       emotion: activeEmotion(p),
       shoulderLift: bodyFrame?.pose.shoulders || 0,
       localVelocity: swing?.hit ? rig.localVelocity : null,
@@ -680,7 +701,7 @@ export class Renderer {
             (p.team === 0 ? 1 : -1) * (!serving && kind === 'back' ? -1 : 1),
         ) / (p.facing || 1),
       spec,
-      config: m.config,
+      config,
       kind,
       serve: serving && !m.serveAction?.attempted ? { ...m.serveAction, age: m.phaseTime } : null,
       charge: charge || (p.diving && !swing ? { kind: 'low', power: 0.2, age: 0.1 } : null),
@@ -698,21 +719,36 @@ export class Renderer {
       step,
       contactPoint: swing?.hit ? rig.contactPoint : null,
     });
+    if (charge && !servePose && !p.diving && !charge.receiveHold) {
+      const anchors = preparedHands(p, m, charge);
+      const inverse = this.logicalTransform(c).inverse();
+      for (const [j, i] of pose.activeHands.entries())
+        if (anchors[j]) {
+          const point = inverse.transformPoint(this.project(anchors[j].x, anchors[j].y));
+          pose.wrists[i] = { x: point.x, y: point.y };
+        }
+    }
+
     if (!rig.wrists) {
       rig.wrists = pose.wrists.map((w) => ({ ...w, vx: 0, vy: 0 }));
       rig.elbows = pose.elbows.map((w) => ({ ...w, vx: 0, vy: 0 }));
     }
     rig.stage = pose.stage;
+    // The overhead return already has an eased, authored path. A second spring
+    // delayed the wrists and elbows until the hands dropped across the face.
+    const overheadReturn =
+      kind === 'loft' && swing?.hit && !swing.serve && !charge && !p.diving && pose.cup > 0;
     const tint =
       { back: '#e8c35c', low: '#78b6c9', loft: '#8aad77', drive: '#e89a70', block: '#b7a0ce' }[
         kind
       ] || '#fff1da';
-    const paint = [];
     for (let i = 0; i < 2; i++) {
       const wrist = rig.wrists[i],
         target = pose.wrists[i];
       if (
         (support?.attached && i === support.hand) ||
+        !!charge?.receiveHold ||
+        overheadReturn ||
         (newContact && pose.snap) ||
         (swing?.hit && rig.localVelocity && swing.age < 0.09)
       )
@@ -722,101 +758,83 @@ export class Renderer {
           wrist,
           target,
           dt,
-          spec.spring * m.config.armSpring * (kind === 'loft' ? 1.65 : 1 + pose.power * 0.3),
-          spec.damping * Math.sqrt(m.config.armSpring) * (kind === 'loft' ? 1.25 : 1),
+          spec.spring * config.armSpring * (kind === 'loft' ? 1.65 : 1 + pose.power * 0.3),
+          spec.damping * Math.sqrt(config.armSpring) * (kind === 'loft' ? 1.25 : 1),
         );
       const shoulder = pose.shoulders[i],
         elbow = rig.elbows[i];
-      springPoint(
-        elbow,
-        pose.elbows[i],
-        dt,
-        spec.spring * m.config.armSpring * (kind === 'loft' ? 2 : 1.35),
-        spec.damping * Math.sqrt(m.config.armSpring) * 1.2,
-      );
+      if (overheadReturn) Object.assign(elbow, pose.elbows[i], { vx: 0, vy: 0 });
+      else
+        springPoint(
+          elbow,
+          pose.elbows[i],
+          dt,
+          spec.spring * config.armSpring * (kind === 'loft' ? 2 : 1.35),
+          spec.damping * Math.sqrt(config.armSpring) * 1.2,
+        );
       const transform = this.logicalTransform(c);
       const over = kind === 'drive' || kind === 'block';
       if (Math.abs(this.project(p.x).x - this.project(0).x) > 1) {
         constrainRenderedJoint(wrist, transform, this.project.bind(this), p.team, m.ball, over);
         constrainRenderedJoint(elbow, transform, this.project.bind(this), p.team, m.ball, over);
       }
-      paint[i] = () => {
-        // Art offsets affect only drawing: the spring state and every active
-        // contact target stay in the original shared rig coordinate system.
-        const shoulder = { ...pose.shoulders[i], y: pose.shoulders[i].y - 4 };
-        const elbow = { ...rig.elbows[i], y: rig.elbows[i].y - 4 };
-        const wrist = { ...rig.wrists[i] };
-        if (pose.stage === 'Покой') {
-          wrist.y -= 1;
-          wrist.x += i ? 2 : -2;
-        }
-        c.lineCap = 'round';
-        c.lineJoin = 'round';
-        const width = (spec.width + 1) * m.config.armScale * m.config.armRoundness;
-        c.lineWidth = width;
-        c.strokeStyle = p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62';
-        c.beginPath();
-        c.moveTo(shoulder.x, shoulder.y);
-        c.quadraticCurveTo(elbow.x, elbow.y, wrist.x, wrist.y);
-        c.stroke();
-        c.lineWidth = Math.max(1, width - 1.3);
-        c.strokeStyle = pose.snap ? '#fff7dc' : p.appearance?.tone || '#f4cfac';
-        c.stroke();
-        const hand = spec.hand * m.config.armScale;
-        c.save();
-        c.translate(wrist.x, wrist.y);
-        // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
-        const neutralAngle =
-          pose.stage === 'Покой'
-            ? 0
-            : (Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x) + Math.PI / 2) *
-              (support?.hand === i ? 1 - support.weight : 1);
-        c.rotate(neutralAngle * (1 - pose.cup) + (i ? -0.55 : 0.55) * pose.cup);
-        this.rect(
-          -hand / 2,
-          0,
-          hand,
-          2,
-          kind === 'block' && blockWindow(p, m.config)
-            ? '#f8da75'
-            : kind
-              ? tint
-              : p.appearance?.tone || '#f4cfac',
-        );
-        this.rect(
-          -hand / 2,
-          -hand * 0.8,
-          hand,
-          hand * 0.8,
-          p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62',
-        );
-        this.rect(
-          -hand / 2 + 0.6,
-          -hand * 0.8,
-          hand - 1.2,
-          hand * 0.8,
-          p.appearance?.tone || '#f4cfac',
-        );
-        if (pose.cup) {
-          this.rect(-hand / 2, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
-          this.rect(hand / 2 - 1.3, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
-        }
-        if (pose.cup < 0.2)
-          this.rect(
-            -0.4,
-            -hand * 0.45,
-            0.8,
-            1.2,
-            p.appearance ? skinPalette(p.appearance.tone).mouth : '#665d62',
-          );
-        c.restore();
-      };
+      const width = spec.width * config.armScale * config.armRoundness;
+      const contour = armContour(
+        shoulder,
+        elbow,
+        wrist,
+        width,
+        rig.serveBend,
+        rig.contours[i],
+        config.elbowHeight,
+      );
+      rig.contours[i] = contour;
+      drawOpenArm(
+        c,
+        contour,
+        width,
+        pose.snap ? '#fff7dc' : p.appearance?.tone || '#f4cfac',
+        p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62',
+        team?.color,
+        p.appearance?.body === 'longsleeve' ? 0.72 : 0.32,
+      );
+      const hand = spec.hand * config.armScale;
+      c.save();
+      c.translate(wrist.x, wrist.y);
+      // Overhead fingers face inward/up, forming a small cup instead of two parallel poles.
+      const neutralAngle = blendAngle(
+        contour.handAngle,
+        0,
+        support?.hand === i ? support.weight : 0,
+      );
+      c.rotate(blendAngle(neutralAngle, i ? -0.55 : 0.55, pose.cup));
+      this.rect(
+        -hand / 2,
+        0,
+        hand,
+        2,
+        kind === 'block' && blockWindow(p, m.config) ? '#f8da75' : tint,
+      );
+      this.rect(
+        -hand / 2,
+        -hand * 0.8,
+        hand,
+        hand * 0.8,
+        p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62',
+      );
+      this.rect(
+        -hand / 2 + 0.6,
+        -hand * 0.8,
+        hand - 1.2,
+        hand * 0.8,
+        p.appearance?.tone || '#f4cfac',
+      );
+      if (pose.cup) {
+        this.rect(-hand / 2, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
+        this.rect(hand / 2 - 1.3, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
+      }
+      c.restore();
     }
-    // Local right shoulder is the far side of the three-quarter pose. Mirror
-    // the entire pose on turns; solve each spring once, then paint by depth.
-    paint[1]();
-    drawBody?.();
-    paint[0]();
   }
   drawNet(m) {
     const c = this.ctx,
@@ -824,45 +842,105 @@ export class Renderer {
       top = Math.round(this.project(0, COURT.netHeight).y / 2) * 2;
     this.netRipple = netVisual(this.netRipple, m?.ball.netImpact, m.time);
     const wave = this.netRipple.wave;
-    if (m.config.arenaTheme === 'miami') {
+    if (usesPerspectiveCourt(m.config.arenaTheme)) {
       const { line, rect } = pixelTools(c);
-      const farX = 478,
-        nearX = 500,
-        farTop = top - 55,
-        nearTop = top - 8;
+      const far = projectStreetNet(0, COURT.netHeight);
+      const near = projectStreetNet(1, COURT.netHeight);
+      const farX = far.x,
+        nearX = near.x,
+        farTop = far.y,
+        nearTop = near.y;
+      const farBottom = projectStreetNet(0, NET_BOTTOM).y;
+      const nearBottom = projectStreetNet(1, NET_BOTTOM).y;
+      const farFloor = projectStreetNet(0, 0).y;
+      const nearFloor = projectStreetNet(1, 0).y;
+      const meshHeight = nearBottom - nearTop;
       for (let step = 1; step < 10; step++) {
         const t = step / 10;
-        const px = farX + (nearX - farX) * t + Math.sin(t * Math.PI) * wave;
-        line(px, farTop + (nearTop - farTop) * t, px, 407 + 98 * t, '#a6b4ac');
+        const baseX = farX + (nearX - farX) * t;
+        const baseY = farTop + (nearTop - farTop) * t;
+        for (let row = 0; row < 8; row++) {
+          const a = row / 8,
+            b = (row + 1) / 8;
+          line(
+            baseX + Math.sin(t * Math.PI) * Math.sin(a * Math.PI) * wave,
+            baseY + meshHeight * a,
+            baseX + Math.sin(t * Math.PI) * Math.sin(b * Math.PI) * wave,
+            baseY + meshHeight * b,
+            '#a6b4ac',
+          );
+        }
       }
       for (let step = 0; step <= 12; step++) {
         const t = step / 12;
-        line(
-          farX,
-          farTop + (407 - farTop) * t,
-          nearX,
-          nearTop + (505 - nearTop) * t,
-          step === 0 ? '#fff1d0' : '#a6b4ac',
-          step === 0 ? 3 : 1,
-        );
+        for (let col = 0; col < 8; col++) {
+          const a = col / 8,
+            b = (col + 1) / 8;
+          const bend = Math.sin(t * Math.PI) * wave;
+          line(
+            farX + (nearX - farX) * a + Math.sin(a * Math.PI) * bend,
+            farTop + (nearTop - farTop) * a + meshHeight * t,
+            farX + (nearX - farX) * b + Math.sin(b * Math.PI) * bend,
+            farTop + (nearTop - farTop) * b + meshHeight * t,
+            step === 0 ? '#fff1d0' : '#a6b4ac',
+            step === 0 ? 3 : 1,
+          );
+        }
       }
-      line(farX, farTop, farX, 407, '#e7dfc3', 2);
-      line(nearX, nearTop, nearX, 505, '#e7dfc3', 2);
+      line(farX, farTop, farX, farBottom, '#e7dfc3', 2);
+      line(nearX, nearTop, nearX, nearBottom, '#e7dfc3', 2);
       rect(farX - 3, farTop - 14, 4, 17, '#e5ba92');
       rect(farX - 3, farTop - 14, 4, 5, '#c57c75');
-      rect(farX - 4, 397, 6, 12, '#4f8d94');
-      rect(nearX - 5, nearTop - 3, 9, 154, '#3f7e8a');
-      rect(nearX - 4, nearTop, 3, 150, '#71b2b0');
+      rect(farX - 4, farTop, 6, farFloor - farTop, '#4f8d94');
+      rect(nearX - 5, nearTop - 3, 9, nearFloor - nearTop + 3, '#3f7e8a');
+      rect(nearX - 4, nearTop, 3, nearFloor - nearTop, '#71b2b0');
       rect(nearX - 4, nearTop + 8, 8, 3, '#e1c3a0');
-      rect(nearX - 6, 503, 12, 4, '#497681');
+      rect(nearX - 6, nearFloor - 2, 12, 4, '#497681');
       return;
     }
     this.rect(x - 4, top, 2, 116, '#6b8a8099');
     this.rect(x + 4, top, 2, 116, '#6b8a8099');
-    for (const [px, py, w, h] of netMesh(wave, top)) this.rect(px, py, w, h, '#87a69980');
+    for (const [px, py, w, h] of netMesh(wave, top, this.project(0, NET_BOTTOM).y))
+      this.rect(px, py, w, h, '#87a69980');
     this.rect(x - 4, top, 10, 2, '#fffbee');
     this.rect(x + 4, top - 18, 2, 20, '#d3897c');
     this.rect(x - 6, 462, 14, 2, '#d29d82');
+  }
+  drawBallShadow(m) {
+    const c = this.ctx,
+      floor = this.project(m.ball.x, 0),
+      height = Math.max(0, m.ball.y - COURT.ballRadius),
+      size = m.config.ballSize || 1.2,
+      spread = Math.min(height, 10);
+    c.save();
+    // Keep the ground position legible, with the same light direction as the players.
+    c.translate(floor.x - spread * 4, floor.y + 2 + spread * 1.5);
+    c.fillStyle = '#514f68';
+    c.globalAlpha = clamp(0.28 - height * 0.012, 0.14, 0.28);
+    c.beginPath();
+    c.ellipse(0, 0, (8 + spread * 0.4) * size, (2.8 + spread * 0.16) * size, 0, 0, Math.PI * 2);
+    c.fill();
+    c.globalAlpha *= 0.45;
+    c.beginPath();
+    c.ellipse(0, 0, (5.5 + spread * 0.2) * size, (1.8 + spread * 0.08) * size, 0, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+  drawBallSmoke(m) {
+    const opacity = m.config.smokeTrailOpacity;
+    if (!opacity || !m.smokeTrail?.length) return;
+    const c = this.ctx;
+    c.save();
+    c.fillStyle = '#657c79';
+    for (const point of m.smokeTrail) {
+      const fade = clamp(point.life / point.duration, 0, 1);
+      const at = this.project(point.x, point.y);
+      c.globalAlpha = opacity * fade;
+      c.beginPath();
+      c.ellipse(at.x, at.y, 4.5 + (1 - fade) * 1.5, 3.5 + (1 - fade), 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
   }
   drawBall(m) {
     const c = this.ctx,
@@ -874,16 +952,21 @@ export class Renderer {
         this.rect(t.x - 3, t.y - 3, 6, 6, '#fff4d480');
       }
     if (p.y < 84) this.text('↑', clamp(p.x, 15, 945), 81, 15, '#bb776b', 'center');
-    if (
-      (m.controls?.some((state) => state.contactWindow) || m.contactWindow) &&
-      (m.phase !== 'serve-motion' || Math.floor(m.time * 20) % 2 === 0)
-    ) {
-      c.strokeStyle = '#cc7967';
-      c.lineWidth = 2;
-      c.beginPath();
-      c.arc(p.x, y, 16, 0, Math.PI * 2);
-      c.stroke();
-    }
+    const readyControl = m.controls?.find(
+      (state) => state.contactWindow && m.isHuman(state.team) && (state.charge || state.pending),
+    );
+    const serveReady =
+      m.phase === 'serve-motion' &&
+      m.isHuman(m.server) &&
+      m.controls?.[m.serverSlot()]?.contactWindow;
+    const readyKind =
+      m.mode === 'demo'
+        ? null
+        : serveReady
+          ? m.serveAction?.kind
+          : m.phase === 'rally'
+            ? (readyControl?.charge || readyControl?.pending)?.kind
+            : null;
     const burning = m.config.ballFire && Math.hypot(m.ball.vx, m.ball.vy) >= m.config.fireSpeed;
     if (burning) {
       c.save();
@@ -910,16 +993,19 @@ export class Renderer {
     c.rotate(-direction);
     c.rotate(m.ball.angle);
     drawBallDesign(c, m.config.ballSkin, this.pixelGraphics);
+    if (readyKind) {
+      c.save();
+      c.globalAlpha *= 0.2 + 0.4 * (0.5 + 0.5 * Math.sin(m.time * Math.PI * 4));
+      c.fillStyle =
+        { low: '#a4edff', back: '#c6e5ff', loft: '#c7ffb5', drive: '#ffe292' }[readyKind] ||
+        '#e0c6ff';
+      c.beginPath();
+      c.arc(0, 0, 8.2, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
     c.restore();
-    if ((m.controls?.some((state) => state.contactWindow) || m.contactWindow) && m.mode !== 'demo')
-      this.text(
-        m.phase === 'serve-motion' ? 'НАЖМИ!' : 'МЯЧ ДОСТУПЕН',
-        p.x,
-        y - 22,
-        9,
-        '#9e665b',
-        'center',
-      );
+    if (serveReady && m.mode !== 'demo') this.text('НАЖМИ!', p.x, y - 22, 9, '#9e665b', 'center');
   }
   trajectory(ball, config, preview) {
     const points = traceBall(ball, config),
@@ -975,12 +1061,6 @@ export class Renderer {
       this.rect(x + 1, 36, 9, 6, i < m.touches[0] ? '#817aa4' : '#fff5e4');
       this.rect(x + 3, 42, 5, 2, i < m.touches[0] ? '#817aa4' : '#fff5e4');
     }
-    this.text('S  W  D', 692, 26, 14, '#62657d', 'center');
-    const action = m.controls?.find((state) => state.charge || state.pending);
-    const kind = (action?.charge || action?.pending)?.kind;
-    for (const [i, type] of ['low', 'loft', 'drive'].entries())
-      this.rect(653 + i * 29, 32, 23, 4, kind === type ? '#dc9b72' : '#58928f');
-    this.text('ЗАЖМИ → ОТПУСТИ', 692, 48, 8, '#6a7183', 'center');
   }
   drawScore(value, center, y) {
     const glyphs = {
@@ -1066,6 +1146,19 @@ export class Renderer {
     }
   }
   effect(e, m) {
+    if (e.type === 'serve-ready') {
+      this.impacts = [];
+      this.floorRipples = [];
+    }
+    if (e.type === 'floor-touch') {
+      const at = this.project(e.x ?? m.ball.x, 0);
+      this.floorRipples.push({
+        ...at,
+        life: 0.55,
+        strength: clamp((e.speed || 4) / 8, 0.6, 1.2),
+        color: e.out ? '#ff625c' : '#ffffff',
+      });
+    }
     if (e.type === 'skid' || e.type === 'land') {
       const at = this.project(e.x, 0);
       for (let i = 0; i < (e.type === 'skid' ? 5 : 3); i++)
@@ -1078,42 +1171,41 @@ export class Renderer {
           color: i % 2 ? '#fff0d1' : '#cfae89',
         });
     }
-    if (e.type === 'combination') {
-      const p = this.project(e.x, e.y);
-      for (let i = 0; i < 18; i++) {
-        const angle = (i * Math.PI * 2) / 18;
-        this.particles.push({
-          x: p.x,
-          y: p.y,
-          vx: Math.cos(angle) * 90,
-          vy: Math.sin(angle) * 70 - 20,
-          life: 0.65,
-          color: i % 2 ? '#e6be57' : '#fff3bd',
-        });
-      }
-    }
     if (e.type === 'hit' || e.type === 'block') {
       const p = this.project(e.x ?? m.ball.x, e.y ?? m.ball.y),
         color =
-          { low: '#568ca6', loft: '#638e56', drive: '#c78055', block: '#947aaf' }[e.kind] ||
-          '#947aaf';
-      for (let i = 0; i < 10; i++)
-        this.particles.push({
-          x: p.x,
-          y: p.y,
-          vx: Math.cos(i) * 65,
-          vy: Math.sin(i) * 65,
-          life: 0.27,
-          color,
-        });
+          { low: '#a4edff', back: '#c6e5ff', loft: '#c7ffb5', drive: '#ffe292', block: '#e0c6ff' }[
+            e.kind
+          ] || '#e0c6ff';
       this.impacts.push({
         ...p,
-        life: 0.4,
+        life: 0.16,
         color,
-        label:
-          { low: 'СНИЗУ', back: 'НАЗАД', loft: 'ПАС', drive: 'УДАР', block: 'БЛОК' }[e.kind] ||
-          'БЛОК',
+        radius: 10 * (m.config.ballSize || 1.2) * 1.18 + 2,
       });
+    }
+  }
+  drawFloorRipples(dt) {
+    this.floorRipples = this.floorRipples.filter((p) => p.life > 0);
+    const c = this.ctx;
+    for (const p of this.floorRipples) {
+      const t = clamp(1 - p.life / 0.55, 0, 1);
+      const radius = 6 + (1 - (1 - t) ** 2) * 38 * p.strength;
+      c.save();
+      c.globalAlpha = (1 - t) * 0.9;
+      c.lineWidth = 3;
+      c.strokeStyle = p.color;
+      c.beginPath();
+      c.ellipse(p.x, p.y, radius, radius * 0.28, 0, 0, Math.PI * 2);
+      c.stroke();
+      c.globalAlpha *= 0.6;
+      c.strokeStyle = p.color;
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.ellipse(p.x, p.y, radius * 0.7, radius * 0.196, 0, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+      p.life -= dt;
     }
   }
   drawParticles(dt) {
@@ -1129,13 +1221,14 @@ export class Renderer {
       p.life -= dt;
       const c = this.ctx;
       c.save();
-      c.globalAlpha = Math.min(1, p.life * 5);
+      const progress = clamp(1 - p.life / 0.16, 0, 1);
+      c.globalAlpha = 0.85 * (1 - progress * 0.75);
       c.strokeStyle = p.color;
-      c.lineWidth = 2;
+      c.lineWidth = 1.25;
+      const radius = p.radius + progress * 7;
       c.beginPath();
-      c.arc(p.x, p.y, 7 + (0.4 - p.life) * 45, 0, Math.PI * 2);
+      c.arc(p.x, p.y, radius, 0, Math.PI * 2);
       c.stroke();
-      this.text(p.label, p.x, p.y - 22 - (0.4 - p.life) * 20, 11, p.color, 'center');
       c.restore();
     }
   }

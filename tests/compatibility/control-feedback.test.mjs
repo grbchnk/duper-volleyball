@@ -57,7 +57,7 @@ test('L2 plus square serves through gamepad input at partial and full charge', (
     pad.buttons[2].pressed = false;
     step(m);
     assert.equal(m.phase, 'serve-motion');
-    assert.equal(m.serveAction.kind, 'low');
+    assert.equal(m.serveAction.kind, 'back');
     while (m.phaseTime < m.serveAction.ideal - FIXED_DT) step(m);
     pad.buttons[2].pressed = true;
     pad.buttons[6].pressed = true;
@@ -176,7 +176,7 @@ test('passer waits before seeking space and manual movement interrupts the delay
   m.players[2].x = -6.5;
   Object.assign(m.ball, { x: p.x, y: 1 });
   m.makeContact(p, 'back', 0.5, { vx: -2, vy: 6, vz: 0 });
-  assert.equal(p.homeX, -7, 'clearing must not overwrite the formation');
+  assert.equal(p.homeX, -8, 'clearing must not overwrite the formation');
   assert.ok(p.clearLane);
   assert.ok(Math.abs(p.clearLane.targetX - m.players[1].x) > 1);
   const delay = p.returnDelay;

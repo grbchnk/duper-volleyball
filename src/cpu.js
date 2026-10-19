@@ -9,14 +9,17 @@ export function cpuSkill(config) {
     0,
     1,
   );
+  const novice = Math.max(0, 1 - level / 0.55) ** 2;
   return {
     level,
-    reaction: 0.3 - level * 0.255,
-    refresh: 0.22 - level * 0.15,
-    speed: 0.8 + level * 0.2,
-    error: 0.55 * (1 - level) ** 2,
+    reaction: 0.3 - level * 0.255 + novice * 0.65,
+    refresh: 0.22 - level * 0.15 + novice * 0.35,
+    speed: 0.8 + level * 0.2 - novice * 0.45,
+    error: 0.55 * (1 - level) ** 2 + novice * 1.85,
     block: 0.06 + level * 0.62,
     dive: 0.1 + level * 0.85,
+    serveMiss: novice * 0.45,
+    serveError: novice * 0.3,
   };
 }
 
@@ -80,7 +83,7 @@ export function planReception(match, team, previous = null) {
   for (let i = 4; i < path.length; i += 4) {
     const b = path[i],
       t = i / 120;
-    if ((team === 0 ? b.x >= -0.15 : b.x <= 0.15) || b.y < 0.2 || b.vy > 1) continue;
+    if (b.netFault || (team === 0 ? b.x >= -0.15 : b.x <= 0.15) || b.y < 0.2 || b.vy > 1) continue;
     for (const p of eligible) {
       const jump =
         (count >= 2 || config.duel) &&
@@ -167,7 +170,12 @@ function chooseCPUShotBase(match, p, kinds) {
             p,
             kind,
             power,
-            { vector: { x: direction * Math.cos(rad), y: Math.sin(rad) } },
+            {
+              vector: { x: direction * Math.cos(rad), y: Math.sin(rad) },
+              // A late low ball is saved with the same soft receive as a human.
+              manualControl: match.config.dynamic && kind === 'low' && behind,
+              soft: match.config.dynamic && kind === 'low' && behind,
+            },
             match.players,
             { ...match.config, assist: false },
           );
@@ -180,7 +188,12 @@ function chooseCPUShotBase(match, p, kinds) {
               match.config,
               5 / match.config.ballSpeed,
             );
-            if (at.y <= (count ? 2.8 : 1.9) && at.time > 0.3 && at.x * forward < -0.35) {
+            if (
+              !at.netFault &&
+              at.y <= (count ? 2.8 : 1.9) &&
+              at.time > 0.3 &&
+              at.x * forward < -0.35
+            ) {
               for (const other of teammates) {
                 const miss = Math.abs(at.x - other.x);
                 const reachable =
@@ -212,7 +225,7 @@ function chooseCPUShotBase(match, p, kinds) {
               8 / match.config.ballSpeed,
             );
             const end = path.at(-1);
-            if (end.y <= 0.106 && end.x * forward > 0.5 && end.x * forward < 8.8) {
+            if (!end.netFault && end.y <= 0.106 && end.x * forward > 0.5 && end.x * forward < 8.8) {
               const space = Math.min(...opponents.map((other) => Math.abs(other.x - end.x)), 9);
               score =
                 (count >= 2 ? 10 : 3) +
@@ -238,7 +251,8 @@ function chooseCPUShotBase(match, p, kinds) {
           7 / match.config.ballSpeed,
         );
         const end = path.at(-1);
-        if (end.y > 0.11 || end.x * forward < 0.3 || end.x * forward > 8.9) continue;
+        if (end.netFault || end.y > 0.11 || end.x * forward < 0.3 || end.x * forward > 8.9)
+          continue;
         const covered = defenseScore(path, opponents, match.config);
         const bias =
           match.config.cpuStyle === 'trickster' && style === 'tip'
@@ -319,9 +333,9 @@ export function chooseCPUShot(match, p, kinds) {
   if (!match.config.dynamic || result.impulse.targetId != null) return result;
   const i = result.impulse,
     speed = Math.hypot(i.vx, i.vy);
-  const spread = ((4 + 10 * (1 - cpuSkill(match.config).level)) * Math.PI) / 180;
+  const spread = (14 * (1 - cpuSkill(match.config).level) * Math.PI) / 180;
   const angle = Math.atan2(i.vy, i.vx) + (match.random() * 2 - 1) * spread;
-  return {
+  const varied = {
     ...result,
     impulse: {
       ...i,
@@ -330,4 +344,12 @@ export function chooseCPUShot(match, p, kinds) {
       flightLaunchVy: speed * Math.sin(angle),
     },
   };
+  // Execution variation may hit the tape, but must not turn a legal selected
+  // shot into a deliberate flight through the open space under the mesh.
+  if (
+    traceBall({ ...match.ball, ...varied.impulse }, match.config, 8 / match.config.ballSpeed).at(-1)
+      .netFault
+  )
+    return result;
+  return varied;
 }

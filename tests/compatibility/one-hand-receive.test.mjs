@@ -130,7 +130,7 @@ test('changing stick sector while preparing a serve selects a type without tossi
   assert.equal(m.serveAction.kind, 'loft');
 });
 
-test('return chooses a free slot when the selected player occupies the old one', () => {
+test('a blocked return waits before the selected teammate and resumes when the lane opens', () => {
   const m = new Match();
   m.startDrill('receive');
   const p = m.players[0],
@@ -140,11 +140,15 @@ test('return chooses a free slot when the selected player occupies the old one',
   other.x = -5.5;
   for (let i = 0; i < 180; i++) m.movePlayers(FIXED_DT, { axis: 0 });
   assert.ok(p.x - other.x >= 1.25 - 1e-9);
-  assert.equal(p.returnHome, false);
-  assert.equal(p.x, p.homeX);
+  assert.equal(p.returnHome, true, 'the original home remains pending while the lane is blocked');
+  assert.equal(p.homeX, -8);
+  const parked = p.x;
+  for (let i = 0; i < 120; i++) m.movePlayers(FIXED_DT, { axis: 0 });
+  assert.equal(p.x, parked, 'waiting does not cause jitter');
   other.x = -2.5;
   for (let i = 0; i < 180; i++) m.movePlayers(FIXED_DT, { axis: 0 });
   assert.equal(p.x, p.homeX);
+  assert.equal(p.returnHome, false, 'the return completes after the lane opens');
   p.x = -4;
   m.selected[0] = p.id;
   for (let i = 0; i < 180; i++) m.movePlayers(FIXED_DT, { axis: 0 });

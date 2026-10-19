@@ -1,6 +1,7 @@
 import { DEFAULTS, LIMITS } from './config.js';
 import { SHOT_BASES, SHOT_FIELDS, MANUAL_SHOT_FIELDS } from './shot-settings.js';
 import { SERVE_BASES, SERVE_FIELDS, serveKey } from './serve-settings.js';
+import { COSMETIC_KEYS } from './settings-scope.js';
 
 export const PHYSICS_FIELDS = {
   thirdTouchSlowdown: [
@@ -52,19 +53,12 @@ export const PHYSICS_FIELDS = {
     'Мяч',
     'Только визуальный эффект; скорость и сила не меняются.',
   ],
-  backArmMin: [
-    'Сейв A: нижний угол руки',
-    1,
-    '°',
-    'Приём одной рукой',
-    '0° — рука горизонтально (90° к телу), отрицательный угол — ниже плеча.',
-  ],
-  backArmMax: [
-    'Сейв A: верхний угол руки',
-    1,
-    '°',
-    'Приём одной рукой',
-    'Ограничивает реальную рабочую ладонь и её анимацию.',
+  ballSize: [
+    'Размер мяча и допуск у сетки',
+    0.05,
+    '×',
+    'Полёт мяча',
+    'Меняет отображение мяча и его радиус столкновения с сеткой. Влияет на игру.',
   ],
   ballSpeed: [
     'Скорость мяча',
@@ -72,29 +66,6 @@ export const PHYSICS_FIELDS = {
     '×',
     'Полёт мяча',
     'Меняет только темп мяча. Бег, прыжки и часы матча сохраняют свой темп.',
-  ],
-  cartoonFlight: [
-    'Мультяшный полёт',
-    0.05,
-    '×',
-    'Полёт мяча',
-    '0 — обычная физика; 1 — полный эффект разгона и зависания.',
-  ],
-  cartoonStart: [
-    'Скорость после касания',
-    0.05,
-    '×',
-    'Полёт мяча',
-    'Начальная доля скорости в мультяшном режиме. Меньше — больше времени прочитать удар.',
-  ],
-  cartoonEnd: ['Скорость в конце полёта', 0.05, '×', 'Полёт мяча'],
-  cartoonRamp: ['Длительность разгона', 0.05, 'с', 'Полёт мяча'],
-  cartoonHang: [
-    'Зависание у вершины',
-    0.05,
-    '×',
-    'Полёт мяча',
-    '0 — без зависания; 0.85 — сильное плавное замедление у вершины навеса. На нисходящий удар не влияет.',
   ],
   gravity: ['Гравитация', 0.01, 'м/с²', 'Мяч и игроки'],
   drag: ['Сопротивление воздуха', 0.001, '', 'Мяч и игроки'],
@@ -117,6 +88,13 @@ export const PHYSICS_FIELDS = {
     '0 — строго в момент отпускания. Больше — проще попасть по мячу.',
   ],
   chargeSeconds: ['Время набора силы', 0.01, 'с', 'Точность и замах'],
+  loftReceiveHoldTime: [
+    'Сопровождение: верхний приём',
+    0.01,
+    'с',
+    'Точность и замах',
+    'Пробный приём по зоне, независимо от нижнего. Задержка начинается после подготовки рук. Отпускание, конец задержки или выход из зоны завершают удар. Выход до готовности рук — промах.',
+  ],
   maxHold: [
     'Окно подготовки CPU',
     0.01,
@@ -135,6 +113,28 @@ export const PHYSICS_FIELDS = {
     'Короткая пауза после быстрого подъёма.',
   ],
   jumpBallHang: ['Дополнительное зависание у мяча при замахе', 0.01, 'с', 'Фазы прыжка'],
+  jumpHoldThreshold: [
+    'Удержание прыжка для зависания',
+    0.005,
+    'с',
+    'Фазы прыжка',
+    'Прыжок начинается сразу. После этого порога удержание плавно набирает добавку зависания. Полный заряд — за две трети времени подъёма. Отпускание фиксирует набранную добавку. 0.02 с — 20 мс.',
+  ],
+  jumpHoldHang: [
+    'Зависание за удержание прыжка',
+    0.005,
+    'с',
+    'Фазы прыжка',
+    'Максимальная добавка к паузе на вершине. Чем дольше удержание на подъёме, тем больше добавка; полный заряд достигается за две трети времени подъёма. Высота и скорость подъёма не меняются; 0 отключает добавку.',
+  ],
+  smokeTrailOpacity: [
+    'Дымовой след: заметность',
+    0.01,
+    '×',
+    'След сильного удара',
+    'Неподвижный лёгкий след после атаки с силой от 80% и скоростью от 10 м/с. После приёма след остаётся и плавно исчезает. 0 отключает.',
+  ],
+  smokeTrailLife: ['Дымовой след: время исчезновения', 0.1, 'с', 'След сильного удара'],
   jumpFall: ['Длительность падения', 0.01, '×', 'Фазы прыжка'],
   blockWindow: [
     'Рабочее окно блока',
@@ -149,11 +149,25 @@ export const PHYSICS_FIELDS = {
   elbowHeight: ['Высота локтей', 0.5, 'px', 'Внешний вид рук'],
   armRoundness: ['Толщина и округлость рук', 0.05, '×', 'Внешний вид рук'],
   armScale: [
-    'Размер рук',
+    'Размер кистей и толщина',
     0.05,
     '×',
     'Внешний вид рук',
-    'Меняет позу и толщину, но не игровые зоны контакта.',
+    'Меняет размер кистей и толщину. Игровая досягаемость сохраняется.',
+  ],
+  armLength: [
+    'Длина рук',
+    0.05,
+    '×',
+    'Внешний вид рук',
+    '100% — исходная длина. Во время контакта ладонь остаётся у мяча; меняется положение локтя. Игровая досягаемость сохраняется.',
+  ],
+  armFollowThrough: [
+    'Вылет рук после удара',
+    0.5,
+    'px',
+    'Анимация рук',
+    'Движение по направлению мяча после касания в розыгрыше: 0 — без вылета, 5 — прежнее значение. Не меняет дальность контакта. Верхние подачи используют короткий отдельный жест.',
   ],
   armSpring: ['Упругость кистей', 0.05, '×', 'Внешний вид рук'],
   armBend: ['Выраженность локтей', 0.05, '×', 'Внешний вид рук'],
@@ -161,7 +175,7 @@ export const PHYSICS_FIELDS = {
     'Быстрая подготовка',
     0.005,
     'с',
-    'Анимация рук',
+    'Точность и замах',
     'Время подготовки рук; удержанный приём доступен после этого интервала.',
   ],
   armPowerMotion: ['Влияние силы на замах', 0.05, '×', 'Анимация рук'],
@@ -173,23 +187,6 @@ export const PHYSICS_FIELDS = {
   targetScore: ['Очков до победы в сете', 1, '', 'Счёт'],
 };
 
-const cosmetic = new Set([
-  'skin',
-  'awaySkin',
-  'homeColor',
-  'awayColor',
-  'ballSkin',
-  'ballFire',
-  'fireSpeed',
-  'pixelGraphics',
-  'livelyBackground',
-  'soundMuted',
-  'musicTrack',
-  'musicVolume',
-  'arenaTheme',
-  'homeTeam',
-  'awayTeam',
-]);
 export const SETTINGS_SCHEMA = Object.fromEntries(
   Object.entries(DEFAULTS).map(([key, defaultValue]) => [
     key,
@@ -198,7 +195,7 @@ export const SETTINGS_SCHEMA = Object.fromEntries(
       type: typeof defaultValue,
       min: LIMITS[key]?.[0],
       max: LIMITS[key]?.[1],
-      scope: cosmetic.has(key) ? 'appearance' : 'simulation',
+      scope: COSMETIC_KEYS.has(key) ? 'appearance' : 'simulation',
     },
   ]),
 );
@@ -206,13 +203,14 @@ for (const [key, [label, step, unit, group, hint]] of Object.entries(PHYSICS_FIE
   Object.assign(SETTINGS_SCHEMA[key], { label, step, unit, group, hint });
 for (const kind of Object.keys(SHOT_BASES))
   for (const [suffix, [label, , , step, unit, group]] of Object.entries(SHOT_FIELDS))
-    Object.assign(SETTINGS_SCHEMA[kind + suffix], {
-      label,
-      step,
-      unit,
-      group,
-      scope: MANUAL_SHOT_FIELDS.has(suffix) ? 'contact' : 'automatic-shot',
-    });
+    if (SETTINGS_SCHEMA[kind + suffix])
+      Object.assign(SETTINGS_SCHEMA[kind + suffix], {
+        label,
+        step,
+        unit,
+        group,
+        scope: MANUAL_SHOT_FIELDS.has(suffix) ? 'contact' : 'automatic-shot',
+      });
 for (const kind of Object.keys(SERVE_BASES))
   for (const [suffix, [label, , , step, unit, group]] of Object.entries(SERVE_FIELDS))
     Object.assign(SETTINGS_SCHEMA[serveKey(kind, suffix)], {

@@ -6,6 +6,7 @@ import { shotImpulse, SERVES } from './moves.js';
 import { traceBall, resetFlight } from './physics.js';
 import { COURT } from './config.js';
 import { observeContact } from './skill-feedback.js';
+import { cpuSkill } from './cpu.js';
 export function chooseServeInput(match, p, original) {
   const a = { ...original };
   const ball = { ...match.ball, ...serveOrigin(p, a.kind, match.config, true) };
@@ -52,9 +53,19 @@ export function chooseServeInput(match, p, original) {
 
 export function beginServe(match, action, control = match.controls[match.serverSlot()]) {
   const p = match.serverPlayer();
-  if (!match.isHuman(match.server)) action = match.chooseServeInput(p, action);
+  let cpuMiss = false;
+  if (!match.isHuman(match.server)) {
+    const skill = cpuSkill(match.config);
+    const roll = match.config.dynamic && skill.serveMiss > 0 ? match.random() : 1;
+    cpuMiss = roll < skill.serveMiss;
+    if (roll < skill.serveMiss + skill.serveError) {
+      // A beginner can miss the toss or choose too little power to clear the net.
+      action = { ...action, power: 0.08 + match.random() * 0.18, aim: {} };
+    } else action = match.chooseServeInput(p, action);
+  }
   match.serveAction = {
     ...serveMotion(p, action, match.config),
+    cpuMiss,
     hand: match.config.dynamic ? (p.serveHand ?? 1) : match.visualRandom() < 0.5 ? 0 : 1,
   };
   match.phase = 'serve-motion';
@@ -95,7 +106,7 @@ export function executeServe(match) {
   p.armSwing.serve = true;
   p.armSwing.hand = a.hand;
   match.shotSerial++;
-  match.autoSelect(1 - match.server);
+  match.selectOnOpponentContact(1 - match.server);
   match.lastAction = `${SERVES[a.kind].name} · ${a.perfect ? 'ИДЕАЛЬНО · ' : ''}${Math.round(a.power * 100)}%`;
   match.label(match.lastAction);
   match.emit('hit', {

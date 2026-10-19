@@ -16,8 +16,12 @@ for (const [seed, style, extra] of [
       seed,
     );
     m.reset('demo');
+    let underNetFaults = 0;
     for (let i = 0; i < 65000 && m.phase !== 'finished'; i++) {
       m.tick(FIXED_DT, {});
+      underNetFaults += m.events.filter(
+        (event) => event.type === 'point' && event.reason === 'МЯЧ ПОД СЕТКОЙ',
+      ).length;
       assert.ok(
         !m.events.some((event) => event.type === 'point' && event.reason === 'ЧЕТВЁРТОЕ КАСАНИЕ'),
         'CPU must release the third ball instead of attempting a fourth contact',
@@ -35,6 +39,19 @@ for (const [seed, style, extra] of [
     );
     assert.ok(m.rallies >= 5);
     assert.ok(m.contacts > 5);
+    if (['balanced', 'blocker', 'trickster'].includes(style)) {
+      assert.equal(underNetFaults, 0, 'CPU must not choose a forbidden route below the net');
+      assert.ok(
+        m.contacts / m.rallies >= 12,
+        'normal CPU rallies should retain sustained exchanges',
+      );
+      assert.ok(
+        ['power', 'tip', 'roll', 'free'].filter((kind) => m.tacticalStats[kind] > 0).length >= 3,
+      );
+      assert.ok(
+        ['quick', 'high', 'back', 'pipe'].filter((kind) => m.tacticalStats[kind] > 0).length >= 3,
+      );
+    }
     if (!extra.duel) assert.ok(Object.values(m.tacticalStats).reduce((a, b) => a + b, 0) > 0);
     assert.ok(m.replay.last.length > 0 && m.replay.last.length <= 300);
     console.log(

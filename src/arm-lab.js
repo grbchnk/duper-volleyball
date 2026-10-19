@@ -1,18 +1,17 @@
+import { configuredTeam } from './teams.js';
 import { drawBallDesign, pixelPresent, compositePixels } from './display.js';
 import { EMOTIONS } from './emotions.js';
 import { Match } from './engine.js';
 import { Renderer } from './renderer.js';
-import { TEAMS } from './config.js';
 import { jumpProfile, sampleJump, jumpDuration } from './motion.js';
 import { playerFrame } from './sprites.js';
-import { preparedHands } from './held-contact.js';
 
 // Uses the match renderer, including its springs and contact-to-recovery transition.
-export function createArmLab(dialog, getConfig) {
-  const poseSelect = dialog.querySelector('#arm-pose');
+export function createArmLab(dialog, getConfig, prefix = 'arm-') {
+  const query = (selector) => dialog.querySelector(selector.replaceAll('#arm-', '#' + prefix));
+  const poseSelect = query('#arm-pose');
   for (const [value, label] of Object.entries({
     ...EMOTIONS,
-    back: 'Сейв одной рукой',
     squat: 'Приседание',
     'serve-low-left': 'Подача снизу · левая',
     'serve-low-right': 'Подача снизу · правая',
@@ -37,8 +36,8 @@ export function createArmLab(dialog, getConfig) {
   const status = document.createElement('p');
   status.className = 'arm-stage';
   card.append(canvas, status);
-  dialog.querySelector('#arm-cards').append(card);
-  const renderer = new Renderer(canvas);
+  query('#arm-cards').append(card);
+  const renderer = new Renderer(canvas, { scene: false });
   renderer.spriteScale = 3;
   renderer.project = (x, y = 0) => ({ x: 200 + (x + 1) * 60, y: 254 - y * 60 });
   const m = new Match(getConfig());
@@ -47,19 +46,20 @@ export function createArmLab(dialog, getConfig) {
   m.selected[0] = 0;
   m.lastTouch = 1;
   m.lastPlayer = 3;
-  const powerInput = dialog.querySelector('#arm-preview-power'),
-    frame = dialog.querySelector('#arm-frame'),
-    freeze = dialog.querySelector('#arm-freeze');
-  let clock = 0;
+  const powerInput = query('#arm-preview-power'),
+    frame = query('#arm-frame'),
+    freeze = query('#arm-freeze');
+  let clock = 0,
+    configStamp;
   const restart = () => {
     clock = 0;
     freeze.checked = false;
     renderer.armRigs.clear();
   };
-  dialog.querySelector('#arm-pose').onchange = restart;
-  dialog.querySelector('#arm-replay').onclick = restart;
+  query('#arm-pose').onchange = restart;
+  query('#arm-replay').onclick = restart;
   powerInput.oninput = () => {
-    dialog.querySelector('#arm-preview-value').textContent = powerInput.value + '%';
+    query('#arm-preview-value').textContent = powerInput.value + '%';
     renderer.armRigs.clear();
   };
   frame.oninput = () => {
@@ -69,15 +69,21 @@ export function createArmLab(dialog, getConfig) {
   };
   return (dt) => {
     if (!dialog.open) return;
-    dt = freeze.checked ? 0 : dt * (dialog.querySelector('#arm-slow').checked ? 0.35 : 1);
+    const nextStamp = getConfig();
+    if (nextStamp !== configStamp) {
+      renderer.armRigs.clear();
+      configStamp = nextStamp;
+      m.updateConfig({ ...getConfig(), randomArms: false });
+    }
+    dt = freeze.checked ? 0 : dt * (query('#arm-slow').checked ? 0.35 : 1);
     clock += dt;
-    const kind = dialog.querySelector('#arm-pose').value,
+    const kind = query('#arm-pose').value,
       phase = freeze.checked ? clock % 2.200001 : clock % 2.2,
       cycle = Math.floor(clock / 2.2),
       power = Number(powerInput.value) / 100;
     frame.value = phase;
-    dialog.querySelector('#arm-frame-value').textContent = phase.toFixed(2) + ' с';
-    m.config = { ...getConfig() };
+    query('#arm-frame-value').textContent = phase.toFixed(2) + ' с';
+    // Preview global tuning without individual random elbow overrides.
     m.time = clock;
     const p = m.players[0];
     Object.assign(p, {
@@ -213,7 +219,7 @@ export function createArmLab(dialog, getConfig) {
         x: t < 0.18 ? hitX : hitX + (t - 0.18) * 3,
         y: t < 0.18 ? 0.65 : 0.65 + (t - 0.18) * 4,
       };
-    } else if (['low', 'back', 'loft', 'drive'].includes(kind)) {
+    } else if (['low', 'loft', 'drive'].includes(kind)) {
       if (phase > 0.12 && phase < 0.65) {
         m.controls[0].charge = {
           kind,
@@ -221,7 +227,7 @@ export function createArmLab(dialog, getConfig) {
           age: phase - 0.12,
           playerId: 0,
         };
-        p.pose = 'ready-' + { low: 'bump', back: 'backset', loft: 'set', drive: 'spike' }[kind];
+        p.pose = 'ready-' + { low: 'bump', loft: 'set', drive: 'spike' }[kind];
       }
       if (phase >= 0.65 && phase < 0.71) {
         m.controls[0].pending = { kind, power, playerId: 0 };
@@ -245,7 +251,7 @@ export function createArmLab(dialog, getConfig) {
           age: phase - 0.71,
           at: cycle * 2.2 + 0.71,
           hit: true,
-          vx: (kind === 'back' ? -1 : 1) * (3 + power * 4),
+          vx: 3 + power * 4,
           vy: kind === 'drive' ? -3 : 4,
         };
     }
@@ -260,17 +266,6 @@ export function createArmLab(dialog, getConfig) {
       vy: 0,
       spin: 0,
     };
-    if (kind === 'back') {
-      const hand = preparedHands(
-        p,
-        { ...m, ball: { x: p.x - 1, y: 1, vx: 0, vy: 0 } },
-        { kind, power, age: 0.3, playerId: p.id },
-      )[0];
-      if (p.contact) Object.assign(p.contact, hand);
-      if (p.armSwing?.hit) Object.assign(p.armSwing, hand, { hand: 0 });
-      m.ball.x = hand.x - Math.abs(phase - 0.71) * (3 + power * 4);
-      m.ball.y = hand.y + (phase < 0.71 ? (0.71 - phase) * 3 : (phase - 0.71) * 4);
-    }
     if (rescueBall) Object.assign(m.ball, rescueBall);
     renderer.pixelGraphics = getConfig().pixelGraphics;
     const c = renderer.ctx;
@@ -280,14 +275,10 @@ export function createArmLab(dialog, getConfig) {
     c.fillRect(45, 255, 310, 3);
     renderer.foregroundContext.clearRect(0, 0, 960, 540);
     renderer.ctx = renderer.foregroundContext;
-    renderer.drawPlayer(p, TEAMS[0], m, dt);
+    renderer.drawPlayer(p, configuredTeam(m.config), m, dt);
     renderer.ctx = c;
     compositePixels(c, renderer.foreground, getConfig().pixelGraphics);
-    if (
-      (['low', 'back', 'loft', 'drive'].includes(kind) || rescueBall) &&
-      phase > 0.3 &&
-      phase < 1.05
-    ) {
+    if ((['low', 'loft', 'drive'].includes(kind) || rescueBall) && phase > 0.3 && phase < 1.05) {
       const b = renderer.project(m.ball.x, m.ball.y);
       c.save();
       c.translate(b.x, b.y);

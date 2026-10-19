@@ -4,12 +4,14 @@ import assert from 'node:assert/strict';
 import { Match } from './legacy-contract.js';
 import { COURT } from '../../src/config.js';
 import { traceBall } from '../../src/physics.js';
+import { courtLineBounds } from '../../src/court-visual.js';
 
 test('CPU leaves clearly outgoing opponent balls but plays in-court and line balls', () => {
+  const edge = courtLineBounds(DEFAULTS).right;
   for (const [x, vx, shouldHit] of [
-    [8.8, 5, false],
-    [8.8, 0, true],
-    [9.05, 0, true],
+    [edge - 0.45, 6, false],
+    [edge - 0.45, 0, true],
+    [edge - 0.1, 0, true],
   ]) {
     const m = new Match();
     m.phase = 'rally';

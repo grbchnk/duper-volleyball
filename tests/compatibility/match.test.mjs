@@ -174,15 +174,22 @@ test('analog movement keeps facing discrete so sprites do not squash', () => {
 });
 test('one block press jumps one player; held S does not repeat; next edge jumps next player', () => {
   const m = rally();
-  m.players[1].x = -2;
+  m.players[0].x = -8;
+  m.players[1].x = -4.5;
+  m.players[2].x = -2.8;
   m.ball = { ...m.ball, x: 6, y: 12, vx: 0, vy: 0 };
   m.tick(FIXED_DT, { block: true });
   assert.equal(m.players.filter((p) => p.team === 0 && p.block > 0).length, 1);
+  assert.ok(
+    m.players[2].block > 0,
+    'the closest player blocks first, even outside the old front zone',
+  );
   tick(m, 10, { block: true });
   assert.equal(m.players.filter((p) => p.team === 0 && p.block > 0).length, 1);
   m.tick();
   m.tick(FIXED_DT, { block: true });
   assert.equal(m.players.filter((p) => p.team === 0 && p.block > 0).length, 2);
+  assert.ok(m.players[1].block > 0, 'the next closest available player blocks second');
   const xs = m.players.filter((p) => p.block > 0).map((p) => p.x);
   tick(m, 12, { axis: -1 });
   assert.deepEqual(

@@ -21,18 +21,21 @@ test('the supplied standard profile is the complete default, including a reset a
   assert.deepEqual(DEFAULTS, supplied.config);
   assert.deepEqual(sanitizeConfig(), supplied.config);
   assert.deepEqual(importSettings(exportSettings(DEFAULTS)), supplied.config);
-  assert.equal(importSettings('{"version":3,"config":{"backSpeedMax":7.2}}').backSpeedMax, 7.2);
+  assert.equal(
+    importSettings('{"version":3,"config":{"backSpeedMax":7.2}}').backSpeedMax,
+    undefined,
+  );
   assert.equal(sanitizeConfig({ ballFire: false }).ballFire, false);
   assert.equal(sanitizeConfig({ livelyBackground: false }).livelyBackground, false);
   assert.equal(
     importSettings('{"version":2,"config":{"rightStickAim":true}}').rightStickAim,
-    false,
+    undefined,
   );
 });
 
 test('laboratory impulse equals the actual manual contact on both teams with each modifier and direction', () => {
   for (const team of [0, 1])
-    for (const kind of ['low', 'back', 'loft', 'drive'])
+    for (const kind of ['low', 'loft', 'drive'])
       for (const power of [0.1, 0.7, 1])
         for (const angle of [null, 30, 150, -25])
           for (const modifier of [{}, { soft: true }, { fast: true }, { soft: true, fast: true }]) {
@@ -64,6 +67,7 @@ test('laboratory impulse equals the actual manual contact on both teams with eac
             };
             control.pending = {
               kind,
+              age: DEFAULTS.armWindup,
               power,
               playerId: sample.player.id,
               aim: {},

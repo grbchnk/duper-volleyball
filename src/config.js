@@ -1,12 +1,16 @@
+import { TEAMS } from './teams.js';
+import { sanitizeAppearance } from './appearance.js';
+export { TEAMS } from './teams.js';
 import { SHOT_DEFAULTS, SHOT_LIMITS, SHOT_BASES } from './shot-settings.js';
 import { SERVE_DEFAULTS, SERVE_LIMITS, SERVE_BASES, serveKey } from './serve-settings.js';
 import { SKINS } from './sprites.js';
-import { ARM_STYLES } from './arms.js';
+import { LEGACY_DEFAULTS, LEGACY_LIMITS } from './legacy-profile.js';
 export const FIXED_DT = 1 / 120;
 export const COURT = Object.freeze({
   halfLength: 9.25,
   width: 9,
   netHeight: 2.43,
+  netDepth: 1,
   ballRadius: 0.105,
 });
 export const DEFAULTS = Object.freeze({
@@ -23,17 +27,11 @@ export const DEFAULTS = Object.freeze({
   airMoveSpeed: 1.4,
   jumpSpeed: 5.2,
   hitPower: 1,
-  ...SHOT_DEFAULTS,
-  backSpeedMax: 8.2,
+  ...Object.fromEntries(Object.entries(SHOT_DEFAULTS).filter(([key]) => !key.startsWith('back'))),
   ...SERVE_DEFAULTS,
   gameSpeed: 1,
-  cartoonFlight: 0,
   ballSpeed: 1.2,
   attackDip: 12,
-  cartoonStart: 0.55,
-  cartoonEnd: 1.35,
-  cartoonRamp: 0.85,
-  cartoonHang: 0.4,
   assist: true,
   passAssist: 1,
   driveAssist: 1,
@@ -49,7 +47,7 @@ export const DEFAULTS = Object.freeze({
   difficulty: 'normal',
   cpuSkill: 55,
   trajectory: false,
-  armStyle: 'whip',
+  randomArms: false,
   skin: 'club',
   awaySkin: 'club',
   homeColor: '#ee967d',
@@ -58,7 +56,6 @@ export const DEFAULTS = Object.freeze({
   ballSkin: 'ocean',
   ballFire: true,
   fireSpeed: 14,
-  rightStickAim: false,
   pixelGraphics: false,
   livelyBackground: true,
   soundMuted: false,
@@ -66,16 +63,22 @@ export const DEFAULTS = Object.freeze({
   musicVolume: 0.22,
   arenaTheme: 'miami',
   homeTeam: 'peach',
+  customTeamAppearance: false,
+  randomTeamAppearance: false,
+  appearanceSeed: 1,
+  teamPlayers: Object.freeze([]),
   awayTeam: 'mint',
-  backArmMin: -75,
-  backArmMax: 10,
   releaseWindow: 0.2,
+  lowReceiveHoldTime: 0,
+  loftReceiveHoldTime: 0.08,
   chargeSeconds: 0.3,
   maxHold: 0.326,
   chargeMove: 0.2,
   jumpWindup: 0.085,
   jumpRise: 0.54,
   jumpHang: 0.12,
+  jumpHoldThreshold: 0.02,
+  jumpHoldHang: 0.09,
   jumpBallHang: 0.12,
   jumpFall: 0.45,
   blockWindow: 0.13,
@@ -83,7 +86,9 @@ export const DEFAULTS = Object.freeze({
   blockCooldown: 1.15,
   blockDeflect: 0.45,
   armScale: 1,
+  armLength: 1,
   armSpring: 1,
+  armFollowThrough: 5,
   armBend: 1,
   elbowHeight: 0,
   armRoundness: 1,
@@ -92,6 +97,8 @@ export const DEFAULTS = Object.freeze({
   diveRecovery: 0.92,
   divePower: 0.48,
   armWindup: 0.07,
+  smokeTrailOpacity: 0.16,
+  smokeTrailLife: 1.2,
   armPowerMotion: 1,
   armJumpMotion: 1,
 });
@@ -107,6 +114,7 @@ export const PRESETS = {
   },
 };
 export const LIMITS = {
+  appearanceSeed: [1, 1000000000],
   neutralPassAssist: [0, 1],
   neutralAttackAssist: [0, 1],
   receiveTransfer: [0, 0.6],
@@ -116,8 +124,6 @@ export const LIMITS = {
   setsToWin: [1, 3],
   ballSize: [0.7, 1.8],
   fireSpeed: [8, 25],
-  backArmMin: [-90, 90],
-  backArmMax: [-90, 90],
   cpuSkill: [0, 100],
   passAssist: [0, 1],
   driveAssist: [0, 1],
@@ -131,20 +137,19 @@ export const LIMITS = {
   ...SHOT_LIMITS,
   ...SERVE_LIMITS,
   gameSpeed: [0.5, 1.5],
-  cartoonFlight: [0, 1],
   ballSpeed: [0.6, 1.4],
-  cartoonStart: [0.2, 1],
-  cartoonEnd: [1, 1.8],
-  cartoonRamp: [0.2, 1.6],
-  cartoonHang: [0, 0.85],
   targetScore: [5, 25],
   releaseWindow: [0, 0.35],
+  lowReceiveHoldTime: [0, 0.25],
+  loftReceiveHoldTime: [0, 0.25],
   chargeSeconds: [0.15, 0.9],
   maxHold: [0.2, 1.5],
   chargeMove: [0, 1],
   jumpWindup: [0, 0.25],
   jumpRise: [0.3, 0.9],
   jumpHang: [0, 0.4],
+  jumpHoldThreshold: [0.01, 0.3],
+  jumpHoldHang: [0, 0.25],
   jumpBallHang: [0, 0.5],
   thirdTouchSlowdown: [0, 0.45],
   jumpFall: [0.25, 0.85],
@@ -155,6 +160,8 @@ export const LIMITS = {
   elbowHeight: [-12, 12],
   armRoundness: [0.5, 2],
   armScale: [0.65, 1.3],
+  armLength: [0.7, 1.3],
+  armFollowThrough: [0, 15],
   armSpring: [0.5, 2],
   armBend: [0, 1.5],
   diveSpeed: [4, 8],
@@ -162,54 +169,32 @@ export const LIMITS = {
   diveRecovery: [0.5, 1.4],
   divePower: [0.2, 0.75],
   armWindup: [0.025, 0.15],
+  smokeTrailOpacity: [0, 0.35],
+  smokeTrailLife: [0.2, 2],
   armPowerMotion: [0, 1.5],
   armJumpMotion: [0, 1.5],
 };
-export const TEAMS = [
-  {
-    id: 'peach',
-    name: 'План Б',
-    short: 'PLAN B',
-    color: '#ee967d',
-    dark: '#bc645d',
-    light: '#ffd0a4',
-    flag: 'jp',
-  },
-  {
-    id: 'mint',
-    name: 'Без паники',
-    short: 'CALM',
-    color: '#80bda8',
-    dark: '#497f7c',
-    light: '#c4e9c5',
-    flag: 'br',
-  },
-  {
-    id: 'lemon',
-    name: 'Третий лишний',
-    short: '3RD',
-    color: '#ddc173',
-    dark: '#987d44',
-    light: '#f6e3a7',
-  },
-  {
-    id: 'lilac',
-    name: 'По расписанию',
-    short: 'ONTIME',
-    color: '#b0a2cb',
-    dark: '#78638f',
-    light: '#ded1ed',
-  },
-];
 export function sanitizeConfig(value = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('Ожидается объект с настройками');
-  const result = { ...DEFAULTS };
-  for (const [key, [min, max]] of Object.entries(LIMITS)) {
+  const historical = value.dynamic === false;
+  const result = { ...DEFAULTS, ...(historical ? { ...SHOT_DEFAULTS, ...LEGACY_DEFAULTS } : {}) };
+  // The original shared receive slider migrates only where no per-shot value exists.
+  if (Number.isFinite(value.receiveHoldTime)) {
+    for (const kind of ['low', 'loft']) {
+      const key = kind + 'ReceiveHoldTime';
+      if (!Number.isFinite(value[key]))
+        result[key] = Math.max(0, Math.min(0.25, value.receiveHoldTime));
+    }
+  }
+  for (const [key, [min, max]] of Object.entries(
+    historical ? { ...LIMITS, ...LEGACY_LIMITS } : LIMITS,
+  ).filter(([key]) => historical || !key.startsWith('back'))) {
     if (Number.isFinite(value[key])) result[key] = Math.max(min, Math.min(max, value[key]));
   }
   // Migrate the first laboratory's multiplier and single angle once.
   for (const [kind, base] of Object.entries(SHOT_BASES)) {
+    if (kind === 'back' && !historical) continue;
     for (const [suffix, fallback] of [
       ['SpeedMin', base.speed[0]],
       ['SpeedMax', base.speed[1]],
@@ -243,7 +228,7 @@ export function sanitizeConfig(value = {}) {
     result[key('HitWindow')] = Math.max(result[key('PerfectWindow')], result[key('HitWindow')]);
   }
   result.maxHold = Math.max(result.maxHold, result.chargeSeconds * 0.92 + 0.05);
-  result.backArmMax = Math.max(result.backArmMin, result.backArmMax);
+  if (historical) result.backArmMax = Math.max(result.backArmMin, result.backArmMax);
   for (const key of [
     'dynamic',
     'duel',
@@ -254,7 +239,9 @@ export function sanitizeConfig(value = {}) {
     'trajectory',
     'variableJump',
     'ballFire',
-    'rightStickAim',
+    'randomArms',
+    'customTeamAppearance',
+    'randomTeamAppearance',
     'pixelGraphics',
     'livelyBackground',
     'soundMuted',
@@ -263,7 +250,7 @@ export function sanitizeConfig(value = {}) {
   if (['sideout', 'rally'].includes(value.scoring)) result.scoring = value.scoring;
   if (['off', 'sunset', 'boardwalk', 'ocean'].includes(value.musicTrack))
     result.musicTrack = value.musicTrack;
-  if (['miami', 'street', 'paris', 'stadium'].includes(value.arenaTheme))
+  if (['miami', 'beach', 'gym', 'farm', 'alpine', 'sky', 'championship'].includes(value.arenaTheme))
     result.arenaTheme = value.arenaTheme;
   if (['easy', 'normal', 'hard'].includes(value.difficulty)) result.difficulty = value.difficulty;
   if (
@@ -272,7 +259,6 @@ export function sanitizeConfig(value = {}) {
   )
     result.cpuSkill = { easy: 20, normal: 55, hard: 90 }[result.difficulty];
   result.cpuSkill = Math.round(result.cpuSkill);
-  if (Object.hasOwn(ARM_STYLES, value.armStyle)) result.armStyle = value.armStyle;
   if (Object.hasOwn(SKINS, value.skin)) result.skin = value.skin;
   if (Object.hasOwn(SKINS, value.awaySkin)) result.awaySkin = value.awaySkin;
   if (['classic', 'ocean', 'neon', 'mono', 'plain'].includes(value.ballSkin))
@@ -281,7 +267,8 @@ export function sanitizeConfig(value = {}) {
     if (/^#[0-9a-f]{6}$/i.test(value[key])) result[key] = value[key];
   for (const key of ['homeTeam', 'awayTeam'])
     if (TEAMS.some((team) => team.id === value[key])) result[key] = value[key];
-  // The removed right-stick mode is accepted only as an old-save migration.
-  result.rightStickAim = false;
+  result.appearanceSeed = Math.round(result.appearanceSeed);
+  if (Array.isArray(value.teamPlayers))
+    result.teamPlayers = value.teamPlayers.slice(0, 3).map((p) => sanitizeAppearance(p));
   return result;
 }

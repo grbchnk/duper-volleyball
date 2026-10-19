@@ -243,6 +243,49 @@ try {
     }, group);
     await page.screenshot({ path: `${output}/players-${group + 1}.png` });
   }
+  await page.evaluate(async () => {
+    const { HEAD_STYLES } = await import('/src/appearance.js');
+    const { EXTRA_HEAD_STYLES } = await import('/src/head-styles.js');
+    const { paintBody, frameOf } = await import('/src/sprites.js');
+    const { renderer: r, teams } = window.graphicsPreview;
+    const c = r.ctx;
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.fillStyle = '#eadfc9';
+    c.fillRect(0, 0, 960, 540);
+    const labels = {
+      cap: 'Кепка',
+      fox: 'Лисья шапка',
+      band: 'Повязка',
+      crop: 'Короткая',
+      bald: 'Без волос',
+    };
+    HEAD_STYLES.forEach((head, i) => {
+      const x = (i % 8) * 120,
+        y = Math.floor(i / 8) * 135;
+      const team = teams[i % 2];
+      c.save();
+      c.translate(x + 60, y + 133);
+      c.scale(2.4, 2.4);
+      paintBody(c, frameOf('idle'), 'club', team, 0, 'head', {
+        head,
+        headShape: 'square',
+        body: 'classic',
+        tone: ['#f4cfac', '#d79b70', '#925b3d'][i % 3],
+        hair: ['#302b32', '#654537', '#a76a3e', '#d7b46a'][i % 4],
+      });
+      c.restore();
+      r.rect(x + 25, y + 99, 70, 2, team.color);
+      r.text(
+        EXTRA_HEAD_STYLES[head]?.name || labels[head],
+        x + 60,
+        y + 118,
+        8,
+        '#435c68',
+        'center',
+      );
+    });
+  });
+  await page.screenshot({ path: `${output}/head-styles.png` });
   if (video) {
     await page.evaluate(async () => {
       const { match: m, renderer: r, teams } = window.graphicsPreview;

@@ -1,5 +1,15 @@
-import { randomAppearance } from './appearance.js';
-import { tryHeldContact, tryPending, recordContact, makeContact } from './contacts.js';
+import { COSMETIC_KEYS } from './settings-scope.js';
+import { teamAppearance, appearanceKey } from './appearance.js';
+import { assignPlayerArms } from './player-arms.js';
+import { courtLineBounds } from './court-visual.js';
+import {
+  tryHeldContact,
+  tryPending,
+  recordContact,
+  makeContact,
+  validReceiveHold,
+  cancelReceiveHold,
+} from './contacts.js';
 import { startDrill } from './drills.js';
 import { chooseServeInput, beginServe, executeServe } from './serve-flow.js';
 import { contactReason } from './contact-rules.js';
@@ -35,13 +45,24 @@ import {
   launchOverNet,
   predictAtHeight,
   collideNet,
+  netBallRadius,
+  crossesUnderNet,
   isInside,
   clamp,
   resetFlight,
 } from './physics.js';
-import { SHOTS, shotImpulse } from './moves.js';
+import { shotImpulse, shotKinds, shotDefinition } from './moves.js';
 import { awardRally } from './rules.js';
-import { jumpProfile, sampleJump, jumpDuration, serveOrigin, blockWindow } from './motion.js';
+import {
+  jumpProfile,
+  sampleJump,
+  jumpDuration,
+  serveOrigin,
+  blockWindow,
+  updateJumpButtonHold,
+} from './motion.js';
+import { ageBallSmoke, sampleBallSmoke } from './ball-smoke.js';
+import { isZoneReceive } from './zone-receive.js';
 import { HOMES, ROLES, TEAM_SIZE } from './formation.js';
 export const EMPTY_INPUT = Object.freeze({
   axis: 0,
@@ -59,6 +80,7 @@ export const EMPTY_INPUT = Object.freeze({
   select: 0,
 });
 const grounded = (p) => p.y <= 0 && p.vy <= 0 && p.recovery <= 0 && !p.diving && !p.jumpProfile;
+const hasShotInput = (input) => ['low', 'loft', 'drive', 'back'].some((kind) => input?.[kind]);
 export class Match {
   constructor(config = DEFAULTS, seed = 2026) {
     this.controls = createControls(EMPTY_INPUT);
@@ -131,9 +153,6 @@ export class Match {
   }
   autoCoopReceiver(preferred = null) {
     if (this.phase !== 'rally' || this.lastTouch === null) return;
-    // Opponent serves/shots must not preselect a receiver before the ball arrives.
-    // Incoming balls use the stable, reachability-based handoff on our own side.
-    if (this.lastTouch !== 0) return;
     const hitter = this.lastTouch === 0 ? this.lastPlayer : null;
     const target = predictAtHeight(this.ball, 1.9, this.config);
     if (target.x >= 0) return;
@@ -160,6 +179,7 @@ export class Match {
     if (this.phase !== 'rally' || this.lastTouch === null || this.ball.x >= 0) return;
     const hitter = this.lastTouch === 0 ? this.lastPlayer : null;
     for (const slot of [0, 2]) {
+      if (this.handoffMissedBlock(this.controls[slot])) continue;
       const currentId = this.coopPlayer(slot);
       if (this.coopManualSerial[slot] === this.shotSerial) continue;
       const other = this.coopPlayer(slot === 2 ? 0 : 2);
@@ -168,9 +188,50 @@ export class Match {
         currentId,
         exclude: [...exclude, other, hitter],
         keepReachable: true,
+        preferCurrent: this.config.dynamic && this.lastTouch !== 0 && !!this.inputs?.[slot]?.axis,
       });
       if (next !== null) this.assignCoopReceiver(slot, next);
     }
+  }
+  handoffMissedBlock(control) {
+    const player = this.players[this.controlledPlayer(control)];
+    const side = this.sign(control.team);
+    // Once an incoming ball is behind the blocking reach and moving deeper,
+    // finishing the block must not strand control at the net.
+    if (
+      !this.config.dynamic ||
+      this.phase !== 'rally' ||
+      this.challenge ||
+      this.config.duel ||
+      this.mode === 'test' ||
+      this.lastTouch === null ||
+      this.lastTouch === control.team ||
+      !player?.jumpProfile ||
+      player.block <= 0 ||
+      player.diving ||
+      control.charge ||
+      control.pending ||
+      hasShotInput(this.inputs?.[control.slot]) ||
+      (this.ball.x < 0 ? 0 : 1) !== control.team ||
+      this.ball.vx * side <= 0 ||
+      (this.ball.x - player.x) * side <= this.config.blockReach + 0.22
+    )
+      return false;
+    const coop = this.mode === 'coop' && control.team === 0;
+    const exclude = coop
+      ? this.players.filter((p) => !this.coopOwns(control.slot, p.id)).map((p) => p.id)
+      : [];
+    const next = nextReceiver(this, control.team, { currentId: player.id, exclude });
+    if (next === null || next === player.id || (this.players[next].x - player.x) * side <= 0)
+      return false;
+    const changed = coop
+      ? this.assignCoopReceiver(control.slot, next)
+      : this.selectControlledPlayer(control, next);
+    if (changed) {
+      control.manualSerial = -1;
+      if (coop) this.coopManualSerial[control.slot] = -1;
+    }
+    return changed;
   }
   refreshAim(action, input) {
     if (this.config.dynamic && action) {
@@ -244,14 +305,34 @@ export class Match {
     this.events.push({ type, time: this.time, ...data });
     if (this.events.length > 80) this.events.shift();
   }
+  floorTouch() {
+    if (this.ball.floorTouched) return;
+    this.ball.floorTouched = true;
+    this.emit('floor-touch', {
+      x: this.ball.x,
+      y: 0,
+      speed: Math.abs(this.ball.vy),
+      out: !isInside(this.ball, this.config),
+    });
+  }
   label(text, duration = 1.6) {
     this.notice = text;
     this.noticeTime = duration;
   }
-  updateConfig(config) {
-    this.cpuOutForecast = null;
-    this.cpuPlans = [null, null];
-    this.config = sanitizeConfig(config);
+  updateConfig(config, sanitized = false) {
+    const nextConfig = sanitized ? config : sanitizeConfig(config);
+    const changedPhysics = Object.keys(nextConfig).some(
+      (key) => !COSMETIC_KEYS.has(key) && nextConfig[key] !== this.config[key],
+    );
+    if (changedPhysics) {
+      this.cpuOutForecast = null;
+      this.cpuPlans = [null, null];
+    }
+    const previousAppearance = appearanceKey(this.config);
+    this.config = nextConfig;
+    if (previousAppearance !== appearanceKey(this.config))
+      for (const p of this.players) p.appearance = teamAppearance(this.config, p.team, p.id % 3);
+    assignPlayerArms(this.players, this.config.randomArms);
     if (
       this.challenge &&
       !this.challenge.done &&
@@ -306,7 +387,7 @@ export class Match {
         team,
         role,
         number: i + 1,
-        appearance: { ...randomAppearance(), headShape: team === 0 ? 'square' : 'round' },
+        appearance: teamAppearance(this.config, team, i),
         x: this.sign(team) * HOMES[i],
         z: 4.5,
         y: 0,
@@ -321,6 +402,7 @@ export class Match {
         blockCooldown: 0,
       })),
     );
+    assignPlayerArms(this.players, this.config.randomArms);
     this.stats = {
       serves: [0, 0],
       attacks: [0, 0],
@@ -342,13 +424,16 @@ export class Match {
   startServe() {
     this.outMarker = null;
     this.contactTempoState = null;
-    for (const control of this.controls) control.manualSerial = -1;
+    for (const control of this.controls) {
+      control.manualSerial = -1;
+    }
     this.coopManualSerial = [-1, -1, -1];
     beginRally(this);
     this.clearControls();
     this.teamRuns = [null, null];
     this.bounces = [0, 0];
     this.headHitEligible = false;
+    this.headFlyEligible = false;
     this.cpuOutForecast = null;
     this.phase = 'serve';
     this.phaseTime = 0;
@@ -367,6 +452,8 @@ export class Match {
     this.serveAction = null;
     this.controls[0].contactWindow = false;
     this.trail = [];
+    this.smokeTrail = [];
+    this.smokeShot = null;
     this.controls[0].aimPreview = null;
     this.cpuBlockPlan = null;
     this.selected = [0, TEAM_SIZE];
@@ -377,7 +464,7 @@ export class Match {
       this.selected[0] = this.coopPrimary = 2;
       this.coopSelected = 0;
     }
-    this.lastAction = 'Выберите S, A, W или D и зажмите';
+    this.lastAction = 'Готов к подаче';
     this.assistLabel = 'Помощь только в направлении паса';
     for (const p of this.players)
       Object.assign(p, {
@@ -389,6 +476,7 @@ export class Match {
         releaseSlow: 0,
         stunned: 0,
         headFly: null,
+        headDetached: false,
         bodyMotion: null,
         moveVx: 0,
         returnVx: 0,
@@ -446,6 +534,7 @@ export class Match {
     server.facing = -1;
     server.armSwing = { kind: ready.kind, power: ready.power, age: 0, hit: true, serve: true };
     this.headHitEligible = false;
+    this.headFlyEligible = false;
     this.cpuOutForecast = null;
     this.phase = 'rally';
     this.testBallAge = 0;
@@ -464,6 +553,8 @@ export class Match {
     this.controls[0].aimPreview = null;
     this.cpuBlockPlan = null;
     this.trail = [];
+    this.smokeTrail = [];
+    this.smokeShot = null;
     this.ball = {
       ...serveOrigin(server, ready.kind, this.config, true),
       z: 4.5,
@@ -537,7 +628,11 @@ export class Match {
       (control.inputPlayer !== this.controlledPlayer(control) &&
         (control.previousInput.jumpHeld ?? control.previousInput.jump)) ||
       (!this.config.dynamic &&
-        (control.charge || control.pending || Object.keys(SHOTS).some((kind) => input[kind])))
+        (control.charge ||
+          control.pending ||
+          shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).some(
+            (kind) => input[kind],
+          )))
     )
       control.jumpArmed = false;
     control.inputPlayer = this.controlledPlayer(control);
@@ -602,6 +697,7 @@ export class Match {
     this.updateCharge(dt, input, press, control);
   }
   step(dt, raw) {
+    ageBallSmoke(this, dt);
     const input = { ...EMPTY_INPUT, ...raw },
       press = (key) => input[key] && !this.controls[0].previousInput[key];
     if (this.phase === 'finished') {
@@ -685,16 +781,18 @@ export class Match {
       Object.assign(this.ball, sampleServeMotion(p, a, t));
       this.controls[this.serverSlot()].contactWindow =
         !a.attempted && Math.abs(t - a.ideal) <= a.settings.PerfectWindow;
-      if (this.ball.y <= COURT.ballRadius) this.point(1 - this.server, 'ПОДАЧА: МЯЧ НЕ УДАРЕН');
-      else if (
+      if (this.ball.y <= COURT.ballRadius) {
+        this.floorTouch();
+        this.point(1 - this.server, 'ПОДАЧА: МЯЧ НЕ УДАРЕН');
+      } else if (
         !a.attempted &&
         ((this.isHuman(this.server) &&
-          Object.keys(SHOTS).some(
+          shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).some(
             (key) =>
               this.inputs[this.serverSlot()][key] &&
               !this.controls[this.serverSlot()].previousInput[key],
           )) ||
-          (!this.isHuman(this.server) && t >= a.ideal))
+          (!this.isHuman(this.server) && !a.cpuMiss && t >= a.ideal))
       ) {
         a.attempted = true;
         a.perfect = this.controls[this.serverSlot()].contactWindow;
@@ -730,18 +828,40 @@ export class Match {
     }
     const previous = { ...this.ball };
     integrateBall(this.ball, dt, this.config);
+    sampleBallSmoke(this);
     if (collideNet(this.ball, previous, this.config.restitution, this.config)) {
       this.rallyInfo.net = true;
       this.cpuOutForecast = null;
       this.emit('net');
       this.label('Мяч от сетки — ещё можно спасти');
     }
+    // Crossing through the real gap beneath the mesh loses the rally; it must
+    // not rebound from an invisible extension of the net down to the floor.
+    if (crossesUnderNet(this.ball, previous, this.config)) {
+      this.point(1 - (this.lastTouch ?? this.server), 'МЯЧ ПОД СЕТКОЙ');
+      return;
+    }
+    // Catch a prepared reception that crossed a small zone within this step,
+    // before floor scoring or receiver selection can discard that contact.
+    for (const [, slot] of this.humanControllers()) {
+      const control = this.controls[slot];
+      const a = control.pending || control.charge;
+      const p = this.players[a?.playerId];
+      if (!isZoneReceive(this, a, p) || this.canContact(p, a.kind)) continue;
+      if (control.pending) this.tryPending(previous, control, dt);
+      else this.tryHeldContact(previous, control, dt);
+    }
     this.trail.push({ x: this.ball.x, y: this.ball.y });
     if (this.trail.length > 15) this.trail.shift();
     if (this.ball.y <= COURT.ballRadius) {
       this.ball.y = COURT.ballRadius;
+      this.floorTouch();
       const bounceSide = this.ball.x < 0 ? 0 : 1;
-      if (this.config.floorBounce && isInside(this.ball) && !this.bounces?.[bounceSide]) {
+      if (
+        this.config.floorBounce &&
+        isInside(this.ball, this.config) &&
+        !this.bounces?.[bounceSide]
+      ) {
         this.bounces ||= [0, 0];
         this.bounces[bounceSide]++;
         this.ball.vy = Math.max(5, Math.abs(this.ball.vy) * 0.65);
@@ -749,7 +869,7 @@ export class Match {
         this.label('Один отскок — спасайте!');
         return;
       }
-      const inside = isInside(this.ball),
+      const inside = isInside(this.ball, this.config),
         side = this.ball.x < 0 ? 0 : 1;
       this.point(
         inside ? 1 - side : 1 - (this.lastTouch ?? this.server),
@@ -771,25 +891,30 @@ export class Match {
         this.updateCoopReceiver();
         continue;
       }
+      if (this.handoffMissedBlock(this.controls[team])) continue;
       if (this.config.dynamic && this.controls[team].manualSerial === this.shotSerial) continue;
-      const next = nextReceiver(this, team);
+      const next = nextReceiver(this, team, {
+        keepReachable: true,
+        preferCurrent:
+          this.config.dynamic && this.lastTouch !== team && !!this.inputs?.[team]?.axis,
+      });
       if (next === null || next === this.selected[team]) continue;
-      const old = this.active(team);
+      const previous = this.selected[team];
       this.selectControlledPlayer(this.controls[team], next);
-      this.players[next].returnHome = false;
-      this.players[next].clearLane = null;
       for (const key of ['charge', 'pending']) {
         const action = this.controls[team][key];
-        if (action?.playerId === old.id) action.playerId = next;
+        if (action?.playerId === previous) action.playerId = next;
       }
+      this.players[next].returnHome = false;
+      this.players[next].clearLane = null;
     }
     if (this.mode !== 'test') this.updateCPU();
     this.movePlayers(dt, input);
     this.tryBlocks();
     for (const [, slot] of this.humanControllers()) {
       const control = this.controls[slot];
-      if (control.pending && this.cooldown <= 0) this.tryPending(previous, control);
-      this.tryHeldContact(previous, control);
+      if (control.pending && this.cooldown <= 0) this.tryPending(previous, control, dt);
+      this.tryHeldContact(previous, control, dt);
     }
     this.tryDiveContacts();
     this.tryHeadHit(previous);
@@ -809,7 +934,7 @@ export class Match {
       const action = control.charge || control.pending;
       control.contactWindow = action
         ? this.canContact(this.players[action.playerId], action.kind)
-        : Object.keys(SHOTS).some((k) =>
+        : shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).some((k) =>
             this.canContact(this.players[this.controlledPlayer(control)], k),
           );
       this.updatePreview(control);
@@ -819,10 +944,18 @@ export class Match {
   updateCharge(dt, input, press, control = this.controls[0]) {
     if (this.phase === 'serve' && this.server !== control.team) return;
     if (!['serve', 'rally'].includes(this.phase)) return;
-    if (!Object.keys(SHOTS).some((kind) => input[kind])) control.chargeLock = false;
+    if (
+      !shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).some(
+        (kind) => input[kind],
+      )
+    )
+      control.chargeLock = false;
     const replaceable = control.pending || control.charge;
     const replacement =
-      replaceable && Object.keys(SHOTS).find((kind) => kind !== replaceable.kind && press(kind));
+      replaceable &&
+      shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).find(
+        (kind) => kind !== replaceable.kind && press(kind),
+      );
     if (replacement) {
       const p = this.players[replaceable.playerId];
       if (!p.diving && p.recovery <= 0 && p.block <= 0 && p.swingCooldown <= 0) {
@@ -834,11 +967,11 @@ export class Match {
           power: 0.08,
           age: 0,
           aim: aimOf(input),
-          stickControlled: !!input.stickShot,
+
           playerId: p.id,
         };
         p.armSwing = null;
-        p.pose = 'ready-' + SHOTS[replacement].pose;
+        p.pose = 'ready-' + shotDefinition(replacement).pose;
         p.animation = 0.08;
         return;
       }
@@ -846,9 +979,12 @@ export class Match {
     if (control.charge) {
       const a = control.charge,
         p = this.players[a.playerId];
+      if (a.receiveHold && !validReceiveHold(this, a, p)) {
+        cancelReceiveHold(this, control);
+        return;
+      }
       if (input[a.kind]) {
         const intentBefore = a.aim.intent;
-        a.stickControlled = input.stickShot === a.kind;
         this.refreshAim(a, input);
         if (this.config.dynamic && intentBefore !== a.aim.intent && a.kind === 'drive') {
           a.feintAt = this.time;
@@ -857,8 +993,7 @@ export class Match {
       }
       a.age = (a.age || 0) + dt;
       if (input[a.kind]) {
-        const strength = input.stickShot === a.kind ? clamp(input.stickStrength, 0.08, 1) : 1;
-        // Returning an analog stick to centre must not erase accumulated power.
+        const strength = 1;
         a.power = Math.max(
           a.power,
           clamp(
@@ -873,8 +1008,8 @@ export class Match {
         );
       }
       const autoRelease =
-        a.power >= 1 ||
-        (!this.config.dynamic && this.phase !== 'serve' && a.age >= this.config.maxHold);
+        this.phase !== 'serve' &&
+        (a.power >= 1 || (!this.config.dynamic && a.age >= this.config.maxHold));
       if (!input[a.kind] || autoRelease) {
         this.refreshAim(a, input);
         control.charge = null;
@@ -894,7 +1029,9 @@ export class Match {
         }
       }
     } else if (!control.pending && !control.chargeLock) {
-      const kind = Object.keys(SHOTS).find(press),
+      const kind = shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).find(
+          press,
+        ),
         p = this.players[this.controlledPlayer(control)];
       if (kind && !p.diving && p.recovery <= 0 && p.swingCooldown <= 0 && p.block <= 0) {
         this.emit('windup', { team: p.team, kind, power: 0.3 });
@@ -903,7 +1040,7 @@ export class Match {
           power: 0.08,
           age: 0,
           aim: aimOf(input),
-          stickControlled: !!input.stickShot,
+
           playerId: p.id,
         };
       }
@@ -912,7 +1049,7 @@ export class Match {
     if (preparing && this.phase !== 'serve') {
       const p = this.players[preparing.playerId];
       if (!p.diving && p.block <= 0 && !(p.jumpProfile && p.jumpTime < p.jumpProfile.windup)) {
-        p.pose = 'ready-' + SHOTS[preparing.kind].pose;
+        p.pose = 'ready-' + shotDefinition(preparing.kind).pose;
         p.animation = 0.08;
       }
     }
@@ -929,7 +1066,7 @@ export class Match {
   executeServe() {
     return executeServe(this);
   }
-  switchPlayer(control = this.controls[0]) {
+  switchPlayer(control = this.controls[0], manual = true) {
     if (this.config.duel || this.challenge || (this.mode === 'test' && this.config.dynamic)) return;
     const current = this.controlledPlayer(control);
     for (let i = 1; i <= TEAM_SIZE; i++) {
@@ -941,11 +1078,30 @@ export class Match {
         !this.players[next].diving
       ) {
         this.selectControlledPlayer(control, next);
-        control.manualSerial = this.shotSerial;
-        if (this.mode === 'coop') this.coopManualSerial[control.slot] = this.shotSerial;
+        if (manual) {
+          control.manualSerial = this.shotSerial;
+          if (this.mode === 'coop') this.coopManualSerial[control.slot] = this.shotSerial;
+        }
         return;
       }
     }
+  }
+  selectPassReceiver(passer, preferred = null) {
+    const team = passer.team;
+    if (this.phase !== 'rally' || this.lastTouch !== team || this.lastPlayer !== passer.id) return;
+    if (this.mode === 'coop' && team === 0) {
+      this.autoCoopReceiver(preferred);
+      return;
+    }
+    if (!this.isHuman(team)) {
+      this.autoSelect(team, preferred);
+      return;
+    }
+    if (this.challenge || this.config.duel || this.mode === 'test') return;
+    this.autoSelect(team, preferred);
+  }
+  selectOnOpponentContact(team) {
+    this.autoSelect(team);
   }
   autoSelect(team, preferred = null) {
     if (this.mode === 'coop' && team === 0) {
@@ -964,7 +1120,7 @@ export class Match {
       this.controls[team].manualSerial === this.shotSerial
     )
       return;
-    if (this.isHuman(team) && this.actionFor(team)) return;
+    if (this.isHuman(team) && (this.controls[team].charge || this.controls[team].pending)) return;
     if (
       preferred !== null &&
       this.players[preferred].team === team &&
@@ -996,6 +1152,10 @@ export class Match {
     p.returnHome = false;
     if (adjustment) p.jumpProfile = adjustment.profile;
     p.jumpHold = this.config.variableJump;
+    p.jumpButtonHold =
+      this.config.dynamic && this.config.jumpHoldHang > 0
+        ? { tracking: true, elapsed: 0, applied: false, slot: this.humanSlot(p) }
+        : null;
     this.emit('jump', { team: p.team, playerId: p.id });
     return true;
   }
@@ -1004,6 +1164,7 @@ export class Match {
     p.jumpProfile = jumpProfile(this.config);
     p.jumpAssist = null;
     p.jumpHold = false;
+    p.jumpButtonHold = null;
     p.jumpTime = 0;
     p.ballHangUsed = false;
 
@@ -1033,11 +1194,10 @@ export class Match {
           !p.benched &&
           p.team === team &&
           !(this.mode === 'coop' && p.id !== this.controlledPlayer(control)) &&
-          Math.abs(p.x) < 3.25 &&
           grounded(p) &&
           p.blockCooldown <= 0,
       )
-      .sort((a, b) => Math.abs(a.x) - Math.abs(b.x));
+      .sort((a, b) => Math.abs(a.x) - Math.abs(b.x) || a.id - b.id);
     if (!front.length) return false;
     this.jump(front[0], true);
     this.emit('jump', { team, playerId: front[0].id });
@@ -1066,8 +1226,14 @@ export class Match {
     p.facing = direction;
     p.pose = 'dive';
     p.animation = 0.5;
-    if (this.isHuman(p.team) && this.selected[p.team] === p.id && this.mode !== 'coop')
-      this.switchPlayer(control);
+    const manualLock =
+      this.config.dynamic &&
+      (control.manualSerial === this.shotSerial ||
+        (this.mode === 'coop' &&
+          control.team === 0 &&
+          this.coopManualSerial[control.slot] === this.shotSerial));
+    if (this.isHuman(p.team) && this.controlledPlayer(control) === p.id && !manualLock)
+      this.switchPlayer(control, false);
     else if (!this.isHuman(p.team)) this.autoSelect(p.team);
     this.emit('jump', { team: p.team, playerId: p.id });
     this.label(
@@ -1112,6 +1278,10 @@ export class Match {
     for (const p of this.players) {
       if (p.benched || p.team === this.lastTouch || p.recovery > 0 || p.diving || p.block > 0)
         continue;
+      const slot = this.humanSlot(p);
+      // A requested reception protects the player even before the hands reach the ball.
+      // Released shots remain prepared until their contact window expires.
+      if ((slot !== null && hasShotInput(this.inputs?.[slot])) || this.actionForPlayer(p)) continue;
       const top = p.y + 2.1 + COURT.ballRadius;
       let t;
       if (this.config.dynamic) {
@@ -1133,12 +1303,13 @@ export class Match {
       const x = previous.x + (this.ball.x - previous.x) * t;
       const impactY = this.config.dynamic ? previous.y + (this.ball.y - previous.y) * t : top;
       if (!this.config.dynamic && Math.abs(x - p.x) > 0.28) continue;
-      const incomingSpeed = Math.hypot(this.ball.vx, this.ball.vy);
-      const flyingHead = this.config.dynamic && incomingSpeed >= 18;
+      const flyingHead = this.config.dynamic && this.headFlyEligible;
       p.headFly = flyingHead
         ? { x: p.x, y: p.y + 1.8, vx: clamp(this.ball.vx * 0.4, -7, 7), vy: 4.5, age: 0 }
         : null;
+      p.headDetached = flyingHead;
       this.headHitEligible = false;
+      this.headFlyEligible = false;
       p.jumpProfile = p.jumpAssist = null;
       p.jumpHold = false;
       p.vy = Math.min(0, p.vy);
@@ -1165,6 +1336,7 @@ export class Match {
       this.incomingShot = 'head';
       this.shotSerial++;
       this.autoSelect(p.team);
+      this.selectOnOpponentContact(1 - p.team);
       this.emit('head-hit', { playerId: p.id, team: p.team, x, y: impactY, flyingHead });
       this.label('УДАР В ГОЛОВУ · игрок оглушён');
       return true;
@@ -1176,7 +1348,7 @@ export class Match {
       updateBodyMotion(p, dt, this.config);
       if (p.headFly) {
         p.headFly.age += dt;
-        if (p.recovery <= dt) p.headFly = null;
+        if (p.headFly.age >= 1.2) p.headFly = null;
       }
       if (p.emotion && !p.jumpProfile && !p.diving && p.recovery <= 0) {
         p.emotion.age += dt;
@@ -1185,7 +1357,7 @@ export class Match {
       p.animation = Math.max(0, p.animation - dt);
       p.block = Math.max(0, p.block - dt);
       p.blockCooldown = Math.max(0, p.blockCooldown - dt);
-      p.recovery = Math.max(0, p.recovery - dt);
+      if (!p.headDetached) p.recovery = Math.max(0, p.recovery - dt);
       p.stunned = Math.max(0, (p.stunned || 0) - dt);
       p.releaseSlow = Math.max(0, (p.releaseSlow || 0) - dt);
       p.swingCooldown = Math.max(0, (p.swingCooldown || 0) - dt);
@@ -1199,6 +1371,17 @@ export class Match {
         if (p.contact.life <= 0) p.contact = null;
       }
       if (p.jumpProfile) {
+        const hold = p.jumpButtonHold;
+        const jumpInput = this.inputs?.[hold?.slot];
+        updateJumpButtonHold(
+          p,
+          this.phase === 'rally' &&
+            hold?.slot != null &&
+            this.humanSlot(p) === hold.slot &&
+            !!(jumpInput?.jumpHeld ?? jumpInput?.jump),
+          dt,
+          this.config,
+        );
         const j = p.jumpProfile;
         if (
           !p.ballHangUsed &&
@@ -1652,11 +1835,11 @@ export class Match {
   canContact(p, kind) {
     return contactReason(this, p, kind) === null;
   }
-  tryHeldContact(previous = this.ball, control = this.controls[0]) {
-    return tryHeldContact(this, previous, control);
+  tryHeldContact(previous = this.ball, control = this.controls[0], dt = FIXED_DT) {
+    return tryHeldContact(this, previous, control, dt);
   }
-  tryPending(previous = this.ball, control = this.controls[0]) {
-    return tryPending(this, previous, control);
+  tryPending(previous = this.ball, control = this.controls[0], dt = FIXED_DT) {
+    return tryPending(this, previous, control, dt);
   }
   recordContact(p, kind, power) {
     return recordContact(this, p, kind, power);
@@ -1667,7 +1850,7 @@ export class Match {
   planReadBlock(team, impulse) {
     if (!this.config.dynamic || this.isHuman(team) || this.config.duel) return;
     const style = this.config.cpuStyle;
-    if (style === 'deep' || this.random() > 0.6 + cpuSkill(this.config).level * 0.25) return;
+    if (style === 'deep' || this.random() > cpuSkill(this.config).block * 1.25) return;
     const profile = jumpProfile(this.config);
     const early = style === 'blocker' ? -0.25 : style === 'patient' ? 0.1 : -0.06;
     this.cpuBlockPlan = {
@@ -1771,7 +1954,9 @@ export class Match {
       }
       const kind =
         dx * (p.facing || -this.sign(team)) < -0.25 && this.ball.y - p.y < 1.8
-          ? 'back'
+          ? this.config.dynamic
+            ? 'low'
+            : 'back'
           : plan.count >= 2 && (p.y > 0.2 || plan.height > 1.6)
             ? 'drive'
             : plan.height > 1.5
@@ -1814,6 +1999,7 @@ export class Match {
         power: Math.min(prep.power, 0.08 + age / this.config.chargeSeconds),
         age,
         playerId: p.id,
+        aim: { soft: prep.intent === 'soft' },
       };
     }
   }
@@ -1837,11 +2023,12 @@ export class Match {
       };
     }
     const b = this.cpuOutForecast.landing,
-      margin = COURT.ballRadius + 0.2;
+      margin = netBallRadius(this.config) + 0.2;
+    const { left, right } = courtLineBounds(this.config);
     return (
       b.y <= COURT.ballRadius &&
       b.x * this.sign(team) > 0 &&
-      (Math.abs(b.x) > COURT.halfLength + margin || b.z < -margin || b.z > COURT.width + margin)
+      (b.x < left - margin || b.x > right + margin || b.z < -margin || b.z > COURT.width + margin)
     );
   }
   tryCPUContact(team, previous = this.ball) {
@@ -1861,7 +2048,9 @@ export class Match {
     if (plan && this.time < plan.contactAt - 0.06 && this.ball.y > 0.7) return;
     if (this.ball.vy > 1 && p.y < 0.2) return;
     const behind = (this.ball.x - p.x) * (p.facing || -this.sign(team)) < -0.25;
-    let kinds = Object.keys(SHOTS).filter((kind) => this.canContact(p, kind));
+    let kinds = shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).filter(
+      (kind) => this.canContact(p, kind),
+    );
     const count = this.lastTouch === team ? this.touches[team] : 0;
     if (count < (this.config.dynamic ? 1 : 2) && !this.config.duel)
       kinds = kinds.filter((kind) => kind !== 'drive');
@@ -1928,7 +2117,7 @@ export class Match {
         if (!perfect) this.stats.softBlocks[p.team]++;
         this.cpuBlockPlan = null;
         this.recordContact(p, 'block', 0.6);
-        this.autoSelect(attacker);
+        this.selectOnOpponentContact(attacker);
         this.label(blockText || (perfect ? 'ТОЧНЫЙ БЛОК!' : 'СМЯГЧЕНИЕ — розыгрыш продолжается'));
         this.emit('block', {
           team: p.team,
@@ -1974,12 +2163,16 @@ export class Match {
     if (!this.outMarker && this.pointReason?.includes('АУТ') && this.ball.y <= COURT.ballRadius)
       this.outMarker = { x: this.ball.x, z: this.ball.z, at: this.time };
     collideNet(this.ball, previous, this.config.restitution, this.config);
-    if (this.ball.y <= COURT.ballRadius && this.ball.vy < -2) this.emit('floor');
+    if (this.ball.y <= COURT.ballRadius && this.ball.vy < 0) {
+      const first = !this.ball.floorTouched;
+      this.floorTouch();
+      if (!first && this.ball.vy < -2) this.emit('floor', { speed: Math.abs(this.ball.vy) });
+    }
     bounceFloor(this.ball, this.config);
     this.trail.push({ x: this.ball.x, y: this.ball.y });
     if (this.trail.length > 15) this.trail.shift();
   }
-  point(winner, reason) {
+  point(winner, reason, contactPlayer = null) {
     if (['point', 'set-end', 'finished'].includes(this.phase)) return;
     if (this.challenge) {
       resolveChallenge(this, reason);
@@ -2017,9 +2210,14 @@ export class Match {
       };
       p.vx = 0;
       p.block = 0;
-      p.contact = null;
-      p.armSwing = null;
-      p.animation = 0;
+      if (p === contactPlayer) {
+        // Let the faulting hit finish before the player's point reaction starts.
+        p.emotion.age -= 0.3;
+      } else {
+        p.contact = null;
+        p.armSwing = null;
+        p.animation = 0;
+      }
     }
     bounceFloor(this.ball, this.config);
     this.controls[0].contactWindow = false;

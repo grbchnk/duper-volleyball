@@ -1,3 +1,7 @@
+import { COSMETIC_KEYS } from './settings-scope.js';
+import { mountSettingsPanel } from './settings-panels.js';
+import { createTeamEditor, selectClub } from './team-editor.js';
+import { UNIFORM_COLORS } from './teams.js';
 import { createFinishScreen } from './finish-screen.js';
 import { createDiagnostics } from './diagnostics.js';
 import { createTutorial } from './tutorial.js';
@@ -7,12 +11,11 @@ import { createClub } from './club.js';
 import { createAmbient } from './ambient.js';
 import { drawBallDesign, pixelPresent } from './display.js';
 import { exportSettings, importSettings } from './settings-file.js';
-import { SKINS } from './sprites.js';
 import { Match, EMPTY_INPUT } from './engine.js';
 import { Renderer } from './renderer.js';
 import { Sound } from './audio.js';
 import { createAmbienceUI } from './ambience-ui.js';
-import { DEFAULTS, FIXED_DT, LIMITS, TEAMS, sanitizeConfig } from './config.js';
+import { DEFAULTS, FIXED_DT, TEAMS, sanitizeConfig } from './config.js';
 import { InputBuffer, GAME_KEYS } from './input.js';
 import { GUIDE_HTML } from './guide.js';
 import { SHOTS, SERVES } from './moves.js';
@@ -22,6 +25,11 @@ import { gameCanvasSize } from './canvas-size.js';
 const $ = (id) => document.getElementById(id),
   storageKey = 'duper-volleyball.dynamic-v3.config';
 let config = { ...DEFAULTS };
+let teamEditor = null;
+let drawArmLab = null,
+  drawGraphicsArms = null,
+  drawShotLab = null;
+let sceneDirty = true;
 try {
   const data = localStorage.getItem(storageKey);
   if (data) config = importSettings(data);
@@ -39,6 +47,7 @@ const match = new Match(config),
   secondInput = new InputBuffer(undefined, undefined, 1);
 export { match };
 function resizeGameCanvas() {
+  sceneDirty = true;
   const canvas = $('game');
   const size = gameCanvasSize(
     document.fullscreenElement === $('arena'),
@@ -126,6 +135,7 @@ window.addEventListener('blur', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     sound.updateMusic(config, false);
+    flushSettings();
     clearActions();
     if (started) setPaused(true);
   }
@@ -136,27 +146,35 @@ function toast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => ($('toast').hidden = true), 4000);
 }
-function persist() {
+let persistTimer;
+let pendingPersist;
+function flushSettings() {
+  clearTimeout(persistTimer);
+  if (!pendingPersist) return;
   try {
-    localStorage.setItem(storageKey, exportSettings(config));
+    localStorage.setItem(storageKey, exportSettings(pendingPersist));
   } catch {}
+  pendingPersist = null;
+}
+window.addEventListener('pagehide', flushSettings);
+document.addEventListener('change', flushSettings);
+document.addEventListener('click', flushSettings);
+function persist(value = config) {
+  pendingPersist = value;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(flushSettings, 180);
 }
 function applyConfig(next, session = false) {
   const saved = !session ? club?.rememberChanges(next) : null;
   config = sanitizeConfig(next);
-  match.updateConfig(config);
-  syncSettings();
+  match.updateConfig(config, true);
+  sceneDirty = true;
+  scheduleSettingsSync();
   if (!session) {
-    if (saved) {
-      try {
-        localStorage.setItem(storageKey, exportSettings(saved));
-      } catch {}
-    } else persist();
+    persist(saved || config);
   }
 }
 
-const drawShotLab = createShotLab($('shots-dialog'), () => config, applyConfig);
-const drawArmLab = createArmLab($('arms-dialog'), () => config);
 function formatPhysics(key, value) {
   return (
     value.toFixed(key === 'targetScore' ? 0 : physicsFields[key][1] < 0.01 ? 3 : 2) +
@@ -164,37 +182,45 @@ function formatPhysics(key, value) {
     physicsFields[key][2]
   );
 }
+let settingsSyncPending = false;
+function scheduleSettingsSync() {
+  if (settingsSyncPending) return;
+  settingsSyncPending = true;
+  requestAnimationFrame(() => {
+    settingsSyncPending = false;
+    syncSettings();
+  });
+}
 function syncSettings() {
+  if ($('team-dialog').open) teamEditor?.sync();
   ambienceUI?.sync();
+  dynamicUI?.sync();
   if (config.soundMuted && sound.enabled) sound.disable();
   sound.muted = config.soundMuted;
   syncSoundButton();
   $('pixel-graphics').checked = config.pixelGraphics;
   $('ball-fire').checked = config.ballFire;
   $('lively-background').checked = config.livelyBackground;
-  $('home-team').value = config.homeTeam;
+  $('random-arms').checked = config.randomArms;
   $('away-team').value = config.awayTeam;
   teams = [
     TEAMS.find((t) => t.id === config.homeTeam),
     TEAMS.find((t) => t.id === config.awayTeam),
   ];
-  const preview = $('ball-preview'),
-    c = preview.getContext('2d');
-  c.fillStyle = '#edf1df';
-  c.fillRect(0, 0, preview.width, preview.height);
-  c.save();
-  c.translate(120, 48);
-  c.scale(3 * config.ballSize, 3 * config.ballSize);
-  drawBallDesign(c, config.ballSkin, config.pixelGraphics);
-  c.restore();
-  pixelPresent(preview, config.pixelGraphics);
-  $('home-skin').value = config.skin;
-  $('away-skin').value = config.awaySkin;
-  $('home-color').value = config.homeColor;
+  if ($('graphics-dialog').open) {
+    const preview = $('ball-preview'),
+      c = preview.getContext('2d');
+    c.fillStyle = '#edf1df';
+    c.fillRect(0, 0, preview.width, preview.height);
+    c.save();
+    c.translate(120, 48);
+    c.scale(3 * config.ballSize, 3 * config.ballSize);
+    drawBallDesign(c, config.ballSkin, config.pixelGraphics);
+    c.restore();
+    pixelPresent(preview, config.pixelGraphics);
+  }
   $('away-color').value = config.awayColor;
   $('ball-skin').value = config.ballSkin;
-  $('ball-size').value = config.ballSize;
-  $('ball-size-value').textContent = Math.round(config.ballSize * 100) + '%';
   teams = teams.map((team, i) => {
     const color = config[i ? 'awayColor' : 'homeColor'];
     const rgb = [1, 3, 5].map((start) => parseInt(color.slice(start, start + 2), 16));
@@ -209,37 +235,11 @@ function syncSettings() {
         .join('');
     return { ...team, color, dark: tint(0.65, 0), light: tint(0.55, 115) };
   });
-  $('flight-style').value = config.cartoonFlight;
-  $('flight-style-value').textContent = Math.round(config.cartoonFlight * 100) + '%';
-  $('preview-skin').value = config.skin;
-  for (const key of ['elbowHeight', 'armRoundness', 'armScale']) {
-    const el = $('preview-' + key);
-    if (el) {
-      el.value = config[key];
-      $('preview-value-' + key).textContent = formatPhysics(key, config[key]);
-    }
-  }
-  document
-    .querySelectorAll('[data-skin]')
-    .forEach((button) =>
-      button.setAttribute('aria-pressed', String(button.dataset.skin === config.skin)),
-    );
   $('speed').value = config.gameSpeed;
   $('speed-value').textContent = config.gameSpeed.toFixed(2) + '×';
   $('assist').checked = config.assist;
   $('receive-momentum').checked = config.receiveMomentum;
-  $('profile-assistance').hidden = config.dynamic;
   $('variableJump').checked = config.variableJump;
-  $('drive-assist').value = config.driveAssist;
-  $('drive-assist').disabled = !config.assist;
-  $('drive-assist-value').textContent = config.assist
-    ? Math.round(config.driveAssist * 100) + '%'
-    : 'Выкл.';
-  $('pass-assist').value = config.passAssist;
-  $('pass-assist').disabled = !config.assist;
-  $('pass-assist-value').textContent = config.assist
-    ? Math.round(config.passAssist * 100) + '%'
-    : 'Выкл.';
   $('trajectory').checked = config.trajectory;
   $('difficulty').value = config.cpuSkill;
   $('difficulty-value').textContent = config.cpuSkill + ' / 100';
@@ -256,6 +256,7 @@ function syncSettings() {
 }
 function setPaused(value) {
   paused = value;
+  sceneDirty = true;
   clearActions();
   accumulator = 0;
   $('pause-overlay').hidden = !value || !started || match.phase === 'finished' || modalOpen();
@@ -274,8 +275,8 @@ function startGame(mode = 'match', activity = false, learning = false) {
       .then(syncSoundButton)
       .catch(() => {});
   teams = [
-    TEAMS.find((t) => t.id === $('home-team').value),
-    TEAMS.find((t) => t.id === $('away-team').value),
+    TEAMS.find((t) => t.id === config.homeTeam),
+    TEAMS.find((t) => t.id === config.awayTeam),
   ];
   syncSettings();
   match.reset(mode);
@@ -298,6 +299,10 @@ function startGame(mode = 'match', activity = false, learning = false) {
 }
 function updateUI() {
   updateDiagnostics();
+  $('replay-toolbar').hidden = !dynamicUI?.playing;
+  $('dynamic-replay').disabled = !match.replay.last.length || !!match.challenge;
+  $('dynamic-retry').hidden = !!match.clubLocked;
+  $('dynamic-retry').disabled = !(match.replay.lastStart || match.replay.start);
   $('controller-status').hidden = !['versus', 'coop'].includes(match.mode);
   $('controller-status').textContent =
     match.mode === 'coop'
@@ -310,27 +315,6 @@ function updateUI() {
         : match.controls[0],
     action = hud.charge || hud.pending,
     percent = Math.round((action?.power || 0) * 100);
-  $('phase-pill').textContent =
-    match.phase === 'serve' || match.phase === 'serve-motion'
-      ? 'ПОДАЧА'
-      : phase === 'attack'
-        ? 'АТАКА'
-        : 'ЗАЩИТА';
-  $('phase-pill').classList.toggle('defense', phase === 'defense');
-  $('charge-label').textContent =
-    match.phase === 'serve' && hud.charge
-      ? SERVES[hud.charge.kind].name + ' · отпусти для подброса'
-      : hud.charge
-        ? `${SHOTS[hud.charge.kind].name} · отпусти у мяча · ${Math.round(hud.charge.power * 100)}%`
-        : hud.pending
-          ? 'Короткий допуск…'
-          : match.controls[0].chargeLock
-            ? 'Отпусти кнопку для нового приёма'
-            : 'Зажмите S, A, W или D';
-  $('charge-value').textContent = percent + '%';
-  $('power-fill').style.width = percent + '%';
-  $('power-fill').style.background = percent > 88 ? '#d78e76' : '#88a481';
-  $('touch-count').textContent = match.touches[0] + ' / 3';
   $('rule-label').textContent = `ТЕМП ${config.gameSpeed.toFixed(2)}×`;
   let title = 'Выбери подачу',
     hint =
@@ -370,15 +354,17 @@ function updateUI() {
     title = SERVES[hud.charge.kind].name;
     hint =
       '←/→ — направление, Shift + ↑/↓ — высота. Отпусти раньше для ручной подачи; полный заряд запускает только подброс. Для удара нажми ещё раз.';
-    key = SHOTS[hud.charge.kind].key;
+    key = (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).key;
   } else if (hud.charge) {
-    title = hud.contactWindow ? 'Отпусти сейчас!' : SHOTS[hud.charge.kind].name;
+    title = hud.contactWindow
+      ? 'Отпусти сейчас!'
+      : (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).name;
     hint = '←/→ — бег и направление, Shift + ↑/↓ — выше/ниже. Отпустите у мяча; руки уже готовы.';
-    key = SHOTS[hud.charge.kind].key;
+    key = (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).key;
   } else if (match.phase === 'rally' && phase === 'defense') {
     title = 'Сохрани мяч';
     hint =
-      'S — снизу, A — сейв, W — сверху, D — удар. F — блок. ↑ — прыжок, ↓ — присесть, Q / E — бросок.';
+      'S — снизу, W — сверху, D — удар. Z / L2 — мягкий приём. F — блок. ↑ — прыжок, ↓ — присесть, Q / E — бросок.';
     key = 'S';
   } else if (match.phase === 'rally') {
     title = 'Построй атаку';
@@ -389,7 +375,7 @@ function updateUI() {
     title = hud.contactWindow ? 'Идеальный момент — нажми!' : 'Мяч подброшен';
     hint =
       'Нажми кнопку подачи ещё раз для удара. Даже на 100% происходит только подброс. Без нового нажатия мяч упадёт.';
-    key = SHOTS[match.serveAction.kind].key;
+    key = (SHOTS[match.serveAction.kind] || { key: 'Z + S' }).key;
   }
   if (
     match.mode === 'coop' &&
@@ -493,70 +479,41 @@ function frame(time) {
       : [];
   sound.updateCharge(charges.length ? Math.max(...charges) : null);
   sound.updateMusic(config, !document.hidden, paused || modalOpen());
-  drawAmbient(match, teams);
   const shown = dynamicUI?.frame(elapsed, controllerInput, secondControllerInput) || match;
-  renderer.draw(shown, teams, paused || modalOpen() ? 0 : elapsed);
-  drawArmLab(elapsed);
-  drawShotLab(elapsed);
-  if (time - lastUI > 65) {
+  const activeScene =
+    started && (!paused || dynamicUI?.playing) && !modalOpen() && !document.hidden;
+  if (!document.hidden && (sceneDirty || activeScene)) {
+    drawAmbient(match, teams);
+    renderer.draw(shown, teams, activeScene ? elapsed : 0);
+    sceneDirty = false;
+  }
+  if (!document.hidden) {
+    drawArmLab?.(elapsed);
+    drawGraphicsArms?.(elapsed);
+    drawShotLab?.(elapsed);
+  }
+  if (!document.hidden && time - lastUI > 65) {
     updateUI();
     tutorial?.update();
     lastUI = time;
   }
   requestAnimationFrame(frame);
 }
-for (const id of ['home-team', 'away-team'])
+for (const id of ['away-team'])
   for (const team of TEAMS) {
     const option = document.createElement('option');
     option.value = team.id;
     option.textContent = team.name;
     $(id).append(option);
   }
-for (const [id, spec] of Object.entries(SKINS)) {
-  const button = document.createElement('button');
-  button.className = 'skin-choice';
-  button.dataset.skin = id;
-  button.title = spec.description;
-  const canvas = document.createElement('canvas');
-  canvas.width = 100;
-  canvas.height = 100;
-  canvas.setAttribute('aria-hidden', 'true');
-  const previewMatch = new Match({ ...config, skin: id });
-  previewMatch.selected[0] = -1;
-  previewMatch.time = 0;
-  const previewRenderer = new Renderer(canvas);
-  previewRenderer.spriteScale = 1.9;
-  previewRenderer.project = () => ({ x: 50, y: 90 });
-  previewRenderer.ctx.fillStyle = '#f5f6ed';
-  previewRenderer.ctx.fillRect(0, 0, 100, 100);
-  previewRenderer.drawPlayer(previewMatch.players[0], TEAMS[0], previewMatch, 0);
-  const label = document.createElement('span');
-  label.textContent = spec.name;
-  button.append(canvas, label);
-  button.onclick = () => applyConfig({ ...config, skin: id });
-  $('skin-cards').append(button);
-  const option = document.createElement('option');
-  option.value = id;
-  option.textContent = spec.name;
-  $('preview-skin').append(option);
-}
-for (const id of ['home-skin', 'away-skin']) {
-  for (const [value, skin] of Object.entries(SKINS)) $(id).add(new Option(skin.name, value));
-  $(id).onchange = (e) =>
-    applyConfig({ ...config, [id === 'home-skin' ? 'skin' : 'awaySkin']: e.target.value });
-}
+for (const id of ['away-color'])
+  for (const [color, name] of UNIFORM_COLORS) $(id).add(new Option(name, color));
 for (const [id, key] of [
-  ['home-color', 'homeColor'],
   ['away-color', 'awayColor'],
   ['ball-skin', 'ballSkin'],
 ])
   $(id).oninput = (e) => applyConfig({ ...config, [key]: e.target.value });
-$('ball-size').oninput = (e) => applyConfig({ ...config, ballSize: +e.target.value });
-$('preview-skin').onchange = (e) => applyConfig({ ...config, skin: e.target.value });
-$('home-team').value = teams[0].id;
 $('away-team').value = teams[1].id;
-$('shots-quick').onclick = $('shots-button').onclick = () => openDialog('shots-dialog');
-$('arms-button').onclick = () => openDialog('arms-dialog');
 $('start').onclick = () => startGame();
 $('new-match').onclick = () => (club?.active ? club.restart() : startGame(match.mode));
 $('rematch').onclick = () => startGame('match');
@@ -579,38 +536,16 @@ $('resume').onclick = () => {
   $('game').focus({ preventScroll: true });
 };
 function syncSoundButton() {
-  $('sound').textContent = sound.ready ? '♫' : '♪';
-  $('sound').setAttribute('aria-label', sound.ready ? 'Выключить звук' : 'Включить звук');
-  const unlock = $('sound-unlock');
-  if (unlock) {
-    unlock.hidden = sound.ready;
-    unlock.textContent = sound.muted ? '♪ Звук выключен · включить' : '♪ Включить звук';
-  }
+  $('sound').textContent = sound.muted ? '♪' : '♫';
+  $('sound').setAttribute('aria-label', sound.muted ? 'Включить звук' : 'Выключить звук');
+  $('sound').setAttribute('aria-pressed', String(!sound.muted));
 }
-const soundUnlock = document.createElement('button');
-soundUnlock.id = 'sound-unlock';
-soundUnlock.textContent = '♪ Включить звук';
-$('controller-status').before(soundUnlock);
 sound.onStatus = syncSoundButton;
-soundUnlock.onclick = async () => {
-  try {
-    await sound.enable();
-    applyConfig({ ...config, soundMuted: false });
-    sound.play({ type: 'whistle' });
-  } catch {
-    toast('Браузер не разрешил воспроизведение звука.');
-  }
-};
 for (const eventName of ['pointerdown', 'keydown'])
   window.addEventListener(
     eventName,
     (event) => {
-      if (
-        sound.muted ||
-        sound.ready ||
-        event.target?.closest('#sound, #sound-unlock, .audio-preview')
-      )
-        return;
+      if (sound.muted || sound.ready || event.target?.closest('#sound, .audio-preview')) return;
       sound
         .enable()
         .then(syncSoundButton)
@@ -620,7 +555,7 @@ for (const eventName of ['pointerdown', 'keydown'])
   );
 $('sound').onclick = async () => {
   try {
-    if (sound.ready) sound.disable();
+    if (!sound.muted) sound.disable();
     else await sound.enable();
     applyConfig({ ...config, soundMuted: !sound.enabled });
     syncSoundButton();
@@ -639,28 +574,52 @@ $('fullscreen').onclick = async () => {
   }
   $('game').focus({ preventScroll: true });
 };
-function openDialog(id) {
-  modalWasPaused = paused;
+const switchingDialogs = new WeakSet();
+function openDialog(id, selection) {
+  const current = document.querySelector('dialog[open]');
+  if (current?.id === id) return;
+  if (current) {
+    switchingDialogs.add(current);
+    current.close();
+  } else modalWasPaused = paused;
   clearActions();
+  if (id === 'team-dialog' && !teamEditor)
+    teamEditor = createTeamEditor($(id), () => config, applyConfig);
+  if (id === 'shots-dialog' && !drawShotLab)
+    drawShotLab = createShotLab($(id), () => config, applyConfig, openDialog);
+  if (id === 'arms-dialog' && !drawArmLab) drawArmLab = createArmLab($(id), () => config);
+  if (id === 'appearance-dialog' && !drawGraphicsArms)
+    drawGraphicsArms = createArmLab($(id), () => config, 'graphics-arm-');
+  if (id === 'ambience-dialog') ambienceUI.mount();
+  mountSettingsPanel($(id), openDialog, (dialog) => {
+    if (switchingDialogs.delete(dialog)) return;
+    flushSettings();
+    setPaused(modalWasPaused);
+    $('game').focus({ preventScroll: true });
+  });
   $(id).showModal();
+  if (id === 'shots-dialog' && selection) drawShotLab.select(selection);
+  syncSettings();
   $('pause-overlay').hidden = true;
 }
-$('help-button').onclick = $('combos-button').onclick = () => openDialog('help-dialog');
-$('physics-quick').onclick = $('physics-button').onclick = () => openDialog('physics-dialog');
-$('graphics-quick').onclick = $('graphics-button').onclick = () => openDialog('graphics-dialog');
-$('settings-button').onclick = () => openDialog('settings-dialog');
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-open-panel]');
+  if (button) openDialog(button.dataset.openPanel);
+});
+$('help-button').onclick = () => openDialog('help-dialog');
+$('team-quick').onclick = () => openDialog('team-dialog');
+$('graphics-button').onclick = () => openDialog('graphics-dialog');
+$('settings-button').onclick = () => openDialog('match-settings-dialog');
+$('config-button').onclick = () => openDialog('settings-dialog');
 for (const [id, key] of [
   ['pixel-graphics', 'pixelGraphics'],
   ['ball-fire', 'ballFire'],
   ['lively-background', 'livelyBackground'],
+  ['random-arms', 'randomArms'],
 ])
   $(id).onchange = (e) => applyConfig({ ...config, [key]: e.target.checked });
-for (const [id, key] of [
-  ['home-team', 'homeTeam'],
-  ['away-team', 'awayTeam'],
-])
-  $(id).onchange = (e) => applyConfig({ ...config, [key]: e.target.value });
-$('graphics-controls').before($('trajectory').closest('label'));
+for (const [id, key] of [['away-team', 'awayTeam']])
+  $(id).onchange = (e) => applyConfig(selectClub(config, e.target.value, key === 'awayTeam'));
 $('guide-content').innerHTML = GUIDE_HTML;
 ambienceUI = createAmbienceUI({
   config: () => config,
@@ -668,30 +627,7 @@ ambienceUI = createAmbienceUI({
   sound,
   open: openDialog,
 });
-for (const dialog of document.querySelectorAll('dialog')) {
-  dialog.querySelector('.close').onclick = () => dialog.close();
-  const outside = (e) => {
-    const r = dialog.getBoundingClientRect();
-    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-  };
-  let backdropPress = false;
-  dialog.addEventListener('pointerdown', (e) => {
-    backdropPress = e.target === dialog && outside(e);
-  });
-  dialog.addEventListener('click', (e) => {
-    if (backdropPress && e.target === dialog && outside(e)) dialog.close();
-    backdropPress = false;
-  });
-  dialog.addEventListener('close', () => {
-    setPaused(modalWasPaused);
-    $('game').focus({ preventScroll: true });
-  });
-}
 $('speed').oninput = (e) => applyConfig({ ...config, gameSpeed: Number(e.target.value) });
-$('drive-assist').oninput = (e) => applyConfig({ ...config, driveAssist: Number(e.target.value) });
-$('pass-assist').oninput = (e) => applyConfig({ ...config, passAssist: Number(e.target.value) });
-$('flight-style').oninput = (e) =>
-  applyConfig({ ...config, cartoonFlight: Number(e.target.value) });
 for (const key of ['assist', 'trajectory', 'variableJump'])
   $(key).onchange = (e) => applyConfig({ ...config, [key]: e.target.checked });
 $('receive-momentum').onchange = (e) =>
@@ -705,26 +641,28 @@ $('difficulty').oninput = (e) => {
   });
 };
 $('scoring').onchange = (e) => applyConfig({ ...config, scoring: e.target.value });
-const visualKeys = new Set([
-  'fireSpeed',
-  'elbowHeight',
-  'armRoundness',
-  'armScale',
-  'armSpring',
-  'armBend',
-  'armWindup',
-  'armPowerMotion',
-  'armJumpMotion',
-]);
-let lastPhysicsGroup;
+const visualKeys = COSMETIC_KEYS;
+const tuningGroups = new Map();
 for (const [key, [label, step, , group, hint]] of Object.entries(physicsFields)) {
-  const container = $(visualKeys.has(key) ? 'graphics-controls' : 'physics-controls');
-  if (group !== lastPhysicsGroup) {
+  const parent = $(
+    key === 'targetScore'
+      ? 'match-rule-controls'
+      : ['fireSpeed', 'smokeTrailOpacity', 'smokeTrailLife'].includes(key)
+        ? 'graphics-effects-controls'
+        : visualKeys.has(key)
+          ? 'graphics-controls'
+          : 'physics-controls',
+  );
+  const groupKey = parent.id + ':' + group;
+  let container = tuningGroups.get(groupKey);
+  if (!container) {
+    container = document.createElement('section');
+    tuningGroups.set(groupKey, container);
+    parent.append(container);
     const heading = document.createElement('h3');
     heading.className = 'physics-group';
     heading.textContent = group;
     container.append(heading);
-    lastPhysicsGroup = group;
   }
   const div = document.createElement('div'),
     lab = document.createElement('label');
@@ -749,9 +687,42 @@ for (const [key, [label, step, , group, hint]] of Object.entries(physicsFields))
   }
   container.append(div);
 }
-$('reset-physics').onclick = () => {
-  applyConfig(DEFAULTS);
-  $('config-message').textContent = 'Базовые настройки восстановлены.';
+let resetSnapshot;
+function resetSettings(keys) {
+  resetSnapshot = config;
+  applyConfig(
+    keys ? { ...config, ...Object.fromEntries(keys.map((key) => [key, DEFAULTS[key]])) } : DEFAULTS,
+  );
+  $('undo-settings').hidden = false;
+  toast('Настройки сброшены. Отмена доступна в разделе «Сохранить / загрузить».');
+}
+$('reset-physics').onclick = () =>
+  resetSettings([
+    ...Object.keys(physicsFields).filter((key) => !visualKeys.has(key) && key !== 'targetScore'),
+    'receiveMomentum',
+  ]);
+$('reset-appearance').onclick = () =>
+  resetSettings(
+    [...COSMETIC_KEYS].filter(
+      (key) => key.startsWith('arm') || key === 'elbowHeight' || key === 'randomArms',
+    ),
+  );
+$('reset-graphics').onclick = () =>
+  resetSettings([
+    'ballSkin',
+    'ballFire',
+    'fireSpeed',
+    'smokeTrailOpacity',
+    'smokeTrailLife',
+    'pixelGraphics',
+    'livelyBackground',
+    'trajectory',
+  ]);
+$('reset-all').onclick = () => resetSettings();
+$('undo-settings').onclick = () => {
+  if (resetSnapshot) applyConfig(resetSnapshot);
+  resetSnapshot = null;
+  $('undo-settings').hidden = true;
 };
 $('export-config').onclick = () => {
   const url = URL.createObjectURL(new Blob([exportSettings(config)], { type: 'application/json' }));
@@ -775,29 +746,19 @@ $('import-config').onchange = async (e) => {
   }
   e.target.value = '';
 };
-for (const key of ['elbowHeight', 'armRoundness', 'armScale']) {
-  const row = document.createElement('label');
-  row.className = 'slider-label';
-  row.textContent = physicsFields[key][0];
-  const out = document.createElement('output');
-  out.id = 'preview-value-' + key;
-  row.append(out);
-  const slider = document.createElement('input');
-  slider.type = 'range';
-  slider.id = 'preview-' + key;
-  row.htmlFor = slider.id;
-  [slider.min, slider.max] = LIMITS[key];
-  slider.step = physicsFields[key][1];
-  slider.oninput = () => applyConfig({ ...config, [key]: Number(slider.value) });
-  $('arm-cards').before(row, slider);
-}
 syncSettings();
 updateUI();
 const audioPreview = document.createElement('section');
 audioPreview.className = 'audio-preview';
 audioPreview.innerHTML =
-  '<h3>Звуки арены · послушать</h3><p>Мелодии, аплодисменты, свисток и нарастающий заряд удара. Нажмите любую кнопку для проверки.</p>';
-for (const [label, type] of [
+  '<h3>Звуки арены · послушать</h3><p>Сравните мягкий и сильный приём, навес, удар и звучание полной комбинации.</p>';
+for (const [label, type, details = {}] of [
+  ['Мягкий приём', 'hit', { kind: 'low', incomingSpeed: 3, power: 0.5 }],
+  ['Сильный приём', 'hit', { kind: 'low', incomingSpeed: 19, power: 0.5 }],
+  ['Навес', 'hit', { kind: 'loft', power: 0.6 }],
+  ['Удар', 'hit', { kind: 'drive', power: 0.9 }],
+  ['Приём → навес → удар', 'combination-preview'],
+  ['Мяч об пол', 'floor-touch', { speed: 12 }],
   ['Свисток', 'whistle'],
   ['Замах', 'windup'],
   ['Ещё один мяч · мелодия проигрыша', 'loss-preview'],
@@ -811,7 +772,7 @@ for (const [label, type] of [
     try {
       await sound.enable();
       applyConfig({ ...config, soundMuted: false });
-      sound.play({ type });
+      sound.play({ type, ...details });
       syncSoundButton();
     } catch {
       toast('Браузер не разрешил воспроизведение звука.');
@@ -819,12 +780,13 @@ for (const [label, type] of [
   };
   audioPreview.append(button);
 }
-$('settings-dialog').append(audioPreview);
+$('audio-dialog').append(audioPreview);
 dynamicUI = createDynamicUI(match, {
   apply: applyConfig,
   config: () => config,
   start: startGame,
   pause: setPaused,
+  paused: () => paused,
   clear: clearActions,
   toast,
 });

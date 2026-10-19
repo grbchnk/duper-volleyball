@@ -23,7 +23,7 @@ test('copied replay impacts do not restart the net ripple and the motion stays b
   for (let i = 0; i < 180; i++) {
     state = netVisual(state, { ...hit }, i / 60);
     assert.equal(state.impact.at, 0);
-    assert.ok(Math.abs(state.wave) <= 3.5);
+    assert.ok(Math.abs(state.wave) <= 13);
     assert.ok(Number.isFinite(state.wave));
   }
   assert.equal(state.wave, 0);

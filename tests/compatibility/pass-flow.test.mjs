@@ -103,6 +103,11 @@ test('return waits for landing and recovery; becoming the pass recipient cancels
   m.jump(p);
   Object.assign(m.ball, { x: p.x, y: 2.1 });
   m.makeContact(p, 'loft', 0.4, pass(m, p, 'loft', 0.4));
+  assert.notEqual(
+    m.active().id,
+    p.id,
+    'a completed pass hands control over while the passer is airborne',
+  );
   m.movePlayers(FIXED_DT, neutral);
   assert.equal(p.x, -5);
   assert.ok(p.clearLane || p.returnHome);
@@ -121,7 +126,7 @@ test('return waits for landing and recovery; becoming the pass recipient cancels
   assert.equal(p.x, x);
   m.startServe();
   assert.equal(p.returnHome, false);
-  assert.equal(p.homeX, -7);
+  assert.equal(p.homeX, -8);
 });
 
 function pass(m, p, kind, power) {

@@ -69,6 +69,37 @@ test('an incoming ball switches to the reachable free player without stealing ei
   for (let i = 0; i < 10; i++) m.updateCoopReceiver();
   assert.notEqual(m.selected[0], m.coopSelected);
 });
+test('co-op receiver forecasting can switch a moving controller', () => {
+  const m = rally();
+  Object.assign(m.ball, { x: -3.7, y: 0.8, vx: 0, vy: -2 });
+  m.inputs = [{ axis: -1 }, {}, {}];
+  m.updateCoopReceiver();
+  assert.deepEqual([m.selected[0], m.coopSelected], [1, 2]);
+});
+
+test('a completed co-op pass switches the moving back controller on either role rotation', () => {
+  for (const slot of [0, 2]) {
+    const m = rally();
+    if (slot === 2) {
+      m.coopRotationCount = 1;
+      m.selected[0] = m.coopPrimary = 2;
+      m.coopSelected = 0;
+    }
+    m.inputs = [{}, {}, {}];
+    m.inputs[slot] = { axis: 1, loft: true };
+    const passer = m.players[0];
+    assert.ok(
+      m.makeContact(passer, 'loft', 0.4, {
+        vx: 2.5,
+        vy: 5,
+        vz: 0,
+        targetId: 1,
+      }),
+    );
+    assert.equal(m.coopPlayer(slot), 1);
+    assert.equal(m.coopPlayer(slot === 0 ? 2 : 0), 2);
+  }
+});
 test('a pass already aimed at the controlled partner leaves ownership unchanged', () => {
   const m = rally();
   m.lastTouch = 0;
@@ -115,8 +146,6 @@ test('a reachable co-op receiver keeps control even if the forecast favours a cl
   const m = rally();
   m.incomingShot = 'serve';
   Object.assign(m.ball, { x: -3.7, y: 3.2, vx: 0, vy: 0 });
-  m.autoCoopReceiver(1);
-  assert.equal(m.coopPlayer(0), 0, 'opponent serve cannot preselect the closer teammate');
   m.updateCoopReceiver();
   assert.equal(m.coopPlayer(0), 0, 'a reachable selected receiver is retained');
   assert.equal(m.coopPlayer(2), 2, 'front player stays with its controller');

@@ -11,7 +11,7 @@
     />
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./dynamic.css" />
-    <script type="module" src="./src/main.js"></script>
+    <link rel="stylesheet" href="./settings.css" />
   </head>
   <body class="game-page">
     <header class="topbar">
@@ -19,11 +19,9 @@
         ><span class="brand-ball">✳</span>Duper Volleyball · Клуб</a
       >
       <nav>
-        <button id="settings-button">Настройки / JSON</button
-        ><button id="graphics-quick">Графика</button>
-        <button id="shots-quick">Удары и подачи</button><button id="physics-quick">Физика</button>
-        <a href="./versions/frozen-v2-2026-10-12/index.html" target="_blank">Сохранённая версия ↗</a
-        ><button id="help-button">Методичка <span>↗</span></button>
+        <button id="team-quick">Команда</button><button id="settings-button">Настройки</button
+        ><button id="graphics-button">Внешний вид</button><button id="help-button">Обучение</button
+        ><button id="config-button">JSON</button>
       </nav>
     </header>
     <main>
@@ -38,12 +36,13 @@
               ><button id="demo-mode">Смотреть</button>
             </div>
             <div class="arena-tools">
-              <button id="sound" aria-label="Включить звук">♪</button
+              <button id="sound" aria-label="Выключить звук" aria-pressed="true">♫</button
               ><button id="pause" aria-label="Пауза">Ⅱ</button
               ><button id="fullscreen" aria-label="Полный экран">⛶</button>
             </div>
           </div>
           <p id="controller-status" role="status" hidden></p>
+          <p id="dynamic-analysis" class="micro" hidden></p>
           <div id="club-hud" class="club-hud" hidden>
             <div><span id="club-hud-kicker"></span><strong id="club-hud-title"></strong></div>
             <div class="club-hud-stats">
@@ -81,6 +80,12 @@
                 <span class="flower">Ⅱ</span>
                 <h2>Пауза</h2>
                 <button id="resume" class="primary">Продолжить ↗</button>
+                <div class="pause-replay-actions" role="group" aria-label="Последний розыгрыш">
+                  <button id="dynamic-replay" class="secondary" disabled>
+                    Посмотреть розыгрыш
+                  </button>
+                  <button id="dynamic-retry" class="secondary" disabled>Переиграть розыгрыш</button>
+                </div>
                 <p>Enter — вернуться в игру</p>
               </div>
             </div>
@@ -94,153 +99,93 @@
                 <button id="rematch" class="primary">Ещё один матч ↗</button>
               </div>
             </div>
-          </div>
-          <div class="play-ribbon">
-            <div class="phase-pill" id="phase-pill">ПОДАЧА</div>
-            <div class="charge-info">
-              <span id="charge-label">Зажмите клавишу контакта</span>
-              <div class="power-meter"><i id="power-fill"></i></div>
-            </div>
-            <strong id="charge-value">0%</strong
-            ><span class="touch-count" id="touch-count">0 / 3</span>
-          </div>
-          <div class="game-status">
-            <span id="status">Готов к подаче</span><span id="rule-label">ТЕМП 0.70×</span>
-          </div>
-          <div class="club-feedback" role="status">
-            <b id="club-feedback-title">Точность решает.</b
-            ><span id="club-feedback-detail"
-              >Меняй силу, обманывай блок, спасай безнадёжные мячи.</span
-            >
-          </div>
-          <div class="keyboard-strip">
-            <div><kbd>S</kbd><span>Снизу</span></div>
-            <div><kbd>A</kbd><span>Одной рукой / мягкая подача</span></div>
-            <div><kbd>W</kbd><span>Верхний пас</span></div>
-            <div><kbd>D</kbd><span>Удар</span></div>
-            <div><kbd>F</kbd><span>Блок ×1</span></div>
-            <div><kbd>↑</kbd><span>Прыжок</span></div>
-            <div><kbd>↓</kbd><span>Присесть</span></div>
-            <div><kbd>Q / E</kbd><span>Бросок</span></div>
-            <button id="combos-button">Все приёмы ↗</button>
-          </div>
-        </section>
-        <aside class="sidebar">
-          <section class="panel action-panel">
-            <div class="panel-heading">
-              <h2>Твой следующий ход</h2>
-              <span>✧</span>
-            </div>
-            <div class="action-title">
-              <kbd id="action-key">A</kbd>
-              <h3 id="action-title">Выбери подачу</h3>
-            </div>
-            <p id="action-hint"></p>
-            <div class="phase-track">
-              <span data-phase="defense">01 Защита</span><i>↔</i
-              ><span data-phase="attack">02 Атака</span>
-            </div>
-            <p class="micro" id="assist-status">Помощь корректирует пас, но не играет за тебя.</p>
-          </section>
-          <section class="panel match-panel">
-            <div class="panel-heading">
-              <h2>Команды</h2>
-              <span>♧</span>
-            </div>
-            <label for="home-team">ТВОЙ КЛУБ</label
-            ><select id="home-team"></select>
-            <div class="versus"><span></span>VS<span></span></div>
-            <label for="away-team">СОПЕРНИК</label
-            ><select id="away-team"></select>
-            <label class="slider-label" for="difficulty"
-              >Уровень бота <output id="difficulty-value">55 / 100</output></label
-            >
-            <input id="difficulty" type="range" min="0" max="100" step="1" value="55" />
-            <div class="range-caption"><span>Спокойный</span><span>Сильный</span></div>
-            <button id="new-match" class="secondary">Новый матч <span>↻</span></button>
-          </section>
-          <section class="panel tuning-panel">
-            <div class="panel-heading">
-              <h2>Темп игры</h2>
-              <span>☀</span>
-            </div>
-            <label class="slider-label" for="speed"
-              >Скорость игры <output id="speed-value">0.70×</output></label
-            ><input id="speed" type="range" min="0.5" max="1.5" step="0.05" value="0.7" />
-            <div class="range-caption"><span>Медленнее</span><span>Быстрее</span></div>
-            <label class="slider-label" for="flight-style"
-              >Мультяшный полёт <output id="flight-style-value">0%</output></label
-            >
-            <input id="flight-style" type="range" min="0" max="1" step="0.05" value="0" />
-            <div class="range-caption"><span>Обычный</span><span>Мультяшный</span></div>
-            <p class="micro">Скорость, разгон и зависание — в лаборатории физики.</p>
-            <label class="toggle-row"
-              ><span>Помощь прыжку и броску<small>Ручной угол не меняется</small></span
-              ><input type="checkbox" id="assist" checked /><span class="toggle"></span
-            ></label>
-            <label class="toggle-row"
-              ><span>Высота прыжка от удержания<small>Кнопки ✕ / Space</small></span
-              ><input type="checkbox" id="variableJump" /><span class="toggle"></span
-            ></label>
-            <div id="profile-assistance" hidden>
-              <label class="slider-label" for="pass-assist"
-                >Коррекция автоматических пасов <output id="pass-assist-value">100%</output></label
-              >
-              <input id="pass-assist" type="range" min="0" max="1" step="0.05" value="1" />
-              <label class="slider-label" for="drive-assist"
-                >Коррекция автоматических атак <output id="drive-assist-value">100%</output></label
-              >
-              <input id="drive-assist" type="range" min="0" max="1" step="0.05" value="1" />
-              <p class="micro">
-                Ручные □ / △ / ○ всегда следуют вашему направлению и силе. Эти настройки действуют
-                на автоматические действия.
-              </p>
-              <div class="range-caption">
-                <span>Вообще без помощи</span><span>Полная помощь</span>
+            <div id="replay-toolbar" class="replay-toolbar" hidden>
+              <div id="dynamic-replay-controls" hidden>
+                <label
+                  >Повтор розыгрыша
+                  <input
+                    id="dynamic-scrub"
+                    aria-label="Позиция повтора"
+                    type="range"
+                    min="0"
+                    max="1"
+                    value="0" /></label
+                ><button id="dynamic-close-replay">Закрыть повтор</button>
               </div>
             </div>
-            <label class="toggle-row"
-              ><span>Прогноз полёта и удара</span><input type="checkbox" id="trajectory" /><span
-                class="toggle"
-              ></span></label
-            ><button id="physics-button" class="text-button">
-              Лаборатория физики <span>↗</span>
-            </button>
-          </section>
-          <section class="panel">
-            <div class="panel-heading">
-              <h2>Внешность и управление</h2>
-              <span>✋</span>
+            <div class="game-status">
+              <span id="status">Готов к подаче</span><span id="rule-label">ТЕМП 0.70×</span>
             </div>
-            <button id="graphics-button" class="secondary">Графика и внешний вид ↗</button>
-            <p class="micro">
-              Левый стик задаёт направление. L2 — мягко одной рукой, R2 — сильнее и прямее. Правый
-              стик отключён. Три нажатия направления подряд — бросок; Q / E — влево / вправо.
-            </p>
-
-            <button id="shots-button" class="secondary">Лаборатория ударов ↗</button
-            ><button id="arms-button" class="secondary">Просмотр анимаций ↗</button>
-          </section>
-          <section id="practice-panel" class="panel" hidden>
-            <div class="panel-heading">
-              <h2>Разминка без счёта</h2>
-              <span>◆</span>
-            </div>
-            <label for="drill">Упражнение</label
-            ><select id="drill">
-              <option value="receive">Приём снизу</option>
-              <option value="dive-forward">Бросок вперёд + приём</option>
-              <option value="dive-back">Бросок назад + приём</option>
-              <option value="set">Верхний пас</option>
-              <option value="block">Блок и страховка</option>
-              <option value="serve">Подача</option>
-              <option value="spike">Навес → атака у сетки</option>
-              <option value="combination">Второй пас → ручная атака</option></select
-            ><button id="repeat-drill" class="secondary">Повторить мяч ↻</button>
-          </section>
-        </aside>
+          </div>
+        </section>
+        <aside class="sidebar"></aside>
       </div>
     </main>
+    <dialog id="match-settings-dialog" aria-label="Настройки матча">
+      <div class="dialog-top">
+        <h2>Матч и управление</h2>
+        <button class="close" aria-label="Закрыть">×</button>
+      </div>
+      <div id="match-settings-controls" class="match-settings-layout">
+        <section class="panel match-panel">
+          <div class="panel-heading">
+            <h2>Команды</h2>
+            <span>♧</span>
+          </div>
+          <label for="away-team">СОПЕРНИК</label
+          ><select id="away-team"></select>
+          <label class="slider-label" for="difficulty"
+            >Уровень бота <output id="difficulty-value">55 / 100</output></label
+          >
+          <input id="difficulty" type="range" min="0" max="100" step="1" value="55" />
+          <div class="range-caption"><span>Спокойный</span><span>Сильный</span></div>
+          <label class="form-row" for="scoring"
+            >Начисление очков<select id="scoring">
+              <option value="sideout">На своей подаче</option>
+              <option value="rally">Каждый розыгрыш</option>
+            </select></label
+          >
+          <div id="match-rule-controls"></div>
+          <button id="new-match" class="secondary">Новый матч <span>↻</span></button>
+        </section>
+        <section class="panel tuning-panel">
+          <div class="panel-heading">
+            <h2>Темп игры</h2>
+            <span>☀</span>
+          </div>
+          <label class="slider-label" for="speed"
+            >Скорость игры <output id="speed-value">0.70×</output></label
+          ><input id="speed" type="range" min="0.5" max="1.5" step="0.05" value="0.7" />
+          <div class="range-caption"><span>Медленнее</span><span>Быстрее</span></div>
+          <label class="toggle-row"
+            ><span>Помощь прыжку и броску<small>Ручной угол не меняется</small></span
+            ><input type="checkbox" id="assist" checked /><span class="toggle"></span
+          ></label>
+          <label class="toggle-row"
+            ><span>Высота прыжка от удержания<small>Кнопки ✕ / Space</small></span
+            ><input type="checkbox" id="variableJump" /><span class="toggle"></span
+          ></label>
+        </section>
+        <section id="practice-panel" class="panel" hidden>
+          <div class="panel-heading">
+            <h2>Разминка без счёта</h2>
+            <span>◆</span>
+          </div>
+          <label for="drill">Упражнение</label
+          ><select id="drill">
+            <option value="receive">Приём снизу</option>
+            <option value="dive-forward">Бросок вперёд + приём</option>
+            <option value="dive-back">Бросок назад + приём</option>
+            <option value="set">Верхний пас</option>
+            <option value="block">Блок и страховка</option>
+            <option value="serve">Подача</option>
+            <option value="spike">Навес → атака у сетки</option>
+            <option value="combination">Второй пас → ручная атака</option></select
+          ><button id="repeat-drill" class="secondary">Повторить мяч ↻</button>
+        </section>
+      </div>
+    </dialog>
+    <dialog id="team-dialog" aria-label="Моя команда"></dialog>
     <dialog id="graphics-dialog" aria-label="Графика и внешний вид">
       <div class="dialog-top">
         <h2>Графика и внешний вид</h2>
@@ -248,7 +193,13 @@
       </div>
       <div class="graphics-layout">
         <section class="panel">
-          <h3>Отображение</h3>
+          <h3>Мяч и графика</h3>
+          <button id="reset-graphics" class="secondary">Сбросить графику и эффекты</button>
+          <label class="toggle-row"
+            ><span>Прогноз полёта и удара</span><input type="checkbox" id="trajectory" /><span
+              class="toggle"
+            ></span
+          ></label>
           <label class="toggle-row"
             ><span
               >Единая пиксельная сетка<small
@@ -256,21 +207,14 @@
               ></span
             ><input id="pixel-graphics" type="checkbox" /><span class="toggle"></span
           ></label>
-          <div id="skin-cards" class="skin-cards" hidden></div>
           <label><input id="ball-fire" type="checkbox" checked /> Огонь у быстрого мяча</label>
           <label
-            ><input id="lively-background" type="checkbox" checked /> Живые трибуны и
+            ><input id="lively-background" type="checkbox" checked /> Живое окружение, зрители и
             конфетти</label
           >
-          <label for="home-skin">Твоя команда</label>
+          <label for="away-color">Цвет соперника</label>
           <div class="appearance-row">
-            <select id="home-skin"></select
-            ><input id="home-color" type="color" aria-label="Цвет твоей команды" />
-          </div>
-          <label for="away-skin">Соперник</label>
-          <div class="appearance-row">
-            <select id="away-skin"></select
-            ><input id="away-color" type="color" aria-label="Цвет соперника" />
+            <select id="away-color" aria-label="Цвет соперника"></select>
           </div>
           <label for="ball-skin">Мяч</label
           ><select id="ball-skin">
@@ -280,8 +224,9 @@
             <option value="mono">Шахматный</option>
             <option value="plain">Без рисунка</option>
           </select>
-          <label for="ball-size">Размер мяча <output id="ball-size-value"></output></label
-          ><input id="ball-size" type="range" min="0.7" max="1.8" step="0.05" />
+          <p class="hint">
+            Размер мяча и допуск у сетки настраиваются в разделе «Физика и помощь».
+          </p>
 
           <canvas
             id="ball-preview"
@@ -289,12 +234,60 @@
             height="96"
             aria-label="Предпросмотр рисунка мяча"
           ></canvas>
-        </section>
-        <section class="panel">
-          <h3>Руки и анимация</h3>
-          <div id="graphics-controls"></div>
+          <div id="graphics-effects-controls"></div>
         </section>
       </div>
+    </dialog>
+    <dialog id="appearance-dialog">
+      <div class="dialog-top">
+        <h2>Руки и анимация</h2>
+        <button class="close" aria-label="Закрыть">×</button>
+      </div>
+      <section class="panel">
+        <h3>Руки и анимация</h3>
+        <label><input id="random-arms" type="checkbox" /> Случайные руки у каждого игрока</label>
+        <p class="hint">
+          У каждого игрока свои изгиб и высота локтя. Размер, толщина и остальные параметры не
+          меняются. Набор сохраняется на весь матч.
+        </p>
+        <div id="graphics-arm-preview" class="arm-live-preview">
+          <label for="graphics-arm-pose">Движение в предпросмотре</label>
+          <select id="graphics-arm-pose">
+            <option value="drive">Замах и удар</option>
+            <option value="idle">Стойка</option>
+            <option value="low">Приём снизу</option>
+            <option value="loft">Верхний пас</option>
+            <option value="jump">Прыжок</option>
+            <option value="block">Блок</option>
+          </select>
+          <div id="graphics-arm-cards"></div>
+          <details>
+            <summary>Сила, замедление и стоп-кадр</summary>
+            <label for="graphics-arm-preview-power"
+              >Сила <output id="graphics-arm-preview-value">85%</output></label
+            >
+            <input
+              id="graphics-arm-preview-power"
+              type="range"
+              min="15"
+              max="100"
+              step="5"
+              value="85"
+            />
+            <label><input id="graphics-arm-slow" type="checkbox" /> Замедлить</label>
+            <label><input id="graphics-arm-freeze" type="checkbox" /> Стоп-кадр</label>
+            <label for="graphics-arm-frame"
+              >Момент <output id="graphics-arm-frame-value">0.00 с</output></label
+            >
+            <input id="graphics-arm-frame" type="range" min="0" max="2.2" step="0.01" value="0" />
+            <button id="graphics-arm-replay" class="secondary">Повторить ↻</button>
+          </details>
+          <small>Общие настройки рук. Случайные локти отдельных игроков здесь отключены.</small>
+        </div>
+        <button id="reset-appearance" class="secondary">Сбросить внешний вид рук</button>
+        <div id="graphics-controls"></div>
+      </section>
+      <button data-open-panel="arms-dialog" class="secondary">Все движения ↗</button>
     </dialog>
     <dialog id="settings-dialog" aria-label="Все настройки">
       <div class="dialog-top">
@@ -302,15 +295,16 @@
         <button class="close" aria-label="Закрыть настройки">×</button>
       </div>
       <p>
-        Один файл сохраняет физику, все четыре подачи и четыре приёма, допуски контакта, параметры
-        анимации рук и прыжков, управление, помощь, правила, команды, скины, цвета и графику.
+        Один файл сохраняет физику, все четыре подачи и три основных приёма, допуски контакта,
+        параметры анимации рук и прыжков, управление, помощь, правила, команды, скины, цвета и
+        графику.
       </p>
       <p>
         Это настройки игры, а не запись матча. Положение ползунка времени, пауза и выбранный пример
         в лаборатории не сохраняются.
       </p>
       <div class="dialog-buttons">
-        <button id="reset-physics" class="secondary">Сбросить всё</button
+        <button id="reset-all" class="secondary">Сбросить всё</button
         ><button id="export-config" class="primary">Скачать все настройки ↓</button
         ><label class="secondary file-button"
           >Загрузить все настройки ↑<input
@@ -319,6 +313,7 @@
             accept="application/json,.json"
         /></label>
       </div>
+      <button id="undo-settings" class="secondary" hidden>Отменить сброс</button>
       <p id="config-message" role="status"></p>
     </dialog>
     <dialog id="help-dialog">
@@ -329,12 +324,39 @@
         </div>
         <button class="close" aria-label="Закрыть методичку">×</button>
       </div>
+      <section class="panel action-panel">
+        <div class="panel-heading">
+          <h2>Твой следующий ход</h2>
+          <span>✧</span>
+        </div>
+        <div class="action-title">
+          <kbd id="action-key">A</kbd>
+          <h3 id="action-title">Выбери подачу</h3>
+        </div>
+        <p id="action-hint"></p>
+        <div class="phase-track">
+          <span data-phase="defense">01 Защита</span><i>↔</i
+          ><span data-phase="attack">02 Атака</span>
+        </div>
+        <p class="micro" id="assist-status">Помощь корректирует пас, но не играет за тебя.</p>
+      </section>
       <div id="guide-content"></div>
+      <section class="keyboard-guide" aria-label="Управление">
+        <h3>Управление</h3>
+        <div><kbd>S</kbd><span>Приём снизу</span></div>
+        <div><kbd>Z / C</kbd><span>Мягче / мощнее</span></div>
+        <div><kbd>W</kbd><span>Верхний пас</span></div>
+        <div><kbd>D</kbd><span>Удар</span></div>
+        <div><kbd>F</kbd><span>Блок</span></div>
+        <div><kbd>↑</kbd><span>Прыжок</span></div>
+        <div><kbd>↓</kbd><span>Присесть</span></div>
+        <div><kbd>Q / E</kbd><span>Бросок</span></div>
+      </section>
       <a href="./guide.html" target="_blank" class="guide-link"
         >Открыть методичку отдельно / печать ↗</a
       >
     </dialog>
-    <dialog id="shots-dialog" aria-label="Лаборатория ударов"></dialog>
+    <dialog id="shots-dialog" aria-label="Настройки и предпросмотр ударов"></dialog>
     <dialog id="arms-dialog">
       <div class="dialog-top">
         <div>
@@ -344,9 +366,7 @@
         <button class="close" aria-label="Закрыть просмотр анимаций">×</button>
       </div>
       <div class="arm-tools">
-        <label for="preview-skin">Скин</label
-        ><select id="preview-skin"></select
-        ><label for="arm-pose">Движение</label
+        <label for="arm-pose">Движение</label
         ><select id="arm-pose">
           <option value="idle">Стойка</option>
           <option value="run">Бег</option>
@@ -377,14 +397,15 @@
       </div>
       <p class="arm-explanation">
         Тело меняет пиксельные кадры, руки остаются хлёсткими. Передвинь «Момент», чтобы рассмотреть
-        кисти и локти. Скин применяется и в матче. Сила и время примера меняют только просмотр.
+        кисти и локти. Внешность берётся из меню «Моя команда». Сила и время примера меняют только
+        просмотр.
       </p>
     </dialog>
     <dialog id="physics-dialog">
       <div class="dialog-top">
         <div>
           <p class="eyebrow">FEEL THE BALL</p>
-          <h2>Характер твоего матча</h2>
+          <h2>Физика и помощь</h2>
         </div>
         <button class="close" aria-label="Закрыть настройки">×</button>
       </div>
@@ -392,6 +413,7 @@
         Время — в игровых секундах: при снижении темпа реальные интервалы длиннее. Все ползунки
         сохраняются и входят в JSON. В ручной игре полный заряд отпускает удар автоматически.
       </p>
+      <button id="reset-physics" class="secondary">Сбросить физику</button>
       <div id="physics-controls"></div>
       <label class="toggle-row"
         ><span
@@ -400,14 +422,23 @@
           ></span
         ><input type="checkbox" id="receive-momentum" /><span class="toggle"></span
       ></label>
-      <label class="form-row" for="scoring"
-        >Начисление очков<select id="scoring">
-          <option value="sideout">На своей подаче</option>
-          <option value="rally">Каждый розыгрыш</option>
-        </select></label
-      >
+
       <p>Сохранение и загрузка всех параметров — кнопка «Настройки / JSON» вверху страницы.</p>
     </dialog>
     <div id="toast" role="status" hidden></div>
+    <p id="startup-error" role="alert" hidden>
+      Не удалось запустить игру. Обновите страницу или откройте игру через PLAY.cmd.
+    </p>
+    <script>
+      window.addEventListener('error', () => {
+        if (!document.documentElement.dataset.gameReady)
+          document.getElementById('startup-error').hidden = false;
+      });
+    </script>
+    <script
+      type="module"
+      src="./src/bootstrap.js"
+      onerror="document.getElementById('startup-error').hidden = false"
+    ></script>
   </body>
 </html>

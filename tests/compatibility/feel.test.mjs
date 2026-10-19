@@ -102,8 +102,8 @@ test('chiptune cues distinguish passes, attacks, wins and losses and respond to 
   const kinds = ['low', 'loft', 'drive'].map((kind) => soundCue({ type: 'hit', kind, power: 0.5 }));
   assert.equal(new Set(kinds.map((x) => JSON.stringify(x))).size, 3);
   assert.ok(
-    soundCue({ type: 'hit', kind: 'loft', power: 1 })[0].volume >
-      soundCue({ type: 'hit', kind: 'loft', power: 0 })[0].volume,
+    soundCue({ type: 'hit', kind: 'loft', power: 1 }).at(-1).volume >
+      soundCue({ type: 'hit', kind: 'loft', power: 0 }).at(-1).volume,
   );
   assert.notDeepEqual(
     soundCue({ type: 'point', winner: 0 }),
@@ -149,7 +149,7 @@ test('sound schedules short voices and mute stops all output through the master 
   sound.master = node();
   sound.enabled = true;
   sound.play({ type: 'hit', kind: 'drive', power: 0.8 });
-  assert.equal(events.filter((e) => e[0] === 'start').length, 2);
+  assert.equal(events.filter((e) => e[0] === 'start').length, 3);
   sound.disable();
   const length = events.length;
   sound.play({ type: 'hit', kind: 'loft' });
