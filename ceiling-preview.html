@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Пробитие потолка · Duper Volleyball</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #202735;
+      color: #f9edda;
+      font:
+        16px system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 960px;
+      margin: auto;
+      padding: 20px 12px;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+    p {
+      color: #ccc4b8;
+      line-height: 1.5;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+    button,
+    a {
+      display: inline-block;
+      padding: 12px 18px;
+      border: 0;
+      border-radius: 8px;
+      background: #f4d08d;
+      color: #272d35;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    #status {
+      min-height: 24px;
+      color: #f4d08d;
+    }
+  </style>
+  <main>
+    <h1>Мяч пробивает потолок</h1>
+    <p>
+      Вылет → мяч скрыт → возвращение. Тень плавно исчезает по высоте. Физика полёта остаётся
+      прежней.
+    </p>
+    <canvas id="game" width="960" height="540"></canvas>
+    <p id="status" aria-live="polite">Мяч набирает высоту</p>
+    <button id="sound">Включить звук</button>
+    <a href="./">В игру</a>
+  </main>
+  <script type="module" src="./src/ceiling-preview.js"></script>
+</html>

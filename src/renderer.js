@@ -1,3 +1,4 @@
+import { CeilingVFX, ballAboveCeiling, ballShadowOpacity } from './ceiling-vfx.js';
 import { preparedHands } from './held-contact.js';
 import { isZoneReceive } from './zone-receive.js';
 import { drawZoneSpectator } from './zone-crowd.js';
@@ -65,6 +66,7 @@ export class Renderer {
     this.bodySprites = new BodySprites();
     this.camera = 0;
     this.particles = [];
+    this.ceiling = new CeilingVFX();
     this.impacts = [];
     this.ballSquash = null;
     this.contactAccents = [];
@@ -308,6 +310,9 @@ export class Renderer {
   }
   draw(m, teams, dt = 1 / 60) {
     this.pixelGraphics = m.config.pixelGraphics;
+    const ceilingEvent = this.ceiling.update(m);
+    if (ceilingEvent) this.onCeilingBreak?.(ceilingEvent);
+    const ballVisible = !ballAboveCeiling(m.ball);
     const c = this.ctx;
     const sx = this.canvas.width / 960,
       sy = this.canvas.height / 540;
@@ -362,11 +367,11 @@ export class Renderer {
       this.rect(479, 422, 2, 60, '#fff8df');
     }
     this.drawChallenge(m);
-    const previews = (m.controls || [m]).filter((state) => state.aimPreview);
+    const previews = ballVisible ? (m.controls || [m]).filter((state) => state.aimPreview) : [];
     for (const state of previews) this.trajectory(state.aimPreview, m.config, true);
-    if (!previews.length && m.config.trajectory && m.phase === 'rally')
+    if (ballVisible && !previews.length && m.config.trajectory && m.phase === 'rally')
       this.trajectory(m.ball, m.config, false);
-    if (m.config.trajectory && m.phase === 'rally')
+    if (ballVisible && m.config.trajectory && m.phase === 'rally')
       this.text(
         m.aimPreview ? 'ЦВЕТНОЙ ПУНКТИР: УДАР СЕЙЧАС' : 'СВЕТЛЫЙ ПУНКТИР: ТЕКУЩИЙ ПОЛЁТ',
         480,
@@ -375,7 +380,7 @@ export class Renderer {
         '#547260',
         'center',
       );
-    if (m.prediction && m.phase === 'rally' && m.ball.x < 0) {
+    if (ballVisible && m.prediction && m.phase === 'rally' && m.ball.x < 0) {
       const p = this.project(m.prediction.x);
       c.strokeStyle = '#698c8070';
       c.setLineDash([3, 3]);
@@ -455,6 +460,7 @@ export class Renderer {
       this.text(teams[m.pointWinner].name, 480, 249, 15, teams[m.pointWinner].dark, 'center');
       this.text(m.pointReason, 480, 281, 11, '#a48675', 'center');
     }
+    this.ceiling.draw(c, dt);
     pixelPresent(this.canvas, this.pixelGraphics && this.canvas.width === 960, 2);
   }
   drawPlayer(p, team, m, dt) {
@@ -926,6 +932,7 @@ export class Renderer {
     this.rect(x - 6, 462, 14, 2, '#d29d82');
   }
   drawBallShadow(m) {
+    if (ballAboveCeiling(m.ball)) return;
     const c = this.ctx,
       floor = this.project(m.ball.x, 0),
       height = Math.max(0, m.ball.y - COURT.ballRadius),
@@ -935,7 +942,7 @@ export class Renderer {
     // Keep the ground position legible, with the same light direction as the players.
     c.translate(floor.x - spread * 4, floor.y + 2 + spread * 1.5);
     c.fillStyle = '#514f68';
-    c.globalAlpha = clamp(0.28 - height * 0.012, 0.14, 0.28);
+    c.globalAlpha = clamp(0.28 - height * 0.012, 0.14, 0.28) * ballShadowOpacity(m.ball);
     c.beginPath();
     c.ellipse(0, 0, (8 + spread * 0.4) * size, (2.8 + spread * 0.16) * size, 0, 0, Math.PI * 2);
     c.fill();
@@ -946,6 +953,7 @@ export class Renderer {
     c.restore();
   }
   drawBallSmoke(m) {
+    if (ballAboveCeiling(m.ball)) return;
     const opacity = m.config.smokeTrailOpacity;
     if (!opacity || !m.smokeTrail?.length) return;
     const c = this.ctx;
@@ -962,15 +970,15 @@ export class Renderer {
     c.restore();
   }
   drawBall(m) {
+    if (ballAboveCeiling(m.ball)) return;
     const c = this.ctx,
       p = this.project(m.ball.x, m.ball.y),
-      y = Math.max(84, p.y);
+      y = p.y;
     if (Math.hypot(m.ball.vx, m.ball.vy) > 5)
       for (let i = 0; i < m.trail.length; i += 4) {
         const t = this.project(m.trail[i].x, m.trail[i].y);
         this.rect(t.x - 3, t.y - 3, 6, 6, '#fff4d480');
       }
-    if (p.y < 84) this.text('↑', clamp(p.x, 15, 945), 81, 15, '#bb776b', 'center');
     const readyControl = m.controls?.find(
       (state) => state.contactWindow && m.isHuman(state.team) && (state.charge || state.pending),
     );

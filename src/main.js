@@ -46,6 +46,7 @@ const match = new Match(config),
   sound = new Sound(),
   input = new InputBuffer(),
   secondInput = new InputBuffer(undefined, undefined, 1);
+renderer.onCeilingBreak = (event) => sound.play(event);
 export { match };
 function resizeGameCanvas() {
   sceneDirty = true;

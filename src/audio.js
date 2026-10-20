@@ -26,6 +26,16 @@ export function soundCue(event) {
     ),
     ...[523.25, 659.25, 880].map((f) => note(f, 0.5, 0.62, 'sine', f, 0.012)),
   ];
+  if (event.type === 'ceiling-break') {
+    const impact = Math.max(0.3, Math.min(1, (event.speed ?? 12) / 24));
+    return [
+      note(170, 0.16, 0, 'sine', 45, 0.075 * impact),
+      note(2400, 0.2, 0, 'noise', 180, 0.085 * impact),
+      ...[0.055, 0.11, 0.19, 0.28].map((delay, i) =>
+        note(1400 - i * 230, 0.045, delay, 'noise', 260, 0.025 * impact),
+      ),
+    ];
+  }
   if (event.type === 'windup')
     return [note(800, 0.1, 0, 'noise', 400, 0.008), note(140, 0.1, 0, 'sine', 220, 0.009)];
   if (event.type === 'serve-hit-cue')
