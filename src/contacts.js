@@ -212,6 +212,7 @@ export function makeContact(match, p, kind, power, impulse) {
   if (impulse.arrival) match.planReadBlock(1 - team, impulse);
   resetFlight(match.ball, impulse.flightTempo ?? 1);
   match.recordContact(p, kind, power);
+  p.armSwing.incomingVelocity = incomingVelocity;
   const modifier = impulse.cpuModifier || impulse.contactModifier;
   if (modifier) p.armSwing.aim = { soft: modifier === 'soft', fast: modifier === 'fast' };
   if (!fourthTouch && incomingOpponent && incomingBurning)
@@ -267,6 +268,7 @@ export function makeContact(match, p, kind, power, impulse) {
   if (crosses) {
     match.selectOnOpponentContact(1 - team);
     match.scheduleCPUBlock(1 - team);
+    if (match.isHuman(team) && match.touches[team] < 3) match.selectPassReceiver(p);
   } else {
     const candidates = match.players
       .filter((other) => other.team === team && other.id !== p.id)

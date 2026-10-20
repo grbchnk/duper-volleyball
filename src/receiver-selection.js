@@ -19,13 +19,9 @@ export function nextReceiver(
   if (config.duel) return team * 3;
   const run = match.teamRuns?.[team];
   if (match.phase !== 'rally' || (ball.x < 0 ? 0 : 1) !== team) return null;
-  // An outgoing attack needs no teammate reception before it crosses the net.
-  if (
-    match.lastTouch === team &&
-    match.teamPhases[team] === 'defense' &&
-    ball.vx * match.sign(team) < 0
-  )
-    return null;
+  // A predicted crossing does not consume a touch or put the ball on the
+  // opponent's side. Keep a receiver available until it actually crosses.
+  if (match.lastTouch === team && match.touches[team] >= 3) return null;
   const current = match.players[currentId];
   if (
     run?.feint &&
@@ -132,6 +128,10 @@ export function nextReceiver(
     });
   if (rescueOnly && (match.lastTouch === team || Math.abs(ball.vx) < 3)) return null;
   if (farther) return farther.id;
+  if (match.lastTouch === team && ball.vx * match.sign(team) < 0) {
+    const next = candidates[0];
+    if (next && (!currentOption || next.time + 0.15 < currentOption.time)) return next.id;
+  }
   // Prefer a defender already near the predicted contact over a long sprint.
   // A full metre of advantage and progress along the flight prevent small
   // forecast changes from toggling control between neighbouring players.

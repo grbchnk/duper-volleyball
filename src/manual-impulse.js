@@ -57,24 +57,6 @@ export function manualImpulse(ball, player, kind, power, aim, config) {
     !Math.hypot(vector?.x || 0, vector?.y || 0);
   let vx = direction * speed * Math.cos(angle);
   let vy = speed * Math.sin(angle);
-  if (neutralLow) {
-    // A mostly upward platform, tilted slightly towards the actual contact.
-    // Reflect relative incoming motion, then blend 70% lift with 30% rebound.
-    const tilt = (clamp((ball.x - player.x) / settings.Reach, -1, 1) * Math.PI) / 8;
-    const nx = Math.sin(tilt),
-      ny = Math.cos(tilt);
-    const incomingX = (ball.vx || 0) - (player.vx || 0);
-    const incomingY = (ball.vy || 0) - (player.vy || 0);
-    const closing = Math.min(0, incomingX * nx + incomingY * ny);
-    const reboundX = incomingX - 2 * closing * nx + (player.vx || 0);
-    const reboundY = Math.max(0, incomingY - 2 * closing * ny + (player.vy || 0));
-    const length = Math.hypot(reboundX, reboundY);
-    const x = length > 1e-6 ? (0.3 * reboundX) / length : 0;
-    const y = 0.7 + (length > 1e-6 ? (0.3 * reboundY) / length : 0);
-    const scale = speed / Math.hypot(x, y);
-    vx = x * scale;
-    vy = y * scale;
-  }
   return {
     vx,
     vy,
@@ -83,7 +65,7 @@ export function manualImpulse(ball, player, kind, power, aim, config) {
     attackGravity: kind === 'drive' && direction === forward ? settings.Dip * t * t : 0,
     assisted: false,
     targetId: null,
-    ...(neutralLow ? { neutralReceive: true, assistIntent: 'Подъём по касанию' } : {}),
+    ...(neutralLow ? { neutralReceive: true } : {}),
     inheritedSpeed,
     intent: soft ? 'soft' : fast ? 'fast' : 'normal',
     contactModifier: soft ? 'soft' : fast ? 'fast' : null,

@@ -1,13 +1,15 @@
 import { clamp, predictAtHeight, driveOverNet, traceBall } from './physics.js';
+import { COURT } from './config.js';
 
-export const hasShotDirection = (aim) => !!(aim.vector || aim.axis || aim.up || aim.down);
+export const hasShotDirection = (aim) =>
+  !!(Math.hypot(aim.vector?.x || 0, aim.vector?.y || 0) || aim.axis || aim.up || aim.down);
 const turn = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 // Rotate a fixed-length impulse towards the nearest plausible intent. Never add energy.
 export function assistManualShot(ball, player, kind, result, aim, players, config) {
-  // Lower reception is authored by the contact or by the player's explicit aim.
-  // Neither may be redirected towards the net or a teammate automatically.
-  if (kind === 'low' && config.dynamic && !aim.cpuControl) return result;
+  // Both human passes use the same intent selection and angular assistance.
+  if (aim.cpuControl) return result;
+
   const directed = hasShotDirection(aim);
   const amount = clamp(
     kind === 'drive'
@@ -23,7 +25,8 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
   const original = Math.atan2(result.vy, result.vx);
   const forward = player.team === 0 ? 1 : -1;
   const rotate = (desired, details) => {
-    const delta = turn(desired, original) * amount;
+    const limit = kind === 'drive' ? Math.PI : ((directed ? 12 : 75) * Math.PI) / 180;
+    const delta = clamp(turn(desired, original), -limit, limit) * amount;
     const angle = original + delta;
     return {
       ...result,
@@ -36,7 +39,34 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
       ...details,
     };
   };
-  if (kind === 'drive') {
+  const count = clamp(aim.touchesBefore ?? 0, 0, 2);
+  if (kind === 'drive' || (count >= 2 && !directed)) {
+    if (kind !== 'drive') {
+      let best = null;
+      for (let degrees = kind === 'low' ? 38 : 5; degrees <= 85; degrees += 2) {
+        const angle = (degrees * Math.PI) / 180;
+        const vx = forward * speed * Math.cos(angle),
+          vy = speed * Math.sin(angle);
+        const path = traceBall(
+          { ...ball, ...result, vx, vy, flightLaunchVy: vy, flightTempo: 1 },
+          config,
+          6 / config.ballSpeed,
+        );
+        const end = path.at(-1);
+        if (
+          path.some((p) => p.netImpact !== ball.netImpact) ||
+          end.y > COURT.ballRadius + 0.001 ||
+          end.x * forward < 0.6 ||
+          end.x * forward > 8.7
+        )
+          continue;
+        const desired = Math.atan2(vy, vx);
+        const score = Math.abs(end.x * forward - 4.5) + Math.abs(turn(desired, original)) * 0.3;
+        if (!best || score < best.score) best = { desired, score };
+      }
+      if (best)
+        return rotate(best.desired, { assistIntent: 'Перевод через сетку', targetId: null });
+    }
     const guided = driveOverNet(
       { ...ball, ...result, flightTempo: 1 },
       speed,
@@ -44,16 +74,37 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
       true,
       config,
     );
-    return guided
-      ? rotate(Math.atan2(guided.vy, guided.vx), { assistIntent: 'Атака через сетку' })
-      : result;
+    if (!guided)
+      return {
+        ...result,
+        assistIntent:
+          (kind === 'drive' ? 'Атака' : 'Перевод') + ' через сетку · не хватает скорости',
+        assistDegrees: 0,
+      };
+    let desired = Math.atan2(guided.vy, guided.vx);
+    if (kind === 'low') {
+      const elevation = clamp(
+        Math.atan2(guided.vy, Math.abs(guided.vx)),
+        (38 * Math.PI) / 180,
+        (88 * Math.PI) / 180,
+      );
+      desired = Math.atan2(Math.sin(elevation), forward * Math.cos(elevation));
+    }
+    return rotate(desired, {
+      assistIntent: kind === 'drive' ? 'Атака через сетку' : 'Перевод через сетку',
+      targetId: null,
+    });
   }
   if (!['low', 'loft', 'back'].includes(kind)) return result;
-  const rawPath = traceBall({ ...ball, ...result, flightTempo: 1 }, config, 4 / config.ballSpeed);
   const elevation = (Math.atan2(result.vy, Math.abs(result.vx)) * 180) / Math.PI;
+  const requestedElevation = aim.vector
+    ? (Math.atan2(aim.vector.y, Math.abs(aim.vector.x)) * 180) / Math.PI
+    : aim.down
+      ? 0
+      : elevation;
+  const upward = aim.up || (directed && requestedElevation >= 65);
   const towardsNet = result.vx * forward > 0.1;
-  const crossing =
-    towardsNet && (rawPath.some((p) => p.x * forward > 0.2) || (directed && elevation < 50));
+  const crossing = directed && towardsNet && !upward && (requestedElevation < 50 || count >= 2);
   if (crossing) {
     const guided = driveOverNet(
       { ...ball, ...result, flightTempo: 1 },
@@ -76,30 +127,45 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
     (p) =>
       p.team === player.team &&
       p.id !== player.id &&
-      p.id !== aim.previousPlayerId &&
       !p.benched &&
-      p.recovery <= 0 &&
+      !(p.recovery > 0) &&
       !p.diving &&
       !p.block &&
       (!directed || (p.x - ball.x) * result.vx > 0),
   );
+  const setting = count === 1 || (directed && towardsNet && upward);
   const targets = receivers.map((p) => ({
     x: p.x,
-    y: kind === 'loft' ? 2.8 : 1.9,
+    y: setting ? 2.8 : 1.9,
+    player: p,
     id: p.id,
     label: `Пас игроку ${(p.id % 3) + 1}`,
   }));
-  const upward = aim.up || (aim.vector?.y ?? 0) > 0.65;
-  if (towardsNet && upward)
-    targets.unshift({ x: -forward * 0.9, y: 3.2, id: null, label: 'Навес у сетки' });
+  if (setting)
+    targets.push(
+      ...receivers.map((p) => ({
+        x: p.x,
+        y: 1.9,
+        player: p,
+        id: p.id,
+        label: `Пас игроку ${(p.id % 3) + 1}`,
+      })),
+    );
+  if (setting)
+    for (const p of receivers)
+      if (Math.abs(p.x + forward * 0.9) <= 1 + config.playerSpeed * 0.55)
+        targets.unshift({ x: -forward * 0.9, y: 3.2, id: p.id, player: p, label: 'Навес у сетки' });
   let best = null;
-  const budget = directed ? 12 : 35;
+  const budget = directed ? 12 : 75;
+  const incomingSpeed = Math.hypot(ball.vx || 0, ball.vy || 0);
   for (let degrees = -budget; degrees <= budget; degrees += 1) {
     const angle = original + (degrees * Math.PI) / 180;
     const vx = speed * Math.cos(angle),
       vy = speed * Math.sin(angle);
-    if (vy <= 0 || vx * result.vx < 0) continue;
+    if (vy <= 0 || (directed && vx * result.vx < -1e-8)) continue;
+    if (kind === 'low' && (Math.atan2(vy, Math.abs(vx)) * 180) / Math.PI < 38) continue;
     const shot = { ...ball, ...result, vx, vy, flightLaunchVy: vy, flightTempo: 1 };
+    const forecasts = new Map();
     for (const target of targets) {
       if (
         upward &&
@@ -108,20 +174,35 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
         Math.abs(target.x) > Math.abs(ball.x)
       )
         continue;
-      const at = predictAtHeight(shot, target.y, config, 4 / config.ballSpeed);
-      if (at.y > target.y || at.time < 0.15 || at.x * forward >= -0.25) continue;
+      if (!forecasts.has(target.y))
+        forecasts.set(target.y, predictAtHeight(shot, target.y, config, 4 / config.ballSpeed));
+      const at = forecasts.get(target.y);
+      if (at.y > target.y || at.y < target.y - 0.25 || at.time < 0.15 || at.x * forward >= -0.25)
+        continue;
+      if (directed && (target.x - ball.x) * result.vx < -0.05) continue;
       const miss = Math.abs(at.x - target.x);
       if (miss > 0.8) continue;
+      const travel = Math.abs(at.x - target.player.x);
+      if (travel > config.playerSpeed * Math.max(0, at.time - 0.15) + 0.8) continue;
+      const movement = Math.abs(
+        at.x - (target.player.x + (target.player.vx || 0) * Math.min(at.time, 0.3)),
+      );
+      const continuedDrift =
+        Math.max(0, (at.x - ball.x) * (ball.vx || 0)) / Math.max(1, incomingSpeed);
       const score =
         miss * 2 +
-        Math.abs(degrees) * 0.025 +
+        Math.abs(degrees) * 0.012 +
+        movement * (0.12 + Math.min(incomingSpeed, 20) * 0.005) +
+        continuedDrift * 0.03 +
+        (setting && target.y < 2 ? 0.6 : 0) +
         at.time * 0.03 -
-        (target.label === 'Навес у сетки' ? 0.5 : 0);
+        (!directed && count === 0 && target.player.role === 'setter' ? 0.8 : 0) -
+        (target.label === 'Навес у сетки' ? 1 : 0);
       if (!best || score < best.score) best = { angle, target, score };
     }
   }
   if (!best)
-    return { ...result, assistIntent: 'Свободный пас · нет близкой цели', assistDegrees: 0 };
+    return { ...result, assistIntent: 'Свободный пас · нет доступной цели', assistDegrees: 0 };
   const corrected = rotate(best.angle, {
     assistIntent: best.target.label,
     assistTarget: { x: best.target.x, y: best.target.y },

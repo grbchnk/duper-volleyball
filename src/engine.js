@@ -264,6 +264,7 @@ export class Match {
     if (action?.aim) {
       const player = this.players[action.playerId];
       action.aim.previousPlayerId = this.lastTouch === player?.team ? this.lastPlayer : null;
+      action.aim.touchesBefore = this.lastTouch === player?.team ? this.touches[player.team] : 0;
       action.aim.controlledIds = this.players
         .filter((p) => p.team === player?.team && this.humanSlot(p) !== null)
         .map((p) => p.id);
@@ -380,6 +381,7 @@ export class Match {
     this.attackStyles = ['power', 'power'];
     this.playStyles = ['high', 'high'];
     this.cpuHistory = [[], []];
+    this.cpuRetry = [null, null];
     this.cpuTelemetry = [0, 1].map(() => ({
       contacts: 0,
       soft: 0,
@@ -1175,8 +1177,10 @@ export class Match {
   selectPassReceiver(passer, preferred = null) {
     const team = passer.team;
     if (this.phase !== 'rally' || this.lastTouch !== team || this.lastPlayer !== passer.id) return;
+    if (this.config.dynamic && this.touches[team] >= 3) return;
     if (this.mode === 'coop' && team === 0) {
       this.autoCoopReceiver(preferred);
+      if (this.config.dynamic && preferred === null) this.updateCoopReceiver();
       return;
     }
     if (!this.isHuman(team)) {
@@ -1184,6 +1188,17 @@ export class Match {
       return;
     }
     if (this.challenge || this.config.duel || this.mode === 'test') return;
+    if (this.controls[team].manualSerial === this.shotSerial) return;
+    const next = nextReceiver(this, team, {
+      currentId: preferred ?? passer.id,
+      preferCurrent: preferred !== null,
+    });
+    if (next !== null && next !== passer.id) {
+      this.selectControlledPlayer(this.controls[team], next);
+      this.players[next].returnHome = false;
+      return;
+    }
+    if (this.config.dynamic) return;
     this.autoSelect(team, preferred);
   }
   selectOnOpponentContact(team) {
@@ -2025,6 +2040,8 @@ export class Match {
         continue;
       }
       const skill = cpuSkill(this.config);
+      const retry = this.cpuRetry[team];
+      if (retry?.serial === this.shotSerial && this.time < retry.at) continue;
       let plan = this.cpuPlans[team];
       if (
         !plan ||
@@ -2117,8 +2134,11 @@ export class Match {
       const prep = plan.preparation;
       const age = this.time - prep.start;
       if (age > this.config.maxHold) {
+        this.cpuRetry[team] = { serial: this.shotSerial, at: this.time + skill.retryDelay };
+        p.armSwing = { kind: prep.kind, power: prep.power, age: 0, hit: false };
         plan.preparation = null;
         plan.action = null;
+        plan.proposal = null;
         continue;
       }
       plan.action = {
@@ -2159,6 +2179,8 @@ export class Match {
     );
   }
   tryCPUContact(team, previous = this.ball) {
+    const retry = this.cpuRetry[team];
+    if (retry?.serial === this.shotSerial && this.time < retry.at) return;
     if (this.config.dynamic && this.lastTouch === team && this.touches[team] >= 3) return;
     if (this.incomingShot === 'serve' && this.lastTouch === team) return;
     if (this.possession !== team || this.cpuLeavesOut(team)) return;

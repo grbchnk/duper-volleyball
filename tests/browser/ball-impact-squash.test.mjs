@@ -43,7 +43,8 @@ test('ball squash follows incoming speed at hand and floor impacts, then recover
     renderer.drawBall(match);
     const renderedSquash = scales.some(([x, y]) => x < 1 && y > 1);
     renderer.drawParticles(0.1);
-    const recovers = renderer.ballSquash?.life === 0.1;
+    const recovers = Math.abs(renderer.ballSquash?.life - 0.18) < 1e-9;
+    renderer.drawParticles(0.08);
     scales.length = 0;
     renderer.drawBall(match);
     const elasticRecovery = scales.some(([x, y]) => x > 1 && y < 1 && Math.abs(x * y - 1) < 1e-9);
@@ -57,6 +58,56 @@ test('ball squash follows incoming speed at hand and floor impacts, then recover
     renderer.effect({ type: 'hit', incomingSpeed: 4, incomingVelocity: { x: -4, y: 0 } }, match);
     const freshContactOwnsAxis =
       !renderer.ballSquash.floor && renderer.ballSquash.angle === -Math.PI;
+    // Check the actual pixels at the normal 1.2x ball size, including the game's pixel grid.
+    const { pixelPresent } = await import('/src/display.js');
+    const normalCanvas = document.createElement('canvas');
+    normalCanvas.width = normalCanvas.height = 192;
+    const normalRenderer = new Renderer(normalCanvas, { scene: false });
+    normalRenderer.project = () => ({ x: 96, y: 96 });
+    const normalMatch = new Match();
+    normalMatch.mode = 'demo';
+    normalMatch.phase = 'rally';
+    normalMatch.config = { ...normalMatch.config, ballSize: 1.2, ballFire: false };
+    Object.assign(normalMatch.ball, { x: 3, y: 2, vx: 20, vy: 0, angle: 0 });
+    let visibleAtNormalSize = true;
+    for (const pixel of [false, true])
+      for (const floor of [false, true])
+        for (const age of [0, 0.04, 0.09]) {
+          normalRenderer.pixelGraphics = pixel;
+          normalRenderer.effect(
+            floor
+              ? { type: 'floor-touch', speed: 22 }
+              : { type: 'hit', incomingSpeed: 22, incomingVelocity: { x: -22, y: 0 } },
+            normalMatch,
+          );
+          normalRenderer.ballSquash.life = 0.28 - age;
+          normalRenderer.ctx.fillStyle = '#101820';
+          normalRenderer.ctx.fillRect(0, 0, 192, 192);
+          normalRenderer.drawBall(normalMatch);
+          pixelPresent(normalCanvas, pixel, 2);
+          const rgba = normalRenderer.ctx.getImageData(0, 0, 192, 192).data;
+          let minX = 192,
+            maxX = 0,
+            minY = 192,
+            maxY = 0;
+          for (let y = 0; y < 192; y++)
+            for (let x = 0; x < 192; x++) {
+              const i = (y * 192 + x) * 4;
+              if (
+                Math.abs(rgba[i] - 16) + Math.abs(rgba[i + 1] - 24) + Math.abs(rgba[i + 2] - 32) <
+                40
+              )
+                continue;
+              minX = Math.min(minX, x);
+              maxX = Math.max(maxX, x);
+              minY = Math.min(minY, y);
+              maxY = Math.max(maxY, y);
+            }
+          const width = maxX - minX + 1,
+            height = maxY - minY + 1;
+          visibleAtNormalSize &&=
+            (floor ? width / height : height / width) >= (age < 0.05 ? 2 : 1.4);
+        }
     const sheet = document.createElement('canvas');
     sheet.id = 'ball-impact-gallery';
     sheet.width = 940;
@@ -66,7 +117,7 @@ test('ball squash follows incoming speed at hand and floor impacts, then recover
     const output = sheet.getContext('2d');
     output.fillStyle = '#f7edda';
     output.fillRect(0, 0, sheet.width, sheet.height);
-    const ages = [0, 0.035, 0.075, 0.12, 0.21];
+    const ages = [0, 0.04, 0.09, 0.2, 0.29];
     output.font = '14px sans-serif';
     output.fillStyle = '#40594c';
     ages.forEach((age, i) =>
@@ -94,8 +145,8 @@ test('ball squash follows incoming speed at hand and floor impacts, then recover
             : { type: 'hit', incomingSpeed: speed, incomingVelocity: { x: -speed, y: 0 } },
           sampleMatch,
         );
-        if (ages[column] >= 0.2) sampleRenderer.ballSquash = null;
-        else sampleRenderer.ballSquash.life = 0.2 - ages[column];
+        if (ages[column] >= 0.28) sampleRenderer.ballSquash = null;
+        else sampleRenderer.ballSquash.life = 0.28 - ages[column];
         sampleRenderer.ctx.fillStyle = '#f7edda';
         sampleRenderer.ctx.fillRect(0, 0, 160, 150);
         if (floor) sampleRenderer.rect(15, 114, 130, 1, '#b8a78c');
@@ -114,6 +165,7 @@ test('ball squash follows incoming speed at hand and floor impacts, then recover
       floorStrength,
       repeatedBounce,
       freshContactOwnsAxis,
+      visibleAtNormalSize,
     };
   });
   for (const [name, value] of Object.entries(result)) assert.equal(value, true, name);

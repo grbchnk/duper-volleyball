@@ -44,6 +44,7 @@ export function expressivePose({
   serve = null,
   serveSupport = null,
   localVelocity = null,
+  localIncomingVelocity = null,
   actionDirection = kind === 'back' ? -1 : 1,
   receiveAim = null,
   emotion = null,
@@ -305,6 +306,24 @@ export function expressivePose({
         age,
         kind === 'back' ? [hand] : kind === 'drive' ? [powerDrive ? 0 : 1] : [0, 1],
       );
+      if (kind === 'low' && !diving && !swing.serve && localIncomingVelocity) {
+        // A short visual cushion, then a push. Logical contact and ball motion
+        // still happen immediately and use the existing contact checks.
+        const incomingSpeed = Math.hypot(localIncomingVelocity.x, localIncomingVelocity.y);
+        const cushion = incomingSpeed ? Math.min(2 * scale, incomingSpeed * 0.018) : 0;
+        const pull = ease(age / 0.035) * (1 - ease((age - 0.035) / 0.05));
+        const push = ease((age - 0.035) / 0.05);
+        for (const i of activeHands) {
+          stroke[i].x =
+            hit[i].x +
+            (incomingSpeed ? (localIncomingVelocity.x / incomingSpeed) * cushion * pull : 0) +
+            (stroke[i].x - hit[i].x) * push;
+          stroke[i].y =
+            hit[i].y +
+            (incomingSpeed ? (localIncomingVelocity.y / incomingSpeed) * cushion * pull : 0) +
+            (stroke[i].y - hit[i].y) * push;
+        }
+      }
       const overhead = kind === 'loft';
       activity =
         1 - ease((age - (overhead ? strokeTime : recoveryStart)) / (overhead ? 0.22 : 0.23));
@@ -411,15 +430,23 @@ export function expressivePose({
     .map((p, i) => {
       const shoulder = { x: i ? spec.shoulder : -spec.shoulder, y: -20 + shoulderLift };
       const serveKind = serve?.kind || (swing?.serve ? kind : serveSupport ? 'low' : null);
-      if (serveKind === 'low' || serveKind === 'back')
-        return {
-          x: shoulder.x + (p.x - shoulder.x) * 0.52 + (i ? 2 : -2),
-          y: shoulder.y + (p.y - shoulder.y) * 0.52 + 2,
-        };
+      const lowerServe = {
+        x: shoulder.x + (p.x - shoulder.x) * 0.52 + (i ? 2 : -2),
+        y: shoulder.y + (p.y - shoulder.y) * 0.52 + 2,
+      };
+      if (serveKind === 'low' || serveKind === 'back') return lowerServe;
       const rest = {
         x: (shoulder.x + p.x) / 2 + (i ? 1 : -1) * (block ? 3 : 6) * config.armBend,
         y: (shoulder.y + p.y) / 2 + 5 * config.armBend,
       };
+      if (serveKind) {
+        const transition = serve ? ease((serve.age || 0) / 0.4) : 1;
+        const upperServe = {
+          ...rest,
+          x: rest.x + (i ? 1 : -1) * amp * 3 * config.armBend * activity,
+        };
+        return mix(lowerServe, upperServe, transition);
+      }
       if (block) return { x: i ? 10 : -3, y: -31 + shoulderLift };
       if (kind === 'loft' && !serve && !swing?.serve)
         return mix(

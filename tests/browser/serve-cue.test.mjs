@@ -47,16 +47,27 @@ test(
             rects = [];
           const c = renderer.ctx;
           const stroke = c.stroke.bind(c),
-            arc = c.arc.bind(c);
+            arc = c.arc.bind(c),
+            beginPath = c.beginPath.bind(c);
           const text = renderer.text.bind(renderer),
             rect = renderer.rect.bind(renderer);
           let circle;
+          c.beginPath = () => {
+            circle = null;
+            beginPath();
+          };
           c.arc = (...args) => {
             circle = args;
             arc(...args);
           };
           c.stroke = () => {
-            rings.push({ circle, color: c.strokeStyle, width: c.lineWidth, alpha: c.globalAlpha });
+            if (circle)
+              rings.push({
+                circle,
+                color: c.strokeStyle,
+                width: c.lineWidth,
+                alpha: c.globalAlpha,
+              });
             stroke();
           };
           renderer.text = (...args) => {
@@ -70,6 +81,7 @@ test(
           renderer.drawBall(match);
           c.stroke = stroke;
           c.arc = arc;
+          c.beginPath = beginPath;
           renderer.text = text;
           renderer.rect = rect;
           return {

@@ -55,8 +55,9 @@ test('every exposed variant parameter changes its shot, without changing another
     }
 });
 
-test('lower receives bypass assistance; overhead passes scale their angular correction at constant speed', () => {
+test('lower and overhead passes scale their angular correction at constant speed', () => {
   for (const options of [
+    { kind: 'low', playerId: 0, angle: 60, power: 1 },
     { kind: 'loft', playerId: 0, angle: 80, power: 0.6 },
     { kind: 'loft', playerId: 1, angle: 80, power: 0.6 },
   ]) {
@@ -64,11 +65,6 @@ test('lower receives bypass assistance; overhead passes scale their angular corr
       (amount) => simulateShot({ ...DEFAULTS, passAssist: amount }, options).impulse,
     );
     const angles = shots.map((s) => Math.atan2(s.vy, s.vx));
-    if (options.kind === 'low') {
-      assert.deepEqual(shots[0], shots[1]);
-      assert.deepEqual(shots[0], shots[2]);
-      continue;
-    }
     assert.ok(Math.abs(angles[2] - angles[0]) > 0.001);
     assert.ok(Math.abs(angles[1] - (angles[0] + angles[2]) / 2) < 1e-10);
     for (const shot of shots)
@@ -194,7 +190,7 @@ test('block preview uses the actual active window, reach and reflected impulse',
   assert.equal(center.hit, true);
   assert.equal(simulateBlock(DEFAULTS, { time: 0 }).hit, false);
   assert.equal(simulateBlock(DEFAULTS, { dx: DEFAULTS.blockReach + 0.01 }).hit, false);
-  assert.equal(simulateBlock(DEFAULTS, { dy: 0.41 }).hit, false);
+  assert.equal(simulateBlock(DEFAULTS, { dy: DEFAULTS.blockHeight + 0.01 }).hit, false);
   assert.equal(
     simulateBlock(DEFAULTS, { time: center.apex + DEFAULTS.blockWindow / 2 + 0.01 }).hit,
     false,

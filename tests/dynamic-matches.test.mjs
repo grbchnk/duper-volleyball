@@ -48,7 +48,8 @@ for (const [seed, style, extra] of [
         'normal CPU rallies should retain sustained exchanges',
       );
       assert.ok(
-        ['power', 'tip', 'roll', 'free'].filter((kind) => m.tacticalStats[kind] > 0).length >= 3,
+        ['power', 'steep', 'tip', 'roll', 'free'].filter((kind) => m.tacticalStats[kind] > 0)
+          .length >= 3,
       );
       assert.ok(
         ['quick', 'high', 'back', 'pipe', 'feint', 'dump'].filter(

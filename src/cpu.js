@@ -14,6 +14,7 @@ export function cpuSkill(config) {
   return {
     level,
     reaction: 0.025 + mistakes * 0.22,
+    retryDelay: 0.06 + mistakes * 0.65,
     refresh: 0.045 + mistakes * 0.14,
     speed: 0.94 + level * 0.06,
     error: 0.5 * mistakes,

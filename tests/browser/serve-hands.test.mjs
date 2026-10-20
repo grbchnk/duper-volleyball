@@ -117,7 +117,7 @@ test(
                   const reach = (point) => Math.hypot(point.x - shoulder.x, point.y - shoulder.y);
                   maxUpperExtension = Math.max(
                     maxUpperExtension,
-                    reach(rig.wrists[hand]) - reach(rig.contactPoint),
+                    (reach(rig.wrists[hand]) - reach(rig.contactPoint)) / m.config.armLength,
                   );
                 }
                 for (let arm = 0; arm < 2; arm++) {

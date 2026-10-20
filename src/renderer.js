@@ -394,9 +394,10 @@ export class Renderer {
       this.ctx.restore();
       this.text('СЛЕДУЮЩАЯ ПОДАЧА', waiting.x, waiting.y - 57, 8, '#526b68', 'center');
     }
+    if (m.ball.x >= 0) this.drawBall(m);
     this.drawNet(m);
     for (const p of players.filter((p) => p.x < 0)) this.drawPlayer(p, teams[p.team], m, dt);
-    this.drawBall(m);
+    if (m.ball.x < 0) this.drawBall(m);
     if (m.outMarker) {
       const marker = this.project(m.outMarker.x, 0);
       const x = clamp(marker.x, 16, 944);
@@ -666,11 +667,22 @@ export class Renderer {
     const waitingToServe =
       m.phase === 'serve' && p.id === (m.serverPlayer?.()?.id ?? m.selected?.[m.server]);
     const servePose = waitingToServe || serving || !!support || !!swing?.serve;
-    if (
-      servePose &&
-      ['low', 'back'].includes(serving ? m.serveAction?.kind : swing?.serve ? swing.kind : 'low')
-    )
-      config = { ...config, armBend: 1, elbowHeight: 0, armPowerMotion: 1 };
+    if (servePose) {
+      const type = serving ? m.serveAction?.kind : swing?.serve ? swing.kind : 'low';
+      const progress =
+        serving && ['loft', 'drive'].includes(type)
+          ? clamp(m.phaseTime / 0.4, 0, 1)
+          : swing?.serve && ['loft', 'drive'].includes(type)
+            ? 1
+            : 0;
+      const blend = progress * progress * (3 - 2 * progress);
+      config = {
+        ...config,
+        armBend: 1 + (config.armBend - 1) * blend,
+        elbowHeight: config.elbowHeight * blend,
+        armPowerMotion: 1 + (config.armPowerMotion - 1) * blend,
+      };
+    }
     rig.serveBend = servePose ? 1 : Math.max(0, (rig.serveBend || 0) - dt / 0.18);
     const supportScreen = support ? this.project(m.ball.x, m.ball.y) : null;
     if (support) {
@@ -695,6 +707,19 @@ export class Renderer {
       emotion: activeEmotion(p),
       shoulderLift: bodyFrame?.pose.shoulders || 0,
       localVelocity: swing?.hit ? rig.localVelocity : null,
+      localIncomingVelocity:
+        swing?.hit && swing.incomingVelocity
+          ? (() => {
+              const velocity = swing.incomingVelocity;
+              const origin = this.logicalTransform(c)
+                .inverse()
+                .transformPoint(this.project(swing.x, swing.y));
+              const end = this.logicalTransform(c)
+                .inverse()
+                .transformPoint(this.project(swing.x + velocity.x, swing.y + velocity.y));
+              return { x: end.x - origin.x, y: end.y - origin.y };
+            })()
+          : null,
       actionDirection:
         Math.sign(
           (serving ? m.serveAction?.aim?.axis : charge?.aim?.vector?.x || charge?.aim?.axis) ||
@@ -988,17 +1013,17 @@ export class Renderer {
     c.scale(m.config.ballSize || 1.2, m.config.ballSize || 1.2);
     const squashEffect = this.ballSquash;
     const age = squashEffect ? squashEffect.duration - squashEffect.life : 0;
-    const compression = clamp(age / 0.09, 0, 1);
-    const recovery = clamp((age - 0.09) / 0.11, 0, 1);
+    const compression = clamp((age - 0.04) / 0.11, 0, 1);
+    const recovery = clamp((age - 0.15) / 0.13, 0, 1);
     const envelope = !squashEffect
       ? 0
-      : age <= 0.09
+      : age <= 0.15
         ? 1 - compression * compression * (3 - 2 * compression)
         : -0.16 * Math.sin(Math.PI * recovery) ** 2;
     const squash = (squashEffect?.amount || 0) * envelope;
+    const flightBlend = squashEffect ? recovery * recovery * (3 - 2 * recovery) : 1;
     const speed = Math.hypot(m.ball.vx, m.ball.vy),
-      stretch =
-        Math.abs(m.ball.x) < 1 ? 1 : 1 + clamp((speed - 5) / 30, 0, 0.3) * (1 - Math.abs(envelope));
+      stretch = Math.abs(m.ball.x) < 1 ? 1 : 1 + clamp((speed - 5) / 30, 0, 0.3) * flightBlend;
     const direction = Math.atan2(-m.ball.vy, m.ball.vx);
     if (squashEffect && Math.abs(squash) > 1e-6) {
       // Keep the floor-facing edge in place as the ball flattens and springs back.
@@ -1224,9 +1249,9 @@ export class Renderer {
     }
   }
   squashBall(speed, angle, floor = false) {
-    const amount = 0.34 * (1 - Math.exp(-Math.max(0, (speed || 0) - 1) / 15));
+    const amount = 0.48 * (1 - Math.exp(-Math.max(0, (speed || 0) - 1) / 13));
     // Every new contact owns the deformation direction, even after a stronger impact.
-    this.ballSquash = amount ? { amount, angle, floor, life: 0.2, duration: 0.2 } : null;
+    this.ballSquash = amount ? { amount, angle, floor, life: 0.28, duration: 0.28 } : null;
   }
   winningLanding(x, out) {
     const at = this.project(x, 0);

@@ -89,7 +89,12 @@ test('a completed held or released pass immediately hands control to its receive
         assert.equal(m.tryHeldContact(m.ball, control), true);
       } else {
         control.pending = action;
-        Object.assign(m.ball, { x: p.x, y: 0.8, vx: 0, vy: 0 });
+        Object.assign(m.ball, {
+          x: p.x,
+          y: (m.config.lowContactMin + m.config.lowContactMax) / 2,
+          vx: 0,
+          vy: 0,
+        });
         assert.equal(m.tryPending(m.ball, control), true);
       }
       assert.equal(m.teamPhases[team], 'attack', 'the pass stays on our side');
@@ -205,7 +210,7 @@ test('a manual receiver choice remains locked when that player dives', () => {
   assert.equal(m.selected[0], selected);
 });
 
-test('a shot that crosses the net keeps the hitter selected even when it has a target player', () => {
+test('a predicted crossing still selects an available teammate before the actual crossing', () => {
   const m = new Match();
   m.phase = 'rally';
   m.lastTouch = 1;
@@ -221,10 +226,10 @@ test('a shot that crosses the net keeps the hitter selected even when it has a t
     arrival: 1,
   });
   assert.equal(m.teamPhases[0], 'defense');
-  assert.equal(m.selected[0], hitter.id);
+  assert.notEqual(m.selected[0], hitter.id);
 });
 
-test('outgoing shots retain control on subsequent frames until crossing the net', () => {
+test('outgoing shots keep an eligible teammate available until the ball actually crosses', () => {
   for (const [mode, team, slot] of [
     ['versus', 0, 0],
     ['versus', 1, 1],
@@ -238,14 +243,18 @@ test('outgoing shots retain control on subsequent frames until crossing the net'
     Object.assign(m.ball, { x: hitter.x, y: 1, vx: 0, vy: 0 });
     assert.equal(m.makeContact(hitter, 'low', 0.5, { vx: -side * 20, vy: 7, vz: 0 }), true);
     assert.equal(m.teamPhases[team], 'defense');
-    const selected = [...m.selected];
-    const coopSelected = m.coopSelected;
     let frames = 0;
     while (m.ball.x * side > 0 && frames++ < 120) {
       m.tick(FIXED_DT);
-      assert.equal(m.controlledPlayer(m.controls[slot]), hitter.id, `${mode}/${slot}/${frames}`);
-      assert.deepEqual(m.selected, selected);
-      assert.equal(m.coopSelected, coopSelected);
+      if (mode !== 'coop' || slot !== 2)
+        assert.notEqual(
+          m.controlledPlayer(m.controls[slot]),
+          hitter.id,
+          `${mode}/${slot}/${frames}`,
+        );
+      const receiver = m.players[m.controlledPlayer(m.controls[slot])];
+      assert.equal(receiver.team, team);
+      if (mode === 'coop') assert.notEqual(m.selected[0], m.coopSelected);
     }
     assert.ok(frames > 1);
     assert.ok(m.ball.x * side <= 0, 'the ball crosses the net');
@@ -272,6 +281,7 @@ test('an occupied home becomes a reachable free position without crossing the co
 
 test('a manual receiver choice lasts until a new contact', () => {
   const m = new Match();
+  m.players[0].x = -7;
   m.phase = 'rally';
   m.lastTouch = 1;
   Object.assign(m.ball, { x: -7, y: 1, vx: 0, vy: -1 });
