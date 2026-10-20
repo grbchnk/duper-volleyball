@@ -1,0 +1,427 @@
+
+> super-volley-club@0.2.0 test
+> node --test tests/*.test.mjs
+
+✔ slightly backward overhead stick aim keeps its exact angle from the first tilt (4.8155ms)
+✔ Cross and S receive without jumping; F blocks (0.6843ms)
+✔ released contacts accept fresh direction from the original source until impact (18.8174ms)
+✖ explicit pass assistance at 50 percent is halfway between manual and guided impulses (12.9596ms)
+✔ preparing near the apex adds ball hang once (3.0619ms)
+✔ A serve has a soft upward trajectory without spin (1.2198ms)
+✔ releasing the shot and direction together retains the last charged aim and power (4.6367ms)
+✖ assisted drives clear the net closely and downward aim chooses a steeper shot on either side (4.6441ms)
+✔ drive assistance blends continuously and does not reverse deliberate backward aim (1.122ms)
+✔ back-pass preparation respects facing and both hands follow outgoing ball velocity (1.7465ms)
+✔ a Canvas DOMPoint produces finite spike targets and preserves its exact coordinates (3.4516ms)
+✔ whip is the only style; old saves migrate while preserving physics and animation tuning (2.5296ms)
+✔ charge deepens the windup, release accents it and contact reaches the ball immediately (0.5863ms)
+✔ all wrists, elbows and palm angles return to the same rest pose after hit or miss, at every size and power (2.521ms)
+✔ overhead cup and wide elbows blend away during recovery rather than sticking until the marker expires (0.4633ms)
+✔ a spike makes a compact follow-through and recovers into the jump pose (0.353ms)
+✔ renderer anchors a contact to the player once, then both joints settle at 30/60/120 FPS (17.0631ms)
+✔ animation tuning does not delay contacts, change flight or create additional hits (43.4984ms)
+✔ jump wrists stay on opposite sides throughout push-off and ascent (0.6927ms)
+✔ forward rescue reaches horizontally as the body rotates; recovery palms meet the floor (1.0182ms)
+✔ manual movement permanently cancels approach but a requested jump can still be assisted (26.199ms)
+✔ a jump key already held before a good set never causes an automatic jump (9.5617ms)
+✔ manual jumps tolerate slightly early or late input with bounded assistance and a short hang (62.7587ms)
+✔ manual assisted jumps permit A, W and D only at their actual contact heights (43.1369ms)
+✔ a good second set approaches but never jumps or hits without player input (42.5584ms)
+✔ a fresh directional D press on the flash hits exactly once, without moving the ball (18.5836ms)
+✔ holding D early cannot queue an attack, and selection cancels the automatic approach (18.3945ms)
+✔ early and late jump shots use the ordinary impulse without timing penalties (42.8408ms)
+✔ a jumping attacker swings and misses a ball beyond reach without stretching to it (5.6562ms)
+✔ a low or overhit set does not summon an attacker (1.3217ms)
+✔ long preparations finish at a stable pose and D retains its directional windup (0.7012ms)
+✔ cartoon flight accelerates smoothly while zero effect retains the normal trajectory (0.8814ms)
+✔ apex hold slows a rising pass smoothly but never holds a downward spike (0.3537ms)
+✔ flight solver and trajectory preview use the same clock at slow and fast settings (23.5006ms)
+✔ flight settings are bounded and survive old and new JSON imports (0.9863ms)
+✔ a blocker can stop a fresh spike during the hitter debounce, with no ball teleport (0.8345ms)
+✔ both teams walk back after either winner, landing and recovering before moving (19.1265ms)
+✔ D receives on either prepared palm for both facing and aim directions (18.1775ms)
+✔ low reception hands sit nearer the torso and its free flight has a higher arc (5.5104ms)
+✔ an off-time nearby serve is weak and a miss has a bounded one-hand stroke (13.0114ms)
+✔ square aims a back pass with the left stick and retains direction after centering (18.0618ms)
+✔ square serves through gamepad input at partial and full charge (40.4015ms)
+✔ upward D is forward and upward with assistance on or off; full power can go out (5.4472ms)
+✔ a selected receiver requires a neutral stick before jumping, including threshold jitter (2.5537ms)
+✔ fresh jump after switching with a neutral stick is accepted immediately (0.9689ms)
+✔ released charge recovers movement gradually through the complete release window (3.0409ms)
+✔ a strong jumping spike knocks down on top-of-head impact and recovers after five seconds (4.1526ms)
+✖ passer waits before seeking space and manual movement interrupts the delay (6.3629ms)
+✔ CPU leaves clearly outgoing opponent balls but plays in-court and line balls (13.8127ms)
+✔ CPU serves all three types into court on either side with changed flight settings (238.4118ms)
+✔ opponent serves clear the net in live ticks at low gravity and low jump height (38.8789ms)
+✔ CPU starts receiving before the crossing and receives each standard human serve (30.3526ms)
+✔ down crouches without a shot or dive; X receives and A passes back (2.0511ms)
+✔ triple taps dive once in the tapped direction; holds, repeats, mixed and slow taps do not (0.7556ms)
+✔ left stick down crouches and three sideways flicks dive, with a neutral reset (1.1455ms)
+✔ crouch animates down and up, and every shot remains usable at the lowered height (34.9757ms)
+✖ back pass aims to the far teammate behind the player on either team and has a distinct windup (4.3762ms)
+✔ landing at x=-5 scores once and keeps bouncing (6.5145ms)
+✔ landing at x=12 scores once and keeps bouncing (1.3401ms)
+✔ airborne dead ball falls, bounces, and settles after the match (12.3721ms)
+✔ contact follow-through matches outgoing velocity, direction and short reach for either hand (11.2515ms)
+✔ both serve hands share the same compact preparation target and leave the other arm relaxed (1.339ms)
+✔ serve hand is randomly chosen once and cosmetic randomness never changes gameplay RNG (20.3813ms)
+✔ winners and losers react differently, airborne reactions wait, new serve clears them (5.3028ms)
+✔ final-point reactions continue ticking after the match ends and do not change score (3.6683ms)
+✔ shrug lifts shoulders only, and every emotion returns its hands to rest (0.8609ms)
+✔ TEST continuously feeds without points, repositioning or automatic player changes (64.3741ms)
+✔ TEST replaces dead balls while preserving jumps, positions and player selection (9.3228ms)
+✔ TEST feeds to the selected player and sends a higher third ball (1.6944ms)
+✔ airborne overhead reception uses its air pose without affecting jump timing (0.9744ms)
+✔ chiptune cues distinguish passes, attacks, wins and losses and respond to power (0.9304ms)
+✔ sound schedules short voices and mute stops all output through the master gain (1.0296ms)
+✔ ball already slows near the apex and accelerates on descent (1.6513ms)
+✔ low: holding catches the palms at current power, consumes press and cannot repeat (43.9824ms)
+✔ back: holding catches the palms at current power, consumes press and cannot repeat (8.8768ms)
+✔ loft: holding catches the palms at current power, consumes press and cannot repeat (9.0525ms)
+✔ drive: holding catches the palms at current power, consumes press and cannot repeat (8.2906ms)
+✔ held contact requires prepared hands, eligibility and a rally; it never launches a serve (0.723ms)
+✔ palm collision catches a fast crossing but rejects a near miss (0.2494ms)
+✔ right stick selects four shots independently of movement, with analog strength and release (2.3891ms)
+✔ right stick ignores drift and stays blocked after pause until centered (0.6928ms)
+✔ right stick locks shot type, aims on rotation and preserves aim through release (9.8594ms)
+✔ left stick jump requires a narrow upward cone, sideways diagonals never jump (1.5516ms)
+✔ stick deflection and hold duration both increase charge, centering uses release grace (10.1954ms)
+✔ right stick attack in assisted jump charges instead of firing on first tilt (1.6252ms)
+✔ DualSense face buttons, shoulders, and d-pad map to game actions (0.6363ms)
+✔ left stick uses a dead zone and analog movement is clamped (0.4067ms)
+✔ left stick up jumps without triggering from drift or while the modifier is held (0.3787ms)
+✔ Options pauses on a new press and held actions clear until release (0.4214ms)
+✔ Cross confirm is reported once for starting from the menu (0.2757ms)
+✔ optional hold duration increases jump height, while the default jump ignores duration (43.1925ms)
+✔ second and third contacts share ordinary jump motion with height-only assistance (17.1271ms)
+✔ sideout, deuce ceiling and fifth-set rally scoring (2.3996ms)
+✔ no human contact without input, including the setter (13.6689ms)
+✔ holding outside the palms charges; releasing performs one contact (21.7873ms)
+✔ back is a manually released contact (3.0343ms)
+✔ low is a manually released contact (3.2172ms)
+✔ loft is a manually released contact (5.8677ms)
+✔ drive is a manually released contact (4.2403ms)
+✔ expired release does not hit a later ball (5.0859ms)
+✔ charge length increases impulse and late modifiers change direction (3.7678ms)
+✔ assist ignores wrong direction and severe overpowering (16.6788ms)
+✔ human server and teammates never chase or hit autonomously (3.3135ms)
+✔ human jumps allow limited movement while CPU jumps stay vertical (6.117ms)
+✔ analog movement keeps facing discrete so sprites do not squash (0.6003ms)
+✔ one block press jumps one player; held S does not repeat; next edge jumps next player (1.8983ms)
+✔ a block on the attacker side resets contacts and allows a fresh forearm reception (2.7293ms)
+✔ dive commits its direction, cannot hit a distant ball, lands on belly and recovers (13.6405ms)
+✔ diving forearms can reach a low ball; overhead cannot (0.4897ms)
+✔ low serve waits for release and a second press (3.0901ms)
+✔ loft serve waits for release and a second press (2.8443ms)
+✔ drive serve waits for release and a second press (3.3704ms)
+✔ practice retries without changing score (8.3176ms)
+✔ all three neutral serves land in court at the documented beginner power (58.1481ms)
+✔ switching cannot replace the server but works after the serve (1.045ms)
+✔ fast keyboard taps are retained for a tick, key repeat does not create extra edges (1.4871ms)
+✔ CPU does not attempt a block on every attack and cannot spam within one shot (0.9501ms)
+✔ seeded CPU match scores and finishes, with all three contact types (1733.6636ms)
+✔ full power is reached twice as quickly, with unchanged power ranges and automatic serve release (16.8572ms)
+✔ preparing shows its pose immediately and movement works while held and pending (11.66ms)
+✔ arrow movement and WASD actions are independent; Shift modifies height without jumping (2.185ms)
+✔ jump slows toward the apex, briefly hangs, then accelerates down with limited air steering (10.3546ms)
+✔ preview is absent for unreachable balls and matches the actual contact impulse (13.1773ms)
+✔ serve previews use exactly the launch point after the curved jump, for all three types (5.8803ms)
+✔ trajectory trace follows the match integrator including a net rebound (0.6673ms)
+✔ forearm contact is below the head and visual spring remains stable at a slow frame rate (1.3195ms)
+✔ underhand backward reception stays high and gains height and distance with power (7.6625ms)
+✔ overhead manual direction is flat sideways and vertical upward (0.8614ms)
+✔ aimed passes reaching the net never get redirected to teammates, including net-bound shots (6.9947ms)
+✖ an aimed underhand pass still assists an available teammate behind the player (4.047ms)
+✔ gradual analog release preserves accumulated charge and the last direction (9.2834ms)
+✖ pass assistance blends direction and power continuously and zero is fully manual (33.0408ms)
+✔ pass assistance is bounded and survives settings export without breaking old saves (1.6919ms)
+✖ passers pause then walk to a stable free position, and manual control takes priority (3.4845ms)
+✖ return waits for landing and recovery; becoming the pass recipient cancels it (3.3551ms)
+✖ neutral S → W → D plays rear → front → middle with a jump after a good set (3.93ms)
+✖ strong neutral passes go to the far teammate; S is higher than W and short S stays lofty (0.9696ms)
+✔ serve styles retain a high S, ordinary W and forward D at all powers (0.5328ms)
+✔ full charge uses the same pending window as release and cannot repeat while held (46.7322ms)
+✔ free flight matches an analytic parabola without drag (1.6936ms)
+✔ quadratic drag dissipates horizontal speed (1.8569ms)
+✔ swept net collision catches a fast spike; above tape passes (0.8916ms)
+✔ touching boundary is in, fully outside is out (0.365ms)
+✔ trajectory solver lands at its target with drag and spin (2.4114ms)
+✔ untrusted configuration is bounded and rejects non-objects (1.7199ms)
+✔ restored jump rises quickly, holds briefly and accelerates down (2.242ms)
+✔ air speed controls horizontal travel independently of jump height and stays within court (8.5155ms)
+✔ all serves go toward the opponent even when selected with a backward stick gesture (6.5589ms)
+✔ full power never hits for the human server without a new press (28.4031ms)
+✔ four face buttons select four serves and square selects the back pass in rallies (3.5811ms)
+✔ four serves have distinct windups and full charge only tosses before a fresh strike press (42.9619ms)
+✔ partial serve power waits for manual release instead of a timer (2.8661ms)
+✔ a new stick tilt changes pending aim without replacing the already charged shot (3.8179ms)
+✔ front player clears an overhead pass and returns after the next contact on either team (10.1247ms)
+✔ manual control cancels clearing and an airborne passer waits until landing (1.0874ms)
+✔ serve selection starts neutral and full charge tosses without ever auto-hitting (12.3759ms)
+✔ low hits on time and misses a distant toss without retrying (15.134ms)
+✔ back hits on time and misses a distant toss without retrying (14.3228ms)
+✔ loft hits on time and misses a distant toss without retrying (7.352ms)
+✔ drive hits on time and misses a distant toss without retrying (10.2167ms)
+✔ attack phase, preparation and follow-through all reject a block (0.7991ms)
+✔ serve contact uses one hand and elbow height preserves hand targets (2.5091ms)
+✔ back pass remains a lob under horizontal manual aim on both teams (13.01ms)
+✔ lab paths match live fixed-step physics including drag, cartoon clock and net rebounds (28.5879ms)
+✖ shot tuning survives JSON, is bounded and changes only the selected shot (1.9963ms)
+✔ three distinct pixel skins, default without ears, exactly one with ears; saves retain choices (8.1479ms)
+✔ body has explicit pixel frames with stable holds, real pose changes and looping run cycle (42.2787ms)
+✔ both directional dives include one forearm reception without A/W/D, then disarm (6.0051ms)
+✔ rescue requires timing and a low ball ahead of the hands, never behind or on the other court (1.3148ms)
+✔ dive commits direction, cannot be steered or spammed and clears on landing and restart (3.635ms)
+✔ dive cancels the old charge and transfers fresh shot input to the teammate (0.9306ms)
+✔ forward/back drills are playable, and skin choice leaves their physics identical (27.1375ms)
+✔ release keeps the prepared body until contact, including the former 0.65-second gap (1.031ms)
+✔ run legs sweep backward under a forward-facing torso; getup finishes in neutral stance (0.4497ms)
+✔ exactly three players per team; 1/2/3 and cycling select the intended role (7.4356ms)
+✔ automatic release consumes the press; changing held shot buttons cannot bypass the lock (17.6749ms)
+✔ release grace is configurable: zero is strict; short grace expires; longer grace catches a later arrival (9.8348ms)
+✔ a different fresh shot key replaces pending grace, including full-charge release (23.2737ms)
+✔ switching on the release frame replaces the old shot; the same key preserves grace (0.7386ms)
+✔ jump windup keeps feet planted, rejects a second jump, and is tunable (1.8643ms)
+✔ blocks work only near the apex, soften at the edges, and cannot hit twice per jump (1.6011ms)
+✔ a blocked rally still allows a new human reception and the blocker must recover (3.2651ms)
+✔ front-player selection, windup and manual spike complete the new drill (5.7854ms)
+✔ all arm choices and physics controls survive JSON roundtrip and validation (1.2656ms)
+ℹ tests 184
+ℹ suites 0
+ℹ pass 173
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2202.9056
+
+✖ failing tests:
+
+test at tests\aim-control.test.mjs:72:1
+✖ explicit pass assistance at 50 percent is halfway between manual and guided impulses (12.9596ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(Math.abs(half[key] - (raw[key] + full[key]) / 2) < 1e-12)
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/aim-control.test.mjs:84:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\aim-control.test.mjs:130:1
+✖ assisted drives clear the net closely and downward aim chooses a steeper shot on either side (4.6441ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/aim-control.test.mjs:146:18)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\control-feedback.test.mjs:162:1
+✖ passer waits before seeking space and manual movement interrupts the delay (6.3629ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(Math.abs(p.homeX - m.players[1].x) > 1)
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/control-feedback.test.mjs:170:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\crouch-back-input.test.mjs:122:1
+✖ back pass aims to the far teammate behind the player on either team and has a distinct windup (4.3762ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 0
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/crouch-back-input.test.mjs:128:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\pass-direction.test.mjs:64:1
+✖ an aimed underhand pass still assists an available teammate behind the player (4.047ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 99
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/pass-direction.test.mjs:74:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 99,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\pass-flow.test.mjs:10:1
+✖ pass assistance blends direction and power continuously and zero is fully manual (33.0408ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(Math.abs(actual.vx - (free.vx + (full.vx - free.vx) * amount)) < 1e-9)
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/pass-flow.test.mjs:25:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\pass-flow.test.mjs:58:1
+✖ passers pause then walk to a stable free position, and manual control takes priority (3.4845ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(p.returnDelay >= 0.35)
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/pass-flow.test.mjs:70:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\pass-flow.test.mjs:91:1
+✖ return waits for landing and recovery; becoming the pass recipient cancels it (3.3551ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/pass-flow.test.mjs:101:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\pass-flow.test.mjs:124:1
+✖ neutral S → W → D plays rear → front → middle with a jump after a good set (3.93ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/pass-flow.test.mjs:135:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\pass-flow.test.mjs:153:1
+✖ strong neutral passes go to the far teammate; S is higher than W and short S stays lofty (0.9696ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 1
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/pass-flow.test.mjs:161:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\shot-lab.test.mjs:39:1
+✖ shot tuning survives JSON, is bounded and changes only the selected shot (1.9963ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 1.3
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/shot-lab.test.mjs:43:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1.3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

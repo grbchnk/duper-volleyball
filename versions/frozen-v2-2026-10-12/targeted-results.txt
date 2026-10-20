@@ -1,0 +1,95 @@
+✖ full attack assistance clears the net low on both teams, even from low weak contacts (6.597ms)
+✔ half attack assistance is half the angular correction and is independent of pass assistance (3.3498ms)
+✔ L3 is inert; R3 emits one dive without jump or player switch (1.5618ms)
+✔ dive reaches a falling ball in both directions, makes one reception and recovers (33.8703ms)
+✔ dive contact uses the same bounded hand target and cannot collect a remote ball (0.9858ms)
+✔ a human occupying another slot stays put while teammates take distinct free slots (8.8795ms)
+✔ sideout, deuce ceiling and fifth-set rally scoring (2.4528ms)
+✔ no human contact without input, including the setter (60.4812ms)
+✔ holding outside the palms charges; releasing performs one contact (63.4815ms)
+✔ back is a manually released contact (35.1762ms)
+✔ low is a manually released contact (36.2741ms)
+✔ loft is a manually released contact (37.1234ms)
+✔ drive is a manually released contact (38.164ms)
+✔ expired release does not hit a later ball (54.028ms)
+✔ charge length increases impulse and late modifiers change direction (42.8949ms)
+✔ pass assist preserves manual side and guides outgoing shots toward the net (8.2279ms)
+✔ human server and teammates never chase or hit autonomously (3.8359ms)
+✔ human jumps allow limited movement while CPU jumps stay vertical (83.5867ms)
+✔ analog movement keeps facing discrete so sprites do not squash (1.8753ms)
+✔ one block press jumps one player; held S does not repeat; next edge jumps next player (1.4841ms)
+✔ a block on the attacker side resets contacts and allows a fresh forearm reception (2.1025ms)
+✔ dive commits its direction, cannot hit a distant ball, lands on belly and recovers (137.6146ms)
+✔ diving forearms can reach a low ball; overhead cannot (0.3563ms)
+✔ low serve waits for release and a second press (2.9961ms)
+✔ loft serve waits for release and a second press (2.7623ms)
+✔ drive serve waits for release and a second press (2.9518ms)
+✔ practice retries without changing score (3.1595ms)
+✔ all three neutral serves land in court at the documented beginner power (63.1735ms)
+✔ switching cannot replace the server but works after the serve (4.2762ms)
+✔ fast keyboard taps are retained for a tick, key repeat does not create extra edges (0.6952ms)
+✔ CPU does not attempt a block on every attack and cannot spam within one shot (0.594ms)
+✖ seeded CPU match scores and finishes, with all four modern contact types (28056.2839ms)
+✔ upper and lower reception follow direction while preserving their height bands (2.6163ms)
+✔ one hand reaches all eight directions and the other stays at rest (0.9439ms)
+✔ save reaches the ball independently of outgoing aim, mirrored, held and released (13.7536ms)
+✔ full-power save stays weaker than regular receptions with and without assistance (20.4232ms)
+✔ stick sectors switch immediately, diagonal jitter does not, buttons pin the type (7.8392ms)
+✔ temporary clearance expires and returns to the original formation position (14.5599ms)
+✔ same-kind handoff from stick to button unlocks aiming without losing charge (3.1187ms)
+✔ changing stick sector while preparing a serve selects a type without tossing (1.5914ms)
+✔ return chooses a free slot when the selected player occupies the old one (10.7539ms)
+✔ return waits for landing and recovery (1.2676ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 40
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28866.0466
+
+✖ failing tests:
+
+test at tests\assistance-and-dive.test.mjs:10:1
+✖ full attack assistance clears the net low on both teams, even from low weak contacts (6.597ms)
+  AssertionError [ERR_ASSERTION]: 0/0.65/0.8/0
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/assistance-and-dive.test.mjs:32:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\match.test.mjs:324:1
+✖ seeded CPU match scores and finishes, with all four modern contact types (28056.2839ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   'back',
+      'drive',
+      'loft',
+      'low'
+    ]
+  
+      at TestContext.<anonymous> (file:///C:/Users/User/Documents/ChatGPT/Super%20Volleyball/tests/match.test.mjs:336:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'drive', 'loft', 'low' ],
+    expected: [ 'back', 'drive', 'loft', 'low' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

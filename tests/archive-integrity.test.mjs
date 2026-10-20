@@ -21,8 +21,9 @@ test('archive verification accepts Git line endings and rejects edited text and 
     ),
   );
   for (const entry of manifest) {
-    const bytes = readFileSync(path.join(project, 'versions/frozen-v2-2026-10-12', entry.path));
-    const destination = path.resolve(temporary, entry.path);
+    const parts = entry.path.split(/[\\/]/);
+    const bytes = readFileSync(path.join(project, 'versions/frozen-v2-2026-10-12', ...parts));
+    const destination = path.resolve(temporary, ...parts);
     assert.ok(destination.startsWith(temporary + path.sep));
     mkdirSync(path.dirname(destination), { recursive: true });
     writeFileSync(
@@ -46,7 +47,7 @@ test('archive verification accepts Git line endings and rejects edited text and 
   assert.match(editedText.stderr, /Changed archive file: \.editorconfig/);
   writeFileSync(text, original);
   const binary = manifest.find((entry) => entry.path.endsWith('.png'));
-  const binaryPath = path.join(temporary, binary.path);
+  const binaryPath = path.join(temporary, ...binary.path.split(/[\\/]/));
   writeFileSync(binaryPath, Buffer.concat([readFileSync(binaryPath), Buffer.from([0])]));
   const editedBinary = verify();
   assert.notEqual(editedBinary.status, 0);

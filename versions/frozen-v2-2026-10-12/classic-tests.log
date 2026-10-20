@@ -1,0 +1,36 @@
+
+> super-volley-club@0.2.0 test:classic
+> node --test versions/classic-v1/tests/*.test.mjs
+
+✔ sideout only scores for the serving team (3.0384ms)
+✔ 15 with a two point lead wins; deuce has hard cap at 17 (0.3046ms)
+✔ fifth set scores every rally, third set win ends the match (0.183ms)
+✔ manual attack table maps receive and set inputs (0.2356ms)
+✔ four active roles per side, held serve button does not make the second contact (4.9857ms)
+✔ separate timed press serves and an opponent receives (14.698ms)
+✔ special serves consume one slot per set, high and diving serves differ (3.7387ms)
+✔ double block raises two front players on a single B press (0.9835ms)
+✔ long CPU match has receptions, sets, attacks, blocks, points and no invalid state (335.7608ms)
+✔ seeded fixed-step simulation is reproducible (99.3145ms)
+✔ human input completes the normal combination (14.4348ms)
+✔ human input completes the quick combination (6.634ms)
+✔ human input completes the open combination (23.9808ms)
+✔ human input completes the delayed combination (8.5441ms)
+✔ human input completes the back combination (10.4734ms)
+✔ human input completes the dump combination (2.9144ms)
+✔ human input completes the dink combination (3.9422ms)
+✔ human input completes the super combination (4.8639ms)
+✔ free flight matches an analytic parabola without drag (3.1467ms)
+✔ quadratic drag dissipates horizontal speed (0.4469ms)
+✔ swept net collision catches a fast spike; above tape passes (0.3875ms)
+✔ touching boundary is in, fully outside is out (0.2274ms)
+✔ trajectory solver lands at its target with drag and spin (3.3561ms)
+✔ untrusted configuration is bounded and rejects non-objects (0.8303ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 705.4664

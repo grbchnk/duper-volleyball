@@ -17,7 +17,7 @@ const normalizedManifest = JSON.parse(
 );
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex').toUpperCase();
 for (const entry of manifest) {
-  const file = path.resolve(root, entry.path);
+  const file = path.resolve(root, ...entry.path.split(/[\\/]/));
   const relative = path.relative(root, file);
   if (relative.startsWith('..') || path.isAbsolute(relative)) throw Error('Invalid archive path');
   const bytes = fs.readFileSync(file);
