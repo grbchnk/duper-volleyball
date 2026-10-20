@@ -28,51 +28,42 @@ test('neutral attack assistance rotates at fixed speed, respects explicit aim, a
     assert.equal(weak.impulse.assisted, false);
   }
 });
-test('neutral passes on either team find reachable partners without changing power or overriding direction', () => {
-  for (const playerId of [1, 2, 4, 5]) {
-    const c = { ...DEFAULTS, neutralPassAssist: 1 };
-    const sample = simulateShot(c, { kind: 'low', power: 0.4, playerId });
-    const base = simulateShot(
-      { ...c, neutralPassAssist: 0 },
-      { kind: 'low', power: 0.4, playerId },
-    );
+test('neutral passes on either team retain speed while correcting towards nearby receivers', () => {
+  for (const playerId of [0, 3]) {
+    const c = { ...DEFAULTS, passAssist: 1 };
+    const options = { kind: 'loft', power: 0.8, playerId };
+    const sample = simulateShot(c, options),
+      base = simulateShot({ ...c, passAssist: 0 }, options);
     assert.ok(sample.impulse.assisted);
     assert.ok(Math.abs(speed(sample.impulse) - speed(base.impulse)) < 1e-10);
     const target = sample.match.players[sample.impulse.targetId];
     assert.equal(target.team, sample.player.team);
     assert.notEqual(target.id, playerId);
-    const at = predictAtHeight({ ...sample.ball, ...sample.impulse }, 1.9, c, 4 / c.ballSpeed);
-    assert.ok(Math.abs(at.x - target.x) < 0.8);
-    const manual = simulateShot(c, { kind: 'low', power: 0.4, playerId, angle: 180 });
-    const unassisted = simulateShot(
-      { ...c, neutralPassAssist: 0 },
-      { kind: 'low', power: 0.4, playerId, angle: 180 },
+    assert.ok(
+      Math.abs(
+        predictAtHeight({ ...sample.ball, ...sample.impulse }, 2.8, c, 4 / c.ballSpeed).x -
+          target.x,
+      ) < 0.8,
     );
-    assert.deepEqual(manual.impulse, unassisted.impulse);
-    const unavailable = sample.match.players.map((p) => ({ ...p, benched: p.id !== playerId }));
-    const result = shotImpulse(sample.ball, sample.player, 'low', 0.4, sample.aim, unavailable, c);
-    assert.equal(result.assisted, false);
   }
 });
 
-test('experimental reception transfers only approaching speed, caps it, and L2 damps the addition', () => {
-  const run = (incomingSpeed, soft = false, receiveMomentum = true) =>
-    simulateShot(
-      { ...DEFAULTS, receiveMomentum, neutralPassAssist: 0 },
-      { kind: 'low', power: 0.5, playerId: 1, incomingSpeed, soft },
-    ).impulse;
-  assert.equal(run(30, false, false).inheritedSpeed, 0);
-  assert.ok(run(20).inheritedSpeed > run(10).inheritedSpeed);
-  assert.equal(run(1000).inheritedSpeed, 5);
-  assert.ok(run(20, true).inheritedSpeed < run(20).inheritedSpeed * 0.2);
-  assert.ok(Math.abs(speed(run(20)) - speed(run(0)) - run(20).inheritedSpeed) < 1e-10);
-  assert.equal(run(-20).inheritedSpeed, 0, 'a receding ball creates no energy');
-  const config = sanitizeConfig({ receiveMomentum: true, receiveTransfer: 20, receiveDamping: -3 });
-  assert.equal(config.receiveTransfer, 0.6);
-  assert.equal(config.receiveDamping, 0);
+test('incoming velocity never adds energy to a manual reception, even with old experimental settings', () => {
+  for (const soft of [false, true]) {
+    const run = (incomingSpeed) =>
+      simulateShot(
+        { ...DEFAULTS, receiveMomentum: true, passAssist: 0 },
+        { kind: 'low', power: 0.5, playerId: 1, incomingSpeed, soft },
+      ).impulse;
+    for (const incoming of [-30, 30]) {
+      assert.equal(run(incoming).inheritedSpeed, 0);
+      assert.ok(Math.abs(speed(run(incoming)) - speed(run(0))) < 1e-10);
+    }
+  }
+  const config = sanitizeConfig({ receiveMomentum: true });
+  assert.equal(config.receiveMomentum, false);
   assert.deepEqual(importSettings(exportSettings(config)), config);
 });
-
 test('TEST is a seeded ball machine with one receiver and no opponents serving', () => {
   const m = new Match(DEFAULTS, 771),
     other = new Match(DEFAULTS, 771);

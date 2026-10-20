@@ -1,4 +1,6 @@
-// Reach toward the incoming ball, independently of the outgoing shot direction.
+import { predictedLowContact } from './receive-forecast.js';
+
+// Reach toward the incoming contact, independently of the outgoing shot direction.
 // The renderer and collision checks use the same bounded target.
 export function netSeparates(player, ball) {
   return !!ball && ((player.x < 0 && ball.x >= 0) || (player.x > 0 && ball.x <= 0));
@@ -18,15 +20,19 @@ export function localReceiveAim(player, action, ball, frame, config) {
   const weight = proximity * proximity * (3 - 2 * proximity);
   if (!weight) return rest;
   // Look slightly ahead only while approaching, without reaching past the ball.
+  const predicted =
+    kind === 'low' && config?.dynamic && !player.diving
+      ? predictedLowContact(player, ball, config)
+      : null;
   const lead =
-    dx * (ball.vx || 0) < 0
+    !predicted && dx * (ball.vx || 0) < 0
       ? Math.min(0.06, Math.abs(dx / ball.vx) * 0.4, 0.12 / Math.hypot(ball.vx, ball.vy || 0))
       : 0;
-  const px = ((dx + (ball.vx || 0) * lead) * 40) / (2.1 * facing);
+  const targetX = predicted?.x ?? ball.x + (ball.vx || 0) * lead;
+  const targetY = predicted?.y ?? ball.y + (ball.vy || 0) * lead;
+  const px = ((targetX - player.x) * 40) / (2.1 * facing);
   const py =
-    -((ball.y + (ball.vy || 0) * lead - player.y) * 42) / 2.1 -
-    (frame?.pose.y || 0) -
-    (frame?.pose.shoulders || 0);
+    -((targetY - player.y) * 42) / 2.1 - (frame?.pose.y || 0) - (frame?.pose.shoulders || 0);
   const scale = config?.armLength || 1;
   if (kind === 'back') {
     const shoulder = px < 0 ? -6 : 6;

@@ -4,7 +4,6 @@ import { SHOT_BASES } from './shot-settings.js';
 import { manualImpulse } from './manual-impulse.js';
 import { profileImpulse } from './profile-impulse.js';
 import { assistManualShot } from './manual-assistance.js';
-import { feintPass } from './feint-play.js';
 export { manualImpulse } from './manual-impulse.js';
 
 // Physics defaults have one source; UI metadata preserves the public shot IDs.
@@ -24,17 +23,7 @@ export const SERVES = Object.freeze(SERVE_BASES);
 
 // Human direction and automatic/serve profiles are distinct models with an explicit dispatch.
 export function shotImpulse(ball, player, kind, power, aim, players, config, serving = false) {
-  const source = { ...ball, attackGravity: 0 };
-  const feint =
-    !serving &&
-    config.dynamic &&
-    aim.manualControl &&
-    aim.play === 'feint' &&
-    ['low', 'loft'].includes(kind);
-  if (feint) {
-    const play = feintPass(source, player, kind, power, aim, players, config);
-    if (play) return play;
-  }
+  const source = { ...ball, attackGravity: 0, flightTempo: 1 };
   const impulse =
     !serving && config.dynamic && aim.manualControl
       ? assistManualShot(
@@ -50,6 +39,6 @@ export function shotImpulse(ball, player, kind, power, aim, players, config, ser
   return {
     attackGravity: 0,
     ...impulse,
-    ...(feint ? { feedback: 'Навес без обманки: партнёры не готовы или мало силы' } : {}),
+    flightTempo: impulse.flightTempo ?? 1,
   };
 }

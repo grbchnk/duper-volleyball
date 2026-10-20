@@ -40,3 +40,30 @@ test('current settings retire cartoon flight while legacy profiles remain readab
   );
   assert.equal(sanitizeConfig({ ...DEFAULTS, dynamic: false, cartoonFlight: 1 }).cartoonFlight, 1);
 });
+
+test('R2 reuses the ordinary drive with the other striking hand and the same compact travel', () => {
+  const pose = (aim, phase) =>
+    expressivePose({
+      spec: ARM_STYLES.whip,
+      config: DEFAULTS,
+      kind: 'drive',
+      ...phase(aim),
+      contactPoint: { x: 15, y: -40 },
+      localVelocity: { x: 200, y: 0 },
+    });
+  for (const phase of [
+    (aim) => ({ charge: { age: 1, power: 1, aim } }),
+    (aim) => ({ swing: { age: 0, power: 1, hit: true, aim } }),
+    (aim) => ({ swing: { age: 0.02, power: 1, hit: true, aim } }),
+    (aim) => ({ swing: { age: 0.07, power: 1, hit: false, aim } }),
+  ]) {
+    const normal = pose({}, phase),
+      fast = pose({ fast: true }, phase);
+    assert.deepEqual(fast.wrists, [...normal.wrists].reverse());
+    assert.deepEqual(pose({ fast: true, soft: true }, phase), pose({ soft: true }, phase));
+    for (const point of fast.elbows)
+      assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));
+  }
+  const recovered = (aim) => ({ swing: { age: 1, power: 1, hit: true, aim } });
+  assert.deepEqual(pose({ fast: true }, recovered).wrists, pose({}, recovered).wrists);
+});

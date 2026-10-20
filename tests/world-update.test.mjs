@@ -128,7 +128,7 @@ test('stronger forward attacks gain more downward curvature, without changing pl
   assert.equal(pass.attackGravity, 0, 'the next pass does not inherit the attack acceleration');
   const flat = shotImpulse(b, p, 'drive', 1, { manualControl: true }, [p], {
     ...DEFAULTS,
-    attackDip: 0,
+    driveNormalDip: 0,
   });
   assert.equal(flat.attackGravity, 0, 'the new curvature can be disabled in live physics settings');
 });

@@ -84,7 +84,7 @@ test('upward D is forward and upward with assistance on or off; full power can g
     }
 });
 
-test('stick jitter after selection never jumps; fresh Cross does', () => {
+test('stick up never jumps after selection; a fresh jump button press still works', () => {
   const m = new Match();
   m.startDrill('receive');
   const { pad, step } = controller();
@@ -97,11 +97,11 @@ test('stick jitter after selection never jumps; fresh Cross does', () => {
   m.autoSelect(0, 1);
   const receiver = m.active();
   pad.buttons[3].pressed = false;
-  for (const y of [-1, -0.6, -1, -0.3, -1]) {
+  for (const y of [-1, -0.9, -1, -0.8, -1]) {
     pad.axes[1] = y;
     step(m);
   }
-  assert.equal(passer.jumpProfile, null);
+  assert.equal(passer.jumpProfile, null, 'legacy charge suppresses the initial jump');
   assert.equal(receiver.jumpProfile, null);
   pad.axes[1] = 0;
   step(m);

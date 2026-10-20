@@ -68,12 +68,12 @@ test(
     await openSettingsSection(page, 'Приёмы и подачи');
     await page.locator('#contact-number-SpeedMin').fill('100');
     await settleSettings(page);
-    assert.equal(await page.locator('#contact-number-SpeedMin').inputValue(), '30');
-    assert.equal(await page.locator('#contact-number-SpeedMax').inputValue(), '30');
+    assert.equal(await page.locator('#contact-number-SpeedMin').inputValue(), '40');
+    assert.equal(await page.locator('#contact-number-SpeedMax').inputValue(), '40');
     await openSettingsSection(page, 'Физика и помощь');
-    await page.locator('#receive-momentum').check();
+    await page.locator('#physics-passAssist').fill('0.5');
     await settleSettings(page);
-    assert.equal(await page.locator('#physics-receiveTransfer').isEnabled(), true);
+    assert.equal(await page.locator('#value-passAssist').innerText(), '50%');
     await page.locator('#physics-gravity').fill('12');
     await settleSettings(page);
     assert.equal(await page.locator('#physics-gravity').inputValue(), '12');

@@ -94,7 +94,7 @@ test('soft modifier survives release while direction follows the current input',
   m.tick(FIXED_DT, { buttonVector: { x: 1, y: 0 } });
   assert.deepEqual(m.controls[0].pending.aim.vector, { x: 1, y: 0 });
 });
-test('L2 prepares only one contact hand at both lower and upper heights', () => {
+test('L2 uses one hand below and two hands for a gentle overhead set', () => {
   const m = new Match();
   m.reset('versus');
   m.phase = 'rally';
@@ -107,7 +107,7 @@ test('L2 prepares only one contact hand at both lower and upper heights', () => 
       age: 0.4,
       aim: { manualControl: true, soft: true },
     };
-    assert.equal(preparedHands(p, m, a).length, 1);
+    assert.equal(preparedHands(p, m, a).length, kind === 'loft' ? 2 : 1);
     assert.equal(preparedHands(p, m, { ...a, aim: {} }).length, 2);
   }
 });

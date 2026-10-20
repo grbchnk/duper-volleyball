@@ -7,6 +7,7 @@ export function startDrill(match, drill = 'receive') {
   match.startServe();
   if (drill === 'serve') return;
   match.phase = 'rally';
+  match.incomingShot = 'loft';
   match.lastTouch = 1;
   match.lastPlayer = TEAM_SIZE;
   match.teamPhases = ['defense', 'defense'];

@@ -2,6 +2,7 @@ import { tacticalAttack, tacticalPass, defenseScore } from './tactics.js';
 import { clamp, traceBall, predictAtHeight } from './physics.js';
 import { shotImpulse } from './moves.js';
 import { jumpProfile } from './motion.js';
+import { cpuStyle } from './cpu-styles.js';
 
 export function cpuSkill(config) {
   const level = clamp(
@@ -9,17 +10,24 @@ export function cpuSkill(config) {
     0,
     1,
   );
-  const novice = Math.max(0, 1 - level / 0.55) ** 2;
+  const mistakes = (1 - level) ** 1.5;
   return {
     level,
-    reaction: 0.3 - level * 0.255 + novice * 0.65,
-    refresh: 0.22 - level * 0.15 + novice * 0.35,
-    speed: 0.8 + level * 0.2 - novice * 0.45,
-    error: 0.55 * (1 - level) ** 2 + novice * 1.85,
-    block: 0.06 + level * 0.62,
-    dive: 0.1 + level * 0.85,
-    serveMiss: novice * 0.45,
-    serveError: novice * 0.3,
+    reaction: 0.025 + mistakes * 0.22,
+    refresh: 0.045 + mistakes * 0.14,
+    speed: 0.94 + level * 0.06,
+    error: 0.5 * mistakes,
+    block: 0.35 + level * 0.65,
+    dive: 0.5 + level * 0.5,
+    serveMiss: mistakes * 0.16,
+    serveError: mistakes * 0.22,
+    decisionError: mistakes * 0.32,
+    readError: mistakes * 0.24,
+    passError: mistakes * 0.12,
+    angleError: mistakes * 0.18,
+    timingError: mistakes * 0.1,
+    powerError: mistakes * 0.16,
+    diversity: 0.2 + level * 0.8,
   };
 }
 
@@ -29,8 +37,12 @@ export function planReception(match, team, previous = null) {
   const serial = match.shotSerial;
   const same = previous?.serial === serial;
   const reactionAt = same ? previous.reactionAt : match.time + skill.reaction;
-  const error = same ? previous.error : (match.random() * 2 - 1) * skill.error;
+  const error = same
+    ? previous.error
+    : (match.random() * 2 - 1) * skill.error +
+      (match.random() < skill.readError ? (match.random() < 0.5 ? -1.5 : 1.5) : 0);
   const allowDive = same ? previous.allowDive : match.random() < skill.dive;
+  const timing = same ? previous.timing || 0 : (match.random() * 2 - 1) * skill.timingError;
   const count = match.lastTouch === team ? match.touches[team] : 0;
   if (config.dynamic && count >= 3) return null;
   const eligible = match.players.filter(
@@ -74,6 +86,7 @@ export function planReception(match, team, previous = null) {
       allowDive,
       at: match.time,
       count,
+      timing,
     };
   }
   const path = traceBall(ball, config, 5 / config.ballSpeed);
@@ -86,11 +99,7 @@ export function planReception(match, team, previous = null) {
     if (b.netFault || (team === 0 ? b.x >= -0.15 : b.x <= 0.15) || b.y < 0.2 || b.vy > 1) continue;
     for (const p of eligible) {
       const jump =
-        (count >= 2 || config.duel) &&
-        b.y > 2.6 &&
-        b.y <= profile.height + 2.45 &&
-        !p.jumpProfile &&
-        skill.level > 0.25;
+        (count >= 2 || config.duel) && b.y > 2.6 && b.y <= profile.height + 2.45 && !p.jumpProfile;
       if (b.y > (jump ? profile.height + 2.45 : p.y + 2.3)) continue;
       if (jump && t < lead) continue;
       const targetX = clamp(
@@ -109,6 +118,7 @@ export function planReception(match, team, previous = null) {
         travel * 0.06 -
         (jump ? 0.45 : 0) +
         (b.y < 0.6 ? 0.25 : 0) +
+        (!count && config.cpuStyle === 'quick' && b.y > 1.35 ? 0.32 : 0) +
         (p.id === previous?.playerId ? -0.08 : 0);
       if (!best || score < best.score)
         best = { score, playerId: p.id, targetX, height: b.y, contactAt: match.time + t, jump };
@@ -129,7 +139,7 @@ export function planReception(match, team, previous = null) {
     if (Math.abs(best.targetX - previous.targetX) < 0.22) best.targetX = previous.targetX;
     else best.targetX = previous.targetX + clamp(best.targetX - previous.targetX, -0.45, 0.45);
   }
-  return { ...best, serial, reactionAt, error, allowDive, at: match.time, count };
+  return { ...best, serial, reactionAt, error, allowDive, at: match.time, count, timing };
 }
 
 // Every candidate uses the same impulse model as human shots and the laboratory.
@@ -173,6 +183,7 @@ function chooseCPUShotBase(match, p, kinds) {
             {
               vector: { x: direction * Math.cos(rad), y: Math.sin(rad) },
               // A late low ball is saved with the same soft receive as a human.
+              cpuControl: true,
               manualControl: match.config.dynamic && kind === 'low' && behind,
               soft: match.config.dynamic && kind === 'low' && behind,
             },
@@ -241,66 +252,62 @@ function chooseCPUShotBase(match, p, kinds) {
       }
   }
   if (match.config.dynamic) {
-    const available = Math.max(0.2, Math.min(0.85, availablePower));
-    if (count >= 1 || match.config.duel)
-      for (const style of ['power', 'steep', 'tip', 'roll', 'free']) {
-        const impulse = tacticalAttack(match.ball, p, style, available, match.config);
-        const path = traceBall(
-          { ...match.ball, ...impulse },
-          match.config,
-          7 / match.config.ballSpeed,
-        );
-        const end = path.at(-1);
-        if (end.netFault || end.y > 0.11 || end.x * forward < 0.3 || end.x * forward > 8.9)
-          continue;
-        const covered = defenseScore(path, opponents, match.config);
-        const bias =
-          match.config.cpuStyle === 'trickster' && style === 'tip'
-            ? 1.3
-            : match.config.cpuStyle === 'patient' && style === 'free'
-              ? 1
-              : 0;
-        const score =
-          (count >= 2 || match.config.duel ? 12 : 10) +
-          covered * 1.1 +
-          bias -
-          (path.length / 120) * 0.3;
-        options.push({ kind: 'drive', power: available, impulse, score });
-      }
-    if (count === 1 && !match.config.duel)
-      for (const play of ['high', 'quick', 'back', 'pipe', 'dump']) {
-        const impulse = tacticalPass(
-          match.ball,
-          p,
-          available,
-          { play },
-          match.players,
-          match.config,
-        );
+    const available = Math.max(0.08, Math.min(1, availablePower));
+    const positions = [
+      0.3,
+      ...opponents.map((other) => other.x * forward).sort((a, b) => a - b),
+      9,
+    ];
+    const gaps = positions
+      .slice(1)
+      .map((x, i) => ({ width: x - positions[i], depth: (x + positions[i]) / 2 }))
+      .sort((a, b) => b.width - a.width)
+      .slice(0, 2)
+      .map((gap) => gap.depth);
+    if (kinds.includes('drive') && (count >= 1 || match.config.duel))
+      for (const style of ['power', 'steep', 'tip', 'roll', 'free'])
+        for (const targetDepth of [undefined, ...gaps]) {
+          const impulse = tacticalAttack(match.ball, p, style, available, match.config, {
+            targetDepth,
+          });
+          const path = traceBall(
+            { ...match.ball, ...impulse },
+            match.config,
+            7 / match.config.ballSpeed,
+          );
+          const end = path.at(-1);
+          if (end.netFault || end.y > 0.11 || end.x * forward < 0.3 || end.x * forward > 8.9)
+            continue;
+          const covered = defenseScore(path, opponents, match.config);
+          const score =
+            (count >= 2 || match.config.duel ? 12 : 10) + covered * 1.8 - (path.length / 120) * 0.3;
+          options.push({ kind: 'drive', power: available, impulse, score });
+        }
+    if (kinds.includes('loft') && count === 1 && !match.config.duel)
+      for (const play of ['high', 'quick', 'back', 'dump']) {
+        const impulse =
+          play === 'feint'
+            ? shotImpulse(
+                match.ball,
+                p,
+                'loft',
+                available,
+                { manualControl: true, play: 'feint', vector: { x: forward * 0.35, y: 0.94 } },
+                match.players,
+                match.config,
+              )
+            : tacticalPass(match.ball, p, available, { play }, match.players, match.config);
         if (!impulse) continue;
         const score =
           play === 'dump'
             ? Math.min(...opponents.map((o) => Math.abs(o.x))) > 3
               ? 14
               : 6
-            : 10.6 +
-              (match.config.cpuStyle === 'patient' && play === 'high' ? 1.5 : 0) +
-              (play === 'quick' ? 0.3 : 0);
+            : 11.2 + (play === 'quick' ? 0.3 : 0);
+        if (play === 'feint' && impulse.intent !== 'feint') continue;
         options.push({ kind: 'loft', power: available, impulse, score });
       }
-    if (plan?.preparation?.intent) {
-      const preferred = options.filter((o) => o.impulse.intent === plan.preparation.intent);
-      if (preferred.length) return preferred.sort((a, b) => b.score - a.score)[0];
-    }
-    if (count >= 2 || match.config.duel) {
-      const tactical = options.filter((o) => o.impulse.intent && o.kind === 'drive');
-      if (tactical.length) {
-        tactical.sort((a, b) => b.score - a.score);
-        const tolerance = match.phaseTime > 12 ? 5 : 1.4;
-        const pool = tactical.filter((o) => o.score >= tactical[0].score - tolerance);
-        return pool[Math.floor(match.random() * pool.length)];
-      }
-    }
+    addModifierOptions(match, p, kinds, available, count, teammates, opponents, options);
   }
   if (!options.length) {
     const kind = kinds.includes('back') && behind ? 'back' : kinds[0];
@@ -318,30 +325,155 @@ function chooseCPUShotBase(match, p, kinds) {
       ),
     };
   }
-  // Vary the choice among useful options, not between a hit and a scripted miss.
+  return selectCPUOption(match, p, options, skill);
+}
+
+function addModifierOptions(match, p, kinds, power, count, teammates, opponents, options) {
+  const forward = p.team ? -1 : 1;
+  // These are real L2/R2 inputs passed through the same manual impulse as a human.
+  if (!count && kinds.includes('low') && !match.config.duel) {
+    for (const strength of [0.2, 0.5, 0.8, 1].map((value) => Math.min(value, power)))
+      for (const direction of [forward, -forward])
+        for (const degrees of [40, 60, 78]) {
+          const angle = (degrees * Math.PI) / 180;
+          const impulse = shotImpulse(
+            match.ball,
+            p,
+            'low',
+            strength,
+            {
+              manualControl: true,
+              soft: true,
+              cpuControl: true,
+              vector: { x: direction * Math.cos(angle), y: Math.sin(angle) },
+            },
+            match.players,
+            { ...match.config, assist: false },
+          );
+          const at = predictAtHeight(
+            { ...match.ball, ...impulse },
+            1.9,
+            match.config,
+            4 / match.config.ballSpeed,
+          );
+          if (at.netFault || at.x * forward >= -0.35 || at.y > 1.91 || at.time < 0.18) continue;
+          const skill = cpuSkill(match.config);
+          const receivers = teammates.filter(
+            (other) =>
+              Math.abs(other.x - at.x) <=
+              match.config.playerSpeed * skill.speed * Math.max(0, at.time - skill.reaction) + 0.65,
+          );
+          receivers.sort((a, b) => Math.abs(a.x - at.x) - Math.abs(b.x - at.x));
+          if (!receivers.length) continue;
+          const receiver = receivers[0];
+          options.push({
+            kind: 'low',
+            power: strength,
+            impulse: {
+              ...impulse,
+              targetId: receiver.id,
+              intent: 'soft-receive',
+              cpuModifier: 'soft',
+            },
+            score: 11.3 - Math.abs(receiver.x - at.x) * 0.7 - Math.abs(at.time - 0.65) * 0.5,
+          });
+        }
+  }
+  if (!kinds.includes('drive') || (!count && !match.config.duel)) return;
+  for (const modifier of ['soft', 'fast'])
+    for (const degrees of [-20, 0, 20, 40, 60]) {
+      const angle = (degrees * Math.PI) / 180;
+      const impulse = shotImpulse(
+        match.ball,
+        p,
+        'drive',
+        power,
+        {
+          manualControl: true,
+          [modifier]: true,
+          vector: { x: forward * Math.cos(angle), y: Math.sin(angle) },
+        },
+        match.players,
+        { ...match.config, assist: false },
+      );
+      const path = traceBall(
+        { ...match.ball, ...impulse },
+        match.config,
+        7 / match.config.ballSpeed,
+      );
+      const end = path.at(-1);
+      if (end.netFault || end.y > 0.11 || end.x * forward < 0.3 || end.x * forward > 8.9) continue;
+      const depth = end.x * forward;
+      const intent =
+        modifier === 'soft' ? (depth < 3 ? 'tip' : 'roll') : degrees < 10 ? 'steep' : 'power';
+      options.push({
+        kind: 'drive',
+        power,
+        impulse: { ...impulse, intent, cpuModifier: modifier },
+        score:
+          (count >= 2 || match.config.duel ? 12 : 10) +
+          defenseScore(path, opponents, match.config) * 1.8 -
+          (path.length / 120) * 0.3,
+      });
+    }
+}
+
+export function selectCPUOption(match, p, options, skill = cpuSkill(match.config)) {
+  const count = match.lastTouch === p.team ? match.touches[p.team] : 0;
+  if (match.config.dynamic && (count >= 2 || match.config.duel)) {
+    const finishers = options.filter((option) => option.kind === 'drive' && option.impulse.intent);
+    if (finishers.length) options = finishers;
+  }
+  const style = cpuStyle(match.config);
+  const recent = (match.cpuHistory?.[p.team] || []).slice(-4);
+  for (const option of options) {
+    const intent = option.impulse.intent;
+    const repeats = recent.filter((shot) => shot.intent === intent && intent).length;
+    option.score += (style.bias[intent] || 0) - repeats * skill.diversity * 0.65;
+    if (
+      option.impulse.cpuModifier &&
+      !recent.some((shot) => shot.modifier === option.impulse.cpuModifier)
+    )
+      option.score += skill.diversity * 0.45;
+    if (match.cpuPlans?.[p.team]?.preparation?.intent === intent) option.score += 0.25;
+  }
   options.sort((a, b) => b.score - a.score);
+  if (match.random() < skill.decisionError) {
+    // A worse tactical decision remains a legal physical shot, not a forced loss.
+    const weaker = options.filter((option) => option.score >= options[0].score - 4).slice(2, 16);
+    if (weaker.length) return weaker[Math.floor(match.random() * weaker.length)];
+  }
   const pool = options
-    .filter((option) => option.score >= options[0].score - (0.35 + (1 - skill.level) * 1.2))
-    .slice(0, 12);
-  return pool[Math.floor(match.random() * pool.length)];
+    .filter((option) => option.score >= options[0].score - (0.4 + skill.diversity * 1.5))
+    .slice(0, 20);
+  const temperature = 0.15 + skill.diversity * 0.4;
+  const weights = pool.map((option) => Math.exp((option.score - pool[0].score) / temperature));
+  let roll = match.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < pool.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return pool[i];
+  }
+  return pool[0];
 }
 
 // Execution error is a small physical angle error, never a scripted miss.
 // The same seeded input reproduces it; stronger players have less variation.
 export function chooseCPUShot(match, p, kinds) {
   const result = chooseCPUShotBase(match, p, kinds);
-  if (!match.config.dynamic || result.impulse.targetId != null) return result;
+  if (!match.config.dynamic) return result;
+  const skill = cpuSkill(match.config);
   const i = result.impulse,
     speed = Math.hypot(i.vx, i.vy);
-  const spread = (14 * (1 - cpuSkill(match.config).level) * Math.PI) / 180;
+  const spread = result.impulse.targetId != null ? skill.passError : skill.angleError;
   const angle = Math.atan2(i.vy, i.vx) + (match.random() * 2 - 1) * spread;
+  const magnitude = speed * (1 - match.random() * skill.powerError);
   const varied = {
     ...result,
     impulse: {
       ...i,
-      vx: speed * Math.cos(angle),
-      vy: speed * Math.sin(angle),
-      flightLaunchVy: speed * Math.sin(angle),
+      vx: magnitude * Math.cos(angle),
+      vy: magnitude * Math.sin(angle),
+      flightLaunchVy: magnitude * Math.sin(angle),
     },
   };
   // Execution variation may hit the tape, but must not turn a legal selected

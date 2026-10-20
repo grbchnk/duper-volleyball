@@ -1,4 +1,5 @@
 import { COSMETIC_KEYS } from './settings-scope.js';
+import { cpuStyle, chooseServeKind } from './cpu-styles.js';
 import { teamAppearance, appearanceKey } from './appearance.js';
 import { assignPlayerArms } from './player-arms.js';
 import { courtLineBounds } from './court-visual.js';
@@ -15,9 +16,10 @@ import { chooseServeInput, beginServe, executeServe } from './serve-flow.js';
 import { contactReason } from './contact-rules.js';
 import { challengeProfileKey } from './records.js';
 import { feedTrainingBall } from './test-feed.js';
-import { groundVelocity, updateBodyMotion } from './movement-feel.js';
+import { groundVelocity, updateBodyMotion, releaseMoveFactor } from './movement-feel.js';
 import { contactTempo } from './contact-tempo.js';
 import { heldServeBall } from './serve-support.js';
+import { sampleServeContact } from './serve-contact.js';
 import {
   createControls,
   controlledPlayer,
@@ -30,7 +32,6 @@ import { advanceChallenge, resolveChallenge } from './challenges.js';
 import { createSkillStats, beginRally, summarizeRally } from './skill-feedback.js';
 import { ATTACKS, blockImpulse } from './tactics.js';
 import { serveSettings } from './serve-settings.js';
-import { sampleServeMotion } from './motion.js';
 
 import { WIN_EMOTIONS, LOSE_EMOTIONS } from './emotions.js';
 import { assistedJump } from './jump-assist.js';
@@ -151,7 +152,13 @@ export class Match {
     this.selectControlledPlayer(this.controls[slot], id);
     for (const key of ['charge', 'pending']) {
       const action = this.controls[slot][key];
-      if (action?.playerId === previous) action.playerId = id;
+      if (action?.playerId === previous) {
+        action.playerId = id;
+        if (key === 'pending') {
+          player.releaseSlow = this.players[previous].releaseSlow;
+          player.releaseSlowTotal = this.players[previous].releaseSlowTotal;
+        }
+      }
     }
     player.returnHome = false;
     player.clearLane = null;
@@ -330,6 +337,7 @@ export class Match {
       y: 0,
       speed: Math.abs(this.ball.vy),
       out: !isInside(this.ball, this.config),
+      winning: ['point', 'set-end', 'finished'].includes(this.phase),
     });
   }
   label(text, duration = 1.6) {
@@ -371,6 +379,14 @@ export class Match {
     this.replay = new Replay();
     this.attackStyles = ['power', 'power'];
     this.playStyles = ['high', 'high'];
+    this.cpuHistory = [[], []];
+    this.cpuTelemetry = [0, 1].map(() => ({
+      contacts: 0,
+      soft: 0,
+      fast: 0,
+      combos: 0,
+      intents: {},
+    }));
     this.teamRuns = [null, null];
     this.tacticalStats = {
       power: 0,
@@ -491,6 +507,7 @@ export class Match {
         returnDelay: 0,
         clearedSerial: -1,
         releaseSlow: 0,
+        releaseSlowTotal: 0,
         stunned: 0,
         headFly: null,
         headDetached: false,
@@ -603,7 +620,7 @@ export class Match {
     };
   }
   tick(dt = FIXED_DT, raw = {}, second = {}) {
-    dt *= contactTempo(this, dt);
+    if (!this.config.dynamic) dt *= contactTempo(this, dt);
     this.inputs = [
       { ...EMPTY_INPUT, intent: this.attackStyles[0], play: this.playStyles[0], ...raw },
       {
@@ -777,11 +794,17 @@ export class Match {
       this.handleControl(dt, this.inputs[slot], team, this.controls[slot]);
       if (slot === 0) this.coopPrimary = this.selected[0];
     }
+    // Teammates and receivers can reposition; the server stays in the serve motion.
+    if (this.phase === 'serve' || this.phase === 'serve-motion') {
+      for (const p of this.players) {
+        if (this.isHuman(p.team)) this.movePlayer(p, dt, input);
+      }
+    }
     if (this.phase === 'serve') {
       if (this.config.dynamic) Object.assign(this.ball, heldServeBall(this.serverPlayer()));
       if (!this.isHuman(this.server) && this.phaseTime > 1.3)
         this.beginServe({
-          kind: ['low', 'loft', 'drive'][Math.floor(this.random() * 3)],
+          kind: chooseServeKind(this),
           power: 0.54,
           aim: { axis: -this.sign(this.server), up: false, down: false },
         });
@@ -797,28 +820,46 @@ export class Match {
         a.released = true;
         if (a.tossDelay) this.emit('toss');
       }
-      Object.assign(this.ball, sampleServeMotion(p, a, t));
+      const contact = sampleServeContact(p, a, t, this.config);
+      Object.assign(this.ball, contact.ball);
+      const { quality, distance } = contact;
+      a.contactQuality = quality;
+      const human = this.isHuman(this.server);
+      const pressed =
+        human &&
+        shotKinds(this.config, true).some(
+          (key) =>
+            this.inputs[this.serverSlot()][key] &&
+            !this.controls[this.serverSlot()].previousInput[key],
+        );
+      if (
+        this.config.dynamic &&
+        human &&
+        !a.attempted &&
+        !a.cuePlayed &&
+        t >= a.contactTiming.start &&
+        quality >= 1 - 1e-9
+      ) {
+        a.cuePlayed = true;
+        this.emit('serve-hit-cue');
+      }
       this.controls[this.serverSlot()].contactWindow =
-        !a.attempted && Math.abs(t - a.ideal) <= a.settings.PerfectWindow;
+        !a.attempted &&
+        (this.config.dynamic
+          ? quality >= 1 - 1e-9
+          : Math.abs(t - a.ideal) <= a.settings.PerfectWindow);
       if (this.ball.y <= COURT.ballRadius) {
         this.floorTouch();
         this.point(1 - this.server, 'ПОДАЧА: МЯЧ НЕ УДАРЕН');
-      } else if (
-        !a.attempted &&
-        ((this.isHuman(this.server) &&
-          shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).some(
-            (key) =>
-              this.inputs[this.serverSlot()][key] &&
-              !this.controls[this.serverSlot()].previousInput[key],
-          )) ||
-          (!this.isHuman(this.server) && !a.cpuMiss && t >= a.ideal))
-      ) {
+      } else if (!a.attempted && (pressed || (!human && !a.cpuMiss && t >= a.ideal))) {
         a.attempted = true;
         a.perfect = this.controls[this.serverSlot()].contactWindow;
-        const origin = serveOrigin(p, a.kind, this.config);
-        const distance = Math.hypot(this.ball.x - origin.x, this.ball.y - origin.y);
-        if (Math.abs(t - a.ideal) <= a.settings.HitWindow && distance <= a.settings.ContactReach) {
-          a.quality = a.perfect ? 1 : a.settings.MistimePower;
+        if (
+          this.config.dynamic
+            ? quality > 0
+            : Math.abs(t - a.ideal) <= a.settings.HitWindow && distance <= a.settings.ContactReach
+        ) {
+          a.quality = this.config.dynamic ? quality : a.perfect ? 1 : a.settings.MistimePower;
           this.executeServe();
         } else {
           p.armSwing = {
@@ -852,7 +893,9 @@ export class Match {
       this.rallyInfo.net = true;
       this.cpuOutForecast = null;
       this.emit('net');
-      this.label('Мяч от сетки — ещё можно спасти');
+      this.label(
+        this.incomingShot === 'serve' ? 'Подача в сетку' : 'Мяч от сетки — ещё можно спасти',
+      );
     }
     // Crossing through the real gap beneath the mesh loses the rally; it must
     // not rebound from an invisible extension of the net down to the floor.
@@ -922,7 +965,13 @@ export class Match {
       this.selectControlledPlayer(this.controls[team], next);
       for (const key of ['charge', 'pending']) {
         const action = this.controls[team][key];
-        if (action?.playerId === previous) action.playerId = next;
+        if (action?.playerId === previous) {
+          action.playerId = next;
+          if (key === 'pending') {
+            this.players[next].releaseSlow = this.players[previous].releaseSlow;
+            this.players[next].releaseSlowTotal = this.players[previous].releaseSlowTotal;
+          }
+        }
       }
       this.players[next].returnHome = false;
       this.players[next].clearLane = null;
@@ -1049,6 +1098,7 @@ export class Match {
           for (const key of ['axis', 'vector', 'up', 'down']) a.aim[key] = queuedAim[key];
         control.charge = null;
         p.releaseSlow = a.kind === 'back' ? 0 : this.config.releaseWindow;
+        p.releaseSlowTotal = p.releaseSlow;
         if (autoRelease) control.chargeLock = true;
         if (this.phase !== 'serve')
           p.armSwing = { kind: a.kind, power: a.power, age: 0, hit: false, aim: a.aim };
@@ -1187,11 +1237,8 @@ export class Match {
     if (!this.jump(p)) return false;
     p.returnHome = false;
     if (adjustment) p.jumpProfile = adjustment.profile;
-    p.jumpHold = this.config.variableJump;
-    p.jumpButtonHold =
-      this.config.dynamic && this.config.jumpHoldHang > 0
-        ? { tracking: true, elapsed: 0, applied: false, slot: this.humanSlot(p) }
-        : null;
+    p.jumpHold = !this.config.dynamic && this.config.variableJump;
+    p.jumpButtonHold = null;
     this.emit('jump', { team: p.team, playerId: p.id });
     return true;
   }
@@ -1416,15 +1463,16 @@ export class Match {
       if (p.jumpProfile) {
         const hold = p.jumpButtonHold;
         const jumpInput = this.inputs?.[hold?.slot];
-        updateJumpButtonHold(
-          p,
-          this.phase === 'rally' &&
-            hold?.slot != null &&
-            this.humanSlot(p) === hold.slot &&
-            !!(jumpInput?.jumpHeld ?? jumpInput?.jump),
-          dt,
-          this.config,
-        );
+        if (!this.config.dynamic)
+          updateJumpButtonHold(
+            p,
+            this.phase === 'rally' &&
+              hold?.slot != null &&
+              this.humanSlot(p) === hold.slot &&
+              !!(jumpInput?.jumpHeld ?? jumpInput?.jump),
+            dt,
+            this.config,
+          );
         const j = p.jumpProfile;
         if (
           !p.ballHangUsed &&
@@ -1495,27 +1543,43 @@ export class Match {
               : Math.abs(p.vx) > 0.1
                 ? 'run'
                 : 'idle';
-      p.x = clamp(p.x, p.team === 0 ? -10.5 : 0.65, p.team === 0 ? -0.65 : 10.5);
+      p.x = clamp(
+        p.x,
+        p.team === 0 ? -COURT.playerBackLimit : 0.65,
+        p.team === 0 ? -0.65 : COURT.playerBackLimit,
+      );
     }
   }
   returnPlayers(dt) {
     let returned = true;
     for (const p of this.players) {
+      if (p.benched) continue;
       p.clearLane = null;
+      p.returnHome = false;
+      p.moveVx = 0;
+      p.homeX = this.sign(p.team) * HOMES[p.id % TEAM_SIZE];
       const target =
         this.sign(p.team) *
         (p.id === this.server * TEAM_SIZE ? COURT.halfLength + 0.15 : HOMES[p.id % TEAM_SIZE]);
       if (!grounded(p) || (p.emotion && p.emotion.age < 0.75)) {
+        p.returnVx = 0;
         returned = false;
         continue;
       }
       p.emotion = null;
-      const delta = clamp(
-        target - p.x,
-        -this.config.playerSpeed * dt,
-        this.config.playerSpeed * dt,
-      );
+      const distance = target - p.x;
+      const speed = this.config.playerSpeed;
+      p.returnVx = this.config.dynamic
+        ? groundVelocity(p.returnVx || 0, clamp(distance * 8, -speed, speed), speed, dt)
+        : clamp(distance / dt, -speed, speed);
+      const delta =
+        Math.abs(distance) < 0.01
+          ? distance
+          : Math.sign(p.returnVx) === Math.sign(distance)
+            ? Math.sign(distance) * Math.min(Math.abs(distance), Math.abs(p.returnVx * dt))
+            : 0;
       p.x += delta;
+      if (Math.abs(target - p.x) <= 0.001) p.returnVx = 0;
       p.vx = delta / dt;
       p.pose = delta ? 'run' : 'idle';
       p.runTime = delta ? p.runTime + dt : 0;
@@ -1567,8 +1631,8 @@ export class Match {
     let target = p.homeX;
     if (this.config.dynamic && !this.isHuman(p.team)) return target;
     if (this.config.dynamic) {
-      let lower = p.team === 0 ? -10.5 : 0.65;
-      let upper = p.team === 0 ? -0.65 : 10.5;
+      let lower = p.team === 0 ? -COURT.playerBackLimit : 0.65;
+      let upper = p.team === 0 ? -0.65 : COURT.playerBackLimit;
       for (const other of this.players) {
         if (other.benched || other.team !== p.team || other.id === p.id) continue;
         const gap = this.humanSlot(other) !== null ? 1.25 : 0.85;
@@ -1645,6 +1709,14 @@ export class Match {
   }
   movePlayer(p, dt, raw) {
     if (p.benched) return;
+    if (
+      (this.phase === 'serve' || this.phase === 'serve-motion') &&
+      p.id === this.serverPlayer().id
+    ) {
+      p.moveVx = p.returnVx = p.vx = 0;
+      p.runTime = 0;
+      return;
+    }
     const control = this.controls[this.humanSlot(p) ?? p.team];
     const input = this.inputs?.[control.slot] || (p.team === 0 ? raw : EMPTY_INPUT);
     const controlled = this.isHuman(p.team) && p.id === this.controlledPlayer(control);
@@ -1698,8 +1770,8 @@ export class Match {
         const old = p.x;
         p.x = clamp(
           p.x + (input.axis || 0) * this.config.airMoveSpeed * dt,
-          p.team === 0 ? -10.5 : 0.65,
-          p.team === 0 ? -0.65 : 10.5,
+          p.team === 0 ? -COURT.playerBackLimit : 0.65,
+          p.team === 0 ? -0.65 : COURT.playerBackLimit,
         );
         p.vx = (p.x - old) / dt;
         if (input.axis) {
@@ -1791,9 +1863,7 @@ export class Match {
             ? control.charge.kind === 'back'
               ? 1
               : this.config.chargeMove
-            : 1 -
-              (1 - this.config.chargeMove) *
-                clamp(p.releaseSlow / Math.max(this.config.releaseWindow, 0.001), 0, 1)) *
+            : releaseMoveFactor(p, this.config)) *
           (1 - (p.crouchAmount || 0) * 0.65);
         if (this.config.dynamic) {
           const target = movement / dt;
@@ -1820,12 +1890,7 @@ export class Match {
     } else {
       let target = this.returnTarget(p);
       if (this.config.dynamic && this.lastTouch !== p.team) {
-        const homes =
-          this.config.cpuStyle === 'deep'
-            ? [7.8, 5, 2.8]
-            : this.config.cpuStyle === 'blocker'
-              ? [6.5, 3.4, 0.8]
-              : [7, 3.8, 1.5];
+        const homes = cpuStyle(this.config).homes;
         target = this.sign(p.team) * homes[p.id % 3];
         const fallen = this.players.find(
           (q) => q.team === p.team && !q.benched && (q.diving || q.recovery > 0),
@@ -1851,7 +1916,11 @@ export class Match {
           this.config.playerSpeed * cpuSkill(this.config).speed * dt,
         );
     }
-    p.x = clamp(p.x, p.team === 0 ? -10.5 : 0.65, p.team === 0 ? -0.65 : 10.5);
+    p.x = clamp(
+      p.x,
+      p.team === 0 ? -COURT.playerBackLimit : 0.65,
+      p.team === 0 ? -0.65 : COURT.playerBackLimit,
+    );
     if (
       !this.config.dynamic &&
       !controlled &&
@@ -1870,8 +1939,8 @@ export class Match {
               -this.config.playerSpeed * dt,
               this.config.playerSpeed * dt,
             ),
-          p.team === 0 ? -10.5 : 0.65,
-          p.team === 0 ? -0.65 : 10.5,
+          p.team === 0 ? -COURT.playerBackLimit : 0.65,
+          p.team === 0 ? -0.65 : COURT.playerBackLimit,
         );
       }
     }
@@ -1896,10 +1965,10 @@ export class Match {
   }
   planReadBlock(team, impulse) {
     if (!this.config.dynamic || this.isHuman(team) || this.config.duel) return;
-    const style = this.config.cpuStyle;
-    if (style === 'deep' || this.random() > cpuSkill(this.config).block * 1.25) return;
+    const style = cpuStyle(this.config);
+    if (this.random() > cpuSkill(this.config).block * style.block) return;
     const profile = jumpProfile(this.config);
-    const early = style === 'blocker' ? -0.25 : style === 'patient' ? 0.1 : -0.06;
+    const early = style.blockLead;
     this.cpuBlockPlan = {
       team,
       serial: this.shotSerial,
@@ -1914,7 +1983,11 @@ export class Match {
     }
     if (this.config.dynamic && this.players.some((p) => p.team === team && p.block > 0)) return;
     this.cpuBlockPlan = null;
-    if (this.isHuman(team) || this.random() > cpuSkill(this.config).block) return;
+    if (
+      this.isHuman(team) ||
+      this.random() > cpuSkill(this.config).block * cpuStyle(this.config).block
+    )
+      return;
     const b = { ...this.ball };
     let crossing = null;
     for (let n = 1; n < 240; n++) {
@@ -1941,12 +2014,8 @@ export class Match {
       if (plan.serial === this.shotSerial) this.requestBlock(plan.team);
     }
     for (const team of [0, 1]) {
-      // A serve belongs to the opponent until a net rebound returns it.
-      if (
-        this.incomingShot === 'serve' &&
-        this.lastTouch === team &&
-        this.ball.vx * this.sign(team) < 0
-      ) {
+      // The serving team cannot receive its own serve, including a net rebound.
+      if (this.incomingShot === 'serve' && this.lastTouch === team) {
         this.cpuPlans[team] = null;
         continue;
       }
@@ -2017,7 +2086,17 @@ export class Match {
         const future = Object.create(this);
         future.ball = { ...this.ball, x: plan.targetX, y: plan.height };
         future.cpuPlans = [null, null];
-        const shot = (plan.proposal ||= chooseCPUShot(future, { ...p, x: plan.targetX }, [kind]));
+        let preparedKind = kind;
+        if (!plan.proposal && this.random() < skill.decisionError) {
+          const alternatives = shotKinds(this.config).filter(
+            (candidate) => contactReason(future, { ...p, x: plan.targetX }, candidate) === null,
+          );
+          if (alternatives.length)
+            preparedKind = alternatives[Math.floor(this.random() * alternatives.length)];
+        }
+        const shot = (plan.proposal ||= chooseCPUShot(future, { ...p, x: plan.targetX }, [
+          preparedKind,
+        ]));
         const duration = Math.max(
           this.config.armWindup,
           (shot.power - 0.08) * this.config.chargeSeconds,
@@ -2030,6 +2109,7 @@ export class Match {
           kind: shot.kind,
           power: shot.power,
           intent: shot.impulse.intent,
+          modifier: shot.impulse.cpuModifier,
           start: this.time,
         };
         this.emit('windup', { team, kind: shot.kind, power: shot.power });
@@ -2046,7 +2126,7 @@ export class Match {
         power: Math.min(prep.power, 0.08 + age / this.config.chargeSeconds),
         age,
         playerId: p.id,
-        aim: { soft: prep.intent === 'soft' },
+        aim: { soft: prep.modifier === 'soft', fast: prep.modifier === 'fast' },
       };
     }
   }
@@ -2080,19 +2160,14 @@ export class Match {
   }
   tryCPUContact(team, previous = this.ball) {
     if (this.config.dynamic && this.lastTouch === team && this.touches[team] >= 3) return;
-    if (
-      this.incomingShot === 'serve' &&
-      this.lastTouch === team &&
-      this.ball.vx * this.sign(team) < 0
-    )
-      return;
+    if (this.incomingShot === 'serve' && this.lastTouch === team) return;
     if (this.possession !== team || this.cpuLeavesOut(team)) return;
     const plan = this.cpuPlans[team],
       p = this.active(team);
     if (p.diving || p.recovery > 0) return;
     if (plan && this.time < plan.reactionAt) return;
     if (plan && (!plan.action || plan.action.age < this.config.armWindup)) return;
-    if (plan && this.time < plan.contactAt - 0.06 && this.ball.y > 0.7) return;
+    if (plan && this.time < plan.contactAt + (plan.timing || 0) - 0.06 && this.ball.y > 0.7) return;
     if (this.ball.vy > 1 && p.y < 0.2) return;
     const behind = (this.ball.x - p.x) * (p.facing || -this.sign(team)) < -0.25;
     let kinds = shotKinds(this.config, ['serve', 'serve-motion'].includes(this.phase)).filter(
@@ -2118,7 +2193,26 @@ export class Match {
     if (behind && kinds.includes('back')) kinds = ['back'];
     if (plan?.action && kinds.includes(plan.action.kind)) kinds = [plan.action.kind];
     const shot = chooseCPUShot(this, p, kinds);
-    this.makeContact(p, shot.kind, shot.power, shot.impulse);
+    if (this.makeContact(p, shot.kind, shot.power, shot.impulse)) {
+      const intent = shot.impulse.intent || shot.kind;
+      const modifier = shot.impulse.cpuModifier || 'normal';
+      const recent = this.cpuHistory[team].slice(-2);
+      this.cpuHistory[team].push({ intent, modifier, serial: this.shotSerial });
+      if (this.cpuHistory[team].length > 12) this.cpuHistory[team].shift();
+      const stats = this.cpuTelemetry[team];
+      if (
+        recent[0]?.intent === 'soft-receive' &&
+        recent[1]?.intent === 'quick' &&
+        recent[0].serial === this.shotSerial - 2 &&
+        recent[1].serial === this.shotSerial - 1 &&
+        shot.kind === 'drive'
+      )
+        stats.combos++;
+      stats.contacts++;
+      if (modifier !== 'normal') stats[modifier]++;
+      stats.intents[intent] = (stats.intents[intent] || 0) + 1;
+      if (p.armSwing) p.armSwing.aim = { soft: modifier === 'soft', fast: modifier === 'fast' };
+    }
   }
   tryBlocks() {
     // An opponent may block immediately after a spike; the hitter's debounce
@@ -2131,14 +2225,14 @@ export class Match {
         handY = p.y + 2.05;
       if (
         Math.abs(this.ball.x - handX) < this.config.blockReach &&
-        Math.abs(this.ball.y - handY) < 0.4 &&
+        Math.abs(this.ball.y - handY) < this.config.blockHeight &&
         this.ball.y > COURT.netHeight
       ) {
         const attacker = 1 - p.team,
           apex = p.jumpProfile.windup + p.jumpProfile.rise + p.jumpProfile.hang / 2;
         const perfect =
           Math.abs(p.jumpTime - apex) < this.config.blockWindow * 0.19 &&
-          Math.abs(this.ball.y - handY) < 0.2;
+          Math.abs(this.ball.y - handY) < this.config.blockHeight / 2;
         const incomingBlock = { ...this.ball };
         this.ball.attackGravity = 0;
         p.blockUsed = true;
@@ -2170,6 +2264,12 @@ export class Match {
           team: p.team,
           kind: 'block',
           perfect,
+          incomingSpeed: Math.hypot(incomingBlock.vx, incomingBlock.vy, incomingBlock.vz || 0),
+          incomingVelocity: {
+            x: incomingBlock.vx,
+            y: incomingBlock.vy,
+            z: incomingBlock.vz || 0,
+          },
           x: this.ball.x,
           y: this.ball.y,
           playerId: p.id,
@@ -2280,6 +2380,14 @@ export class Match {
               : 'ПЕРЕХОД ПОДАЧИ',
       3,
     );
-    this.emit('point', { winner, reason, contacts: this.rallyInfo.contacts, ...result });
+    this.emit('point', {
+      winner,
+      reason,
+      contacts: this.rallyInfo.contacts,
+      groundX:
+        this.ball.floorTouched && this.ball.y <= COURT.ballRadius + 0.01 ? this.ball.x : null,
+      out: !isInside(this.ball, this.config),
+      ...result,
+    });
   }
 }

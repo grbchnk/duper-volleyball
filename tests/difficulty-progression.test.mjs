@@ -37,7 +37,8 @@ test('the difficulty range increases movement and accuracy while reducing reacti
     previous = skill;
   }
   const easy = cpuSkill({ cpuSkill: 0 });
-  assert.ok(easy.speed < 0.4 && easy.reaction > 0.9 && easy.error > 2);
+  assert.ok(easy.speed >= 0.9 && easy.reaction < 0.3 && easy.error <= 0.6);
+  assert.ok(easy.decisionError > 0 && easy.passError > 0 && easy.timingError > 0);
   assert.equal(previous.error, 0);
   assert.equal(previous.serveMiss, 0);
 });
@@ -64,8 +65,8 @@ test('beginner serves include missed tosses and legal serves; professionals serv
       }
     }
     if (level === 0) {
-      assert.ok(misses >= 8 && misses <= 27, `beginner missed ${misses}/36 tosses`);
-      assert.ok(legal > 0 && legal < 28, `beginner legal serves: ${legal}/36`);
+      assert.ok(misses >= 2 && misses <= 12, `beginner missed ${misses}/36 tosses`);
+      assert.ok(legal > 5 && legal < 36, `beginner legal serves: ${legal}/36`);
     } else {
       assert.equal(misses, 0);
       assert.equal(legal, 36);
@@ -73,7 +74,7 @@ test('beginner serves include missed tosses and legal serves; professionals serv
   }
 });
 
-test('a professional reacts in time to an incoming ball that a beginner cannot reach', () => {
+test('both levels read a routine ball, while a professional reacts earlier and aims more accurately', () => {
   const plans = [0, 100].map((cpuSkillValue) => {
     const m = new Match({ cpuSkill: cpuSkillValue }, 1234);
     m.phase = 'rally';
@@ -82,7 +83,9 @@ test('a professional reacts in time to an incoming ball that a beginner cannot r
     return planReception(m, 1);
   });
   assert.ok(plans[1].reactionAt < plans[1].contactAt);
-  assert.ok(plans[0].reactionAt > plans[0].contactAt);
+  assert.ok(plans[0].reactionAt < plans[0].contactAt);
+  assert.ok(plans[0].reactionAt > plans[1].reactionAt);
+  assert.ok(Math.abs(plans[0].error) > Math.abs(plans[1].error));
 });
 
 test('all tournament stages use distinct supported arenas and strictly increasing difficulty to 100', () => {

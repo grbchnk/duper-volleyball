@@ -108,6 +108,8 @@ test(
                 }
                 if (angles.length !== 2)
                   throw new Error(`Unexpected hand transforms: ${angles.length}`);
+                // The foreground hand is drawn last; index readings by arm, not paint order.
+                angles.reverse();
                 const support = serveSupport(m, p);
                 const rig = r.armRigs.get(p.id);
                 if (p.armSwing?.serve && p.armSwing.hit && ['loft', 'drive'].includes(kind)) {
@@ -121,7 +123,9 @@ test(
                 for (let arm = 0; arm < 2; arm++) {
                   const wrist = rig.wrists[arm],
                     elbow = rig.elbows[arm];
-                  const raw = Math.atan2(wrist.y - elbow.y, wrist.x - elbow.x) + Math.PI / 2;
+                  // The hand follows the tangent of the rendered ribbon, including
+                  // the standard underhand elbow curve, rather than its control joint.
+                  const raw = rig.contours[arm].handAngle;
                   const expected = blendAngle(raw, 0, support?.hand === arm ? support.weight : 0);
                   maxError = Math.max(
                     maxError,

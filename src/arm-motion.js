@@ -158,7 +158,14 @@ export function expressivePose({
     !serve && !swing?.serve && !diving
       ? receiveWrists(kind, receiveAim, amp, actionDirection)
       : null;
-  const oneHand = !!(charge?.aim?.soft || swing?.aim?.soft);
+  const gentleLoft = kind === 'loft' && !!(charge?.aim?.soft || swing?.aim?.soft);
+  const powerDrive =
+    kind === 'drive' &&
+    !serve &&
+    !swing?.serve &&
+    !!(charge?.aim?.fast || swing?.aim?.fast) &&
+    !(charge?.aim?.soft || swing?.aim?.soft);
+  const oneHand = kind !== 'loft' && !!(charge?.aim?.soft || swing?.aim?.soft);
   const activeHands = oneHand ? [1] : reception?.hands || [0, 1];
   const ready =
     diving && (diveForward || diveTarget)
@@ -191,12 +198,20 @@ export function expressivePose({
                         { x: actionDirection * (-8 - amp * 2), y: -33 - amp },
                       ],
         );
+  if (gentleLoft)
+    for (let i = 0; i < 2; i++) {
+      ready[i].x += (i ? 1 : -1) * 2 * scale;
+      ready[i].y -= 2 * scale;
+    }
+  if (powerDrive) {
+    [ready[0], ready[1]] = [ready[1], ready[0]];
+  }
   if (charge) {
     activity = ease((charge.age ?? 0.1) / config.armWindup);
     wrists = pairMix(base, ready, activity);
     stage = 'Подготовка';
     if (charge.receiveHold && receiveHoldPoint && ['low', 'loft'].includes(kind)) {
-      const spread = kind === 'low' ? 2 : 3.5;
+      const spread = kind === 'low' ? 2 : gentleLoft ? 5.5 : 3.5;
       const below = kind === 'low' ? 3 : 2;
       const target = [-1, 1].map((side) => ({
         x: receiveHoldPoint.x + side * spread,
@@ -252,6 +267,10 @@ export function expressivePose({
                   { x: 22, y: -17 },
                 ],
       );
+      if (powerDrive) {
+        [recoil[0], recoil[1]] = [recoil[1], recoil[0]];
+        [end[0], end[1]] = [end[1], end[0]];
+      }
       const stroke = reception
         ? follow(ready, age, activeHands)
         : age < 0.035
@@ -277,10 +296,15 @@ export function expressivePose({
                   { x: point.x + 2, y: point.y + 3 },
                 ]
               : [
-                  { x: point.x - 3.5, y: point.y + 2 },
-                  { x: point.x + 3.5, y: point.y + 2 },
+                  { x: point.x - (gentleLoft ? 5.5 : 3.5), y: point.y + 2 },
+                  { x: point.x + (gentleLoft ? 5.5 : 3.5), y: point.y + 2 },
                 ];
-      const stroke = follow(hit, age, kind === 'back' ? [hand] : kind === 'drive' ? [1] : [0, 1]);
+      if (powerDrive) [hit[0], hit[1]] = [hit[1], hit[0]];
+      const stroke = follow(
+        hit,
+        age,
+        kind === 'back' ? [hand] : kind === 'drive' ? [powerDrive ? 0 : 1] : [0, 1],
+      );
       const overhead = kind === 'loft';
       activity =
         1 - ease((age - (overhead ? strokeTime : recoveryStart)) / (overhead ? 0.22 : 0.23));
@@ -386,6 +410,12 @@ export function expressivePose({
   const elbows = wrists
     .map((p, i) => {
       const shoulder = { x: i ? spec.shoulder : -spec.shoulder, y: -20 + shoulderLift };
+      const serveKind = serve?.kind || (swing?.serve ? kind : serveSupport ? 'low' : null);
+      if (serveKind === 'low' || serveKind === 'back')
+        return {
+          x: shoulder.x + (p.x - shoulder.x) * 0.52 + (i ? 2 : -2),
+          y: shoulder.y + (p.y - shoulder.y) * 0.52 + 2,
+        };
       const rest = {
         x: (shoulder.x + p.x) / 2 + (i ? 1 : -1) * (block ? 3 : 6) * config.armBend,
         y: (shoulder.y + p.y) / 2 + 5 * config.armBend,
@@ -394,7 +424,10 @@ export function expressivePose({
       if (kind === 'loft' && !serve && !swing?.serve)
         return mix(
           rest,
-          { x: (i ? 11 : -9) * config.armBend, y: (shoulder.y + p.y) / 2 + 2 },
+          {
+            x: (i ? 11 + (gentleLoft ? 3 : 0) : -9 - (gentleLoft ? 3 : 0)) * config.armBend,
+            y: (shoulder.y + p.y) / 2 + 2,
+          },
           activity,
         );
       return { ...rest, x: rest.x + (i ? 1 : -1) * amp * 3 * config.armBend * activity };

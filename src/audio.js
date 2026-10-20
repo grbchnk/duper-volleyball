@@ -28,6 +28,11 @@ export function soundCue(event) {
   ];
   if (event.type === 'windup')
     return [note(800, 0.1, 0, 'noise', 400, 0.008), note(140, 0.1, 0, 'sine', 220, 0.009)];
+  if (event.type === 'serve-hit-cue')
+    return [
+      note(1174.66, 0.09, 0, 'sine', 1174.66, 0.07),
+      note(1761.99, 0.06, 0, 'triangle', 1761.99, 0.035),
+    ];
   if (event.type === 'dive')
     return [note(1100, 0.14, 0, 'noise', 300, 0.022), note(180, 0.09, 0.07, 'triangle', 75, 0.03)];
   if (event.type === 'floor' || event.type === 'floor-touch') {

@@ -158,12 +158,8 @@
           ><input id="speed" type="range" min="0.5" max="1.5" step="0.05" value="0.7" />
           <div class="range-caption"><span>Медленнее</span><span>Быстрее</span></div>
           <label class="toggle-row"
-            ><span>Помощь прыжку и броску<small>Ручной угол не меняется</small></span
+            ><span>Помощь прыжку и броску<small>Помощь пасу — отдельная настройка</small></span
             ><input type="checkbox" id="assist" checked /><span class="toggle"></span
-          ></label>
-          <label class="toggle-row"
-            ><span>Высота прыжка от удержания<small>Кнопки ✕ / Space</small></span
-            ><input type="checkbox" id="variableJump" /><span class="toggle"></span
           ></label>
         </section>
         <section id="practice-panel" class="panel" hidden>
@@ -414,14 +410,8 @@
         сохраняются и входят в JSON. В ручной игре полный заряд отпускает удар автоматически.
       </p>
       <button id="reset-physics" class="secondary">Сбросить физику</button>
+
       <div id="physics-controls"></div>
-      <label class="toggle-row"
-        ><span
-          >Эксперимент: энергия входящего мяча<small
-            >Быстрый мяч усиливает нижний приём. L2 / Z гасит добавку.</small
-          ></span
-        ><input type="checkbox" id="receive-momentum" /><span class="toggle"></span
-      ></label>
 
       <p>Сохранение и загрузка всех параметров — кнопка «Настройки / JSON» вверху страницы.</p>
     </dialog>

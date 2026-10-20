@@ -75,10 +75,6 @@ export function profileImpulse(ball, player, kind, power, aim, players, config, 
     });
   }
   const neutral = !aim.vector && !aim.axis && !aim.up && !aim.down;
-  if (!serving && config.dynamic && kind === 'low') {
-    result.vx += clamp(ball.vx * 0.1, -1.2, 1.2);
-    result.vy += clamp(-ball.vy * 0.08, 0, 1.1);
-  }
   if (serving || !config.assist || !speed) return result;
   const amount = kind === 'drive' ? clamp(config.driveAssist ?? 1, 0, 1) : assistance;
   if (!amount) return result;

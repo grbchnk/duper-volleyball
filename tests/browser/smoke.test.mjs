@@ -163,15 +163,9 @@ test(
     await page.keyboard.press('Escape');
 
     await openSettingsSection(page, 'Физика и помощь');
-    assert.equal(await page.locator('#receive-momentum').isChecked(), false);
-    assert.equal(await page.locator('#physics-receiveTransfer').isDisabled(), true);
-    await page.locator('#receive-momentum').check();
+    assert.equal(await page.locator('#receive-momentum').count(), 0);
+    await page.locator('#physics-passAssist').fill('0.5');
     await settleSettings(page);
-    assert.equal(await page.locator('#physics-receiveTransfer').isDisabled(), false);
-    await page.keyboard.press('Escape');
-    await page.reload();
-    await openSettingsSection(page, 'Физика и помощь');
-    assert.equal(await page.locator('#receive-momentum').isChecked(), true);
     await page.keyboard.press('Escape');
 
     await openSettingsSection(page, 'Приёмы и подачи');
@@ -181,7 +175,7 @@ test(
       input.value = '20';
     });
     await page.locator('#shot-incoming-speed').dispatchEvent('input');
-    assert.match(await page.locator('#shot-stats').innerText(), /перенос \+[1-9]/);
+    assert.doesNotMatch(await page.locator('#shot-stats').innerText(), /перенос/);
     await page.locator('#shot-kind').selectOption('drive');
     await settleSettings(page);
     await page.locator('#shot-soft').check();

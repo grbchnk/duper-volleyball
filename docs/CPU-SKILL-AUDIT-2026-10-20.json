@@ -1,0 +1,240 @@
+{
+  "protocol": "Style/skill profiles vs balanced 75, mirrored sides, seeded full simulation, 5 points or 200 game seconds. Small diagnostic sample, not a proof of invincibility.",
+  "games": [
+    {
+      "style": "adaptive",
+      "skill": 0,
+      "side": 0,
+      "finished": true,
+      "score": [
+        1,
+        5
+      ],
+      "points": 1,
+      "conceded": 5,
+      "seconds": 67,
+      "contacts": 41,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 22,
+        "soft": 0,
+        "fast": 1,
+        "combos": 0,
+        "intents": {
+          "low": 4,
+          "free": 1,
+          "steep": 1,
+          "tip": 1,
+          "power": 3,
+          "loft": 7,
+          "high": 1,
+          "quick": 1,
+          "back": 1,
+          "roll": 2
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "skill": 0,
+      "side": 1,
+      "finished": true,
+      "score": [
+        5,
+        0
+      ],
+      "points": 0,
+      "conceded": 5,
+      "seconds": 56,
+      "contacts": 33,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 24,
+        "soft": 2,
+        "fast": 1,
+        "combos": 0,
+        "intents": {
+          "loft": 8,
+          "back": 1,
+          "roll": 5,
+          "soft-receive": 1,
+          "quick": 1,
+          "steep": 1,
+          "free": 1,
+          "tip": 1,
+          "high": 1,
+          "low": 2,
+          "drive": 1,
+          "pipe": 1
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "skill": 50,
+      "side": 0,
+      "finished": false,
+      "score": [
+        2,
+        2
+      ],
+      "points": 2,
+      "conceded": 2,
+      "seconds": 200,
+      "contacts": 227,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 108,
+        "soft": 4,
+        "fast": 16,
+        "combos": 0,
+        "intents": {
+          "loft": 34,
+          "pipe": 2,
+          "steep": 15,
+          "quick": 4,
+          "power": 9,
+          "roll": 12,
+          "drive": 6,
+          "free": 5,
+          "tip": 5,
+          "low": 6,
+          "back": 3,
+          "feint": 2,
+          "soft-receive": 3,
+          "high": 2
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "skill": 50,
+      "side": 1,
+      "finished": false,
+      "score": [
+        3,
+        2
+      ],
+      "points": 2,
+      "conceded": 3,
+      "seconds": 200,
+      "contacts": 203,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 94,
+        "soft": 7,
+        "fast": 7,
+        "combos": 0,
+        "intents": {
+          "loft": 35,
+          "free": 8,
+          "roll": 17,
+          "high": 3,
+          "steep": 7,
+          "soft-receive": 2,
+          "quick": 1,
+          "back": 2,
+          "power": 5,
+          "tip": 6,
+          "low": 5,
+          "drive": 2,
+          "pipe": 1
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "skill": 100,
+      "side": 0,
+      "finished": false,
+      "score": [
+        2,
+        1
+      ],
+      "points": 2,
+      "conceded": 1,
+      "seconds": 200,
+      "contacts": 225,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 108,
+        "soft": 10,
+        "fast": 17,
+        "combos": 1,
+        "intents": {
+          "loft": 41,
+          "steep": 11,
+          "soft-receive": 3,
+          "back": 2,
+          "roll": 10,
+          "tip": 8,
+          "free": 7,
+          "power": 11,
+          "drive": 6,
+          "quick": 3,
+          "low": 1,
+          "pipe": 2,
+          "high": 3
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "skill": 100,
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        4
+      ],
+      "points": 4,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 218,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 104,
+        "soft": 4,
+        "fast": 15,
+        "combos": 0,
+        "intents": {
+          "loft": 40,
+          "free": 5,
+          "tip": 6,
+          "steep": 10,
+          "pipe": 3,
+          "power": 10,
+          "quick": 2,
+          "drive": 9,
+          "roll": 12,
+          "soft-receive": 2,
+          "high": 3,
+          "back": 2
+        }
+      }
+    }
+  ],
+  "ranking": [
+    {
+      "style": "adaptive",
+      "skill": 0,
+      "points": 1,
+      "conceded": 10,
+      "rate": 0.09090909090909091
+    },
+    {
+      "style": "adaptive",
+      "skill": 50,
+      "points": 4,
+      "conceded": 5,
+      "rate": 0.4444444444444444
+    },
+    {
+      "style": "adaptive",
+      "skill": 100,
+      "points": 6,
+      "conceded": 1,
+      "rate": 0.8571428571428571
+    }
+  ]
+}

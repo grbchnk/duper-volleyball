@@ -33,7 +33,7 @@ export const SERVE_FIELDS = {
   IdealMax: ['До идеального удара · 100%', 0.3, 4, 0.01, 'с', 'timing'],
   PerfectWindow: ['Идеальное окно ±', 0.01, 0.4, 0.01, 'с', 'timing'],
   HitWindow: ['Допустимое окно ±', 0.02, 0.65, 0.01, 'с', 'timing'],
-  MistimePower: ['Сила неточного удара', 0.05, 1, 0.05, '×', 'timing'],
+  MistimePower: ['Мягкость ошибки: выше — меньше потеря силы', 0.05, 1, 0.05, '×', 'timing'],
   TossHeight: ['Высота начала подброса', 0.2, 2.5, 0.05, 'м', 'toss'],
   TossGravity: ['Ускорение подброса', 1, 16, 0.1, 'м/с²', 'toss'],
   ContactHeight: ['Высота кисти над стопами', 0.2, 3.5, 0.05, 'м', 'toss'],
@@ -90,4 +90,22 @@ export function serveSettings(config, kind) {
   );
   if (config.dynamic) settings.ChargeSeconds = 2 * (config.chargeSeconds ?? 0.3);
   return settings;
+}
+
+// The same ideal/outer windows govern timing and the distance to the hand.
+export function serveContactQuality(settings, offset, distance) {
+  const ideal = Math.min(settings.PerfectWindow, settings.HitWindow - 1e-6);
+  const innerReach = (settings.ContactReach * ideal) / settings.HitWindow;
+  const error = Math.max(
+    0,
+    Math.min(
+      1,
+      Math.max(
+        (Math.abs(offset) - ideal) / (settings.HitWindow - ideal),
+        (distance - innerReach) / (settings.ContactReach - innerReach),
+      ),
+    ),
+  );
+  const smooth = error * error * (3 - 2 * error);
+  return (1 - smooth) * (1 - smooth + 2 * settings.MistimePower * smooth);
 }

@@ -59,7 +59,7 @@ export const aimOf = (i) => ({
   down: i.down,
   vector: i.buttonVector,
   intent: i.intent,
-  play: i.l2 && i.r2 ? 'feint' : i.play,
+  play: i.play === 'feint' ? undefined : i.play,
 });
 export const updateAim = (action, input, preserveNeutral = false) => {
   const originalIntent = action?.aim?.intent,

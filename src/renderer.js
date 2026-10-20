@@ -11,15 +11,16 @@ import {
   zoneSeats,
 } from './zone-scene.js';
 import { skinPalette } from './appearance.js';
-import { netVisual, netMesh } from './net-visual.js';
+import { netVisual, netMesh, diamondMesh } from './net-visual.js';
 import { constrainRenderedJoint } from './net-reach.js';
 import { drawOutCross } from './landing-visual.js';
 import { drawArenaBackdrop } from './arenas.js';
 import { activeEmotion } from './emotions.js';
 import { pixelPresent, drawBallDesign, compositePixels } from './display.js';
 import { BodySprites, playerFrame, frameOf } from './sprites.js';
-import { bodyOffset } from './movement-feel.js';
+import { bodyOffset, verticalBodyOffset } from './movement-feel.js';
 import { serveSupport } from './serve-support.js';
+import { serveCue } from './serve-cue.js';
 import { COURT } from './config.js';
 import { clamp, traceBall } from './physics.js';
 import { springPoint, blockWindow } from './motion.js';
@@ -28,6 +29,7 @@ import { expressivePose } from './arm-motion.js';
 import { armContour, blendAngle, drawOpenArm } from './arm-contour.js';
 import { playerArmConfig } from './player-arms.js';
 import { diveHands } from './dive-pose.js';
+import { drawFlame, contactAccent, drawContactAccent } from './contact-vfx.js';
 import { localReceiveAim } from './receive-pose.js';
 import {
   projectCourt,
@@ -64,6 +66,8 @@ export class Renderer {
     this.camera = 0;
     this.particles = [];
     this.impacts = [];
+    this.ballSquash = null;
+    this.contactAccents = [];
     this.floorRipples = [];
     this.armRigs = new Map();
     this.shake = 0;
@@ -457,12 +461,15 @@ export class Renderer {
     const pos = this.project(p.x, p.y),
       floor = this.project(p.x),
       dir = p.diving ? Math.sign(p.diveVelocity) : p.facing || (p.team === 0 ? 1 : -1);
-    const selected = m.humanSlot(p) !== null;
+    const humanSlot = m.humanSlot(p);
+    const selected = humanSlot !== null;
+    const coopColor =
+      m.mode === 'coop' && selected ? (humanSlot === 2 ? '#368fff' : '#f04444') : null;
     if (selected) {
       c.save();
-      c.fillStyle = '#fff1a54d';
-      c.strokeStyle = '#f5dfae';
-      c.lineWidth = 1.5;
+      c.fillStyle = coopColor ? `${coopColor}66` : '#fff1a54d';
+      c.strokeStyle = coopColor || '#f5dfae';
+      c.lineWidth = coopColor ? 3 : 1.5;
       c.beginPath();
       c.ellipse(floor.x, floor.y + 3, 24, 8, 0, 0, Math.PI * 2);
       c.fill();
@@ -503,7 +510,12 @@ export class Renderer {
     }
     c.imageSmoothingEnabled = false;
     const motion = bodyOffset(p);
-    c.drawImage(this.bodySprites.get(frame, skin, team, p.id, 'feet', p.appearance), -32, -54);
+    const vertical = verticalBodyOffset(p);
+    c.drawImage(
+      this.bodySprites.get(frame, skin, team, p.id, 'feet', p.appearance),
+      -32,
+      -54 + vertical.feet,
+    );
     c.drawImage(
       this.bodySprites.get(frame, skin, team, p.id, 'torso', p.appearance),
       -32 + motion.torso * dir,
@@ -513,7 +525,7 @@ export class Renderer {
       c.drawImage(
         this.bodySprites.get(frame, skin, team, p.id, 'head', p.appearance),
         -32 + motion.head * dir,
-        -54 + motion.drop,
+        -54 + motion.drop + vertical.head - vertical.torso,
       );
     c.save();
     c.translate(motion.torso * dir, pose.y + motion.drop);
@@ -553,23 +565,22 @@ export class Renderer {
       c.drawImage(headImage, 0, 0, 64, 31, -32, -24, 64, 31);
       c.restore();
     }
-    if (m.humanSlot(p) !== null) {
+    if (selected) {
       const y = floor.y + 14;
-      c.fillStyle = m.humanSlot(p) === 2 ? '#457fbd' : p.team ? '#497f7c' : '#bc645d';
+      c.fillStyle = coopColor || (humanSlot === 2 ? '#457fbd' : p.team ? '#497f7c' : '#bc645d');
       c.beginPath();
       c.moveTo(floor.x - 6, y + 8);
       c.lineTo(floor.x + 6, y + 8);
       c.lineTo(floor.x, y);
       c.fill();
       if (m.mode === 'coop' && p.team === 0)
-        this.text(m.humanSlot(p) === 2 ? 'P2' : 'P1', floor.x, y + 26, 10, c.fillStyle, 'center');
+        this.text(humanSlot === 2 ? 'P2' : 'P1', floor.x, y + 26, 10, c.fillStyle, 'center');
       const action = m.actionForPlayer(p);
       if (action?.playerId === p.id) {
         this.rect(pos.x - 22, pos.y - 91, 44, 4, '#314e64');
         this.rect(pos.x - 21, pos.y - 90, 42 * action.power, 2, shotChargeColor(action.power));
       }
     }
-    this.drawJumpCharge(p, m, pos);
     const run = m.teamRuns?.[p.team];
     if (run?.feint && run.serial === m.shotSerial && !run.cancelled && m.time < run.at + 0.3) {
       if (run.decoyId === p.id && !run.decoyCancelled && p.jumpProfile)
@@ -598,33 +609,10 @@ export class Renderer {
       this.text('···', pos.x, pos.y - 25, 15, '#a27970', 'center');
     }
   }
-  drawJumpCharge(p, m, pos = this.project(p.x, p.y)) {
-    const hold = p.jumpButtonHold;
-    if (
-      !m.config.dynamic ||
-      !m.isHuman(p.team) ||
-      !p.jumpProfile ||
-      !hold ||
-      hold.slot == null ||
-      p.block > 0 ||
-      p.diving ||
-      p.recovery > 0
-    )
-      return;
-    const progress = clamp(hold.power ?? (hold.applied ? 1 : 0), 0, 1);
-    const color = progress === 1 ? '#83e6c3' : hold.tracking ? '#ffe896' : '#a8b6bd';
-    const x = Math.round(clamp(pos.x - 22, 1, 915));
-    const y = Math.round(Math.min(535, pos.y + 8));
-    const c = this.ctx;
-    c.save();
-    this.rect(x, y, 44, 4, '#314e64');
-    this.rect(x + 1, y + 1, 42 * progress, 2, color);
-    c.restore();
-  }
   drawArms(p, m, dt, step, bodyFrame = null, team = null) {
     const c = this.ctx,
       spec = ARM_STYLES.whip;
-    const config = playerArmConfig(p, m.config);
+    let config = playerArmConfig(p, m.config);
     const action = m.actionForPlayer?.(p) || m.actionFor?.(p.team) || m.charge || m.pending;
     let charge = m.phase !== 'serve' && action?.playerId === p.id ? action : null;
     const zonePreparation = charge && m.isHuman(p.team) && isZoneReceive(m, charge, p);
@@ -678,6 +666,11 @@ export class Renderer {
     const waitingToServe =
       m.phase === 'serve' && p.id === (m.serverPlayer?.()?.id ?? m.selected?.[m.server]);
     const servePose = waitingToServe || serving || !!support || !!swing?.serve;
+    if (
+      servePose &&
+      ['low', 'back'].includes(serving ? m.serveAction?.kind : swing?.serve ? swing.kind : 'low')
+    )
+      config = { ...config, armBend: 1, elbowHeight: 0, armPowerMotion: 1 };
     rig.serveBend = servePose ? 1 : Math.max(0, (rig.serveBend || 0) - dt / 0.18);
     const supportScreen = support ? this.project(m.ball.x, m.ball.y) : null;
     if (support) {
@@ -749,7 +742,8 @@ export class Renderer {
       { back: '#e8c35c', low: '#78b6c9', loft: '#8aad77', drive: '#e89a70', block: '#b7a0ce' }[
         kind
       ] || '#fff1da';
-    for (let i = 0; i < 2; i++) {
+    // Draw the right arm first so the left arm stays in front at crossings.
+    for (const i of [1, 0]) {
       const wrist = rig.wrists[i],
         target = pose.wrists[i];
       if (
@@ -802,7 +796,7 @@ export class Renderer {
         width,
         pose.snap ? '#fff7dc' : p.appearance?.tone || '#f4cfac',
         p.appearance ? skinPalette(p.appearance.tone).outline : '#665d62',
-        team?.color,
+        p.appearance?.body === 'sleeveless' ? null : team?.color,
         p.appearance?.body === 'longsleeve' ? 0.72 : 0.32,
       );
       const hand = spec.hand * config.armScale;
@@ -814,7 +808,8 @@ export class Renderer {
         0,
         support?.hand === i ? support.weight : 0,
       );
-      c.rotate(blendAngle(neutralAngle, i ? -0.55 : 0.55, pose.cup));
+      const palmAngle = blendAngle(neutralAngle, i ? -0.55 : 0.55, pose.cup);
+      c.rotate(palmAngle);
       this.rect(
         -hand / 2,
         0,
@@ -841,6 +836,19 @@ export class Renderer {
         this.rect(hand / 2 - 1.3, -hand * 1.15, 1.3, hand * 0.5, p.appearance?.tone || '#f4cfac');
       }
       c.restore();
+      if (m.config.ballFire && p.handEmbers?.until > m.time) {
+        const remaining = clamp((p.handEmbers.until - m.time) / 1.8, 0, 1);
+        const size = 2.6 * remaining * remaining * (3 - 2 * remaining);
+        // Anchor at the rotated palm centre, rather than above the wrist joint.
+        drawFlame(
+          c,
+          wrist.x + Math.sin(palmAngle) * hand * 0.4,
+          wrist.y - Math.cos(palmAngle) * hand * 0.4,
+          Math.PI / 2,
+          size,
+          m.time * 0.4 + i * 0.31,
+        );
+      }
     }
   }
   drawNet(m) {
@@ -862,38 +870,17 @@ export class Renderer {
       const farFloor = projectStreetNet(0, 0).y;
       const nearFloor = projectStreetNet(1, 0).y;
       const meshHeight = nearBottom - nearTop;
-      for (let step = 1; step < 10; step++) {
-        const t = step / 10;
-        const baseX = farX + (nearX - farX) * t;
-        const baseY = farTop + (nearTop - farTop) * t;
-        for (let row = 0; row < 8; row++) {
-          const a = row / 8,
-            b = (row + 1) / 8;
-          line(
-            baseX + Math.sin(t * Math.PI) * Math.sin(a * Math.PI) * wave,
-            baseY + meshHeight * a,
-            baseX + Math.sin(t * Math.PI) * Math.sin(b * Math.PI) * wave,
-            baseY + meshHeight * b,
-            '#a6b4ac',
-          );
-        }
+      const meshPoint = ({ u, v }) => ({
+        x: farX + (nearX - farX) * u + Math.sin(u * Math.PI) * Math.sin(v * Math.PI) * wave,
+        y: farTop + (nearTop - farTop) * u + ((farBottom - farTop) * (1 - u) + meshHeight * u) * v,
+      });
+      for (const [a, b] of diamondMesh(2, 5)) {
+        const from = meshPoint(a),
+          to = meshPoint(b);
+        line(from.x, from.y, to.x, to.y, '#667e718f', 1);
       }
-      for (let step = 0; step <= 12; step++) {
-        const t = step / 12;
-        for (let col = 0; col < 8; col++) {
-          const a = col / 8,
-            b = (col + 1) / 8;
-          const bend = Math.sin(t * Math.PI) * wave;
-          line(
-            farX + (nearX - farX) * a + Math.sin(a * Math.PI) * bend,
-            farTop + (nearTop - farTop) * a + meshHeight * t,
-            farX + (nearX - farX) * b + Math.sin(b * Math.PI) * bend,
-            farTop + (nearTop - farTop) * b + meshHeight * t,
-            step === 0 ? '#fff1d0' : '#a6b4ac',
-            step === 0 ? 3 : 1,
-          );
-        }
-      }
+      line(farX, farTop, nearX, nearTop, '#fff1d0', 3);
+      line(farX, farBottom, nearX, nearBottom, '#a6b4ac', 1);
       line(farX, farTop, farX, farBottom, '#e7dfc3', 2);
       line(nearX, nearTop, nearX, nearBottom, '#e7dfc3', 2);
       rect(farX - 3, farTop - 14, 4, 17, '#e5ba92');
@@ -966,6 +953,17 @@ export class Renderer {
       m.phase === 'serve-motion' &&
       m.isHuman(m.server) &&
       m.controls?.[m.serverSlot()]?.contactWindow;
+    const cue = serveCue(m);
+    if (cue && ['waiting', 'ready'].includes(cue.stage)) {
+      c.save();
+      c.lineCap = 'round';
+      c.strokeStyle = cue.color;
+      c.lineWidth = cue.width;
+      c.beginPath();
+      c.arc(p.x, y, cue.radius, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    }
     const readyKind =
       m.mode === 'demo'
         ? null
@@ -976,27 +974,41 @@ export class Renderer {
             : null;
     const burning = m.config.ballFire && Math.hypot(m.ball.vx, m.ball.vy) >= m.config.fireSpeed;
     if (burning) {
-      c.save();
-      c.translate(p.x, y);
-      c.rotate(Math.atan2(-m.ball.vy, m.ball.vx));
-      for (let i = 4; i > 0; i--) {
-        c.fillStyle = i > 2 ? '#f4773060' : '#ffd957b0';
-        c.beginPath();
-        c.ellipse(-i * 9, Math.sin(m.time * 35 + i) * 3, 12 + i * 3, 11 - i, 0, 0, Math.PI * 2);
-        c.fill();
-      }
-      c.restore();
+      drawFlame(
+        c,
+        p.x,
+        y,
+        Math.atan2(-m.ball.vy, m.ball.vx),
+        11 * (m.config.ballSize || 1.2),
+        m.time,
+      );
     }
     c.save();
     c.translate(Math.round(p.x), Math.round(y));
     c.scale(m.config.ballSize || 1.2, m.config.ballSize || 1.2);
+    const squashEffect = this.ballSquash;
+    const age = squashEffect ? squashEffect.duration - squashEffect.life : 0;
+    const compression = clamp(age / 0.09, 0, 1);
+    const recovery = clamp((age - 0.09) / 0.11, 0, 1);
+    const envelope = !squashEffect
+      ? 0
+      : age <= 0.09
+        ? 1 - compression * compression * (3 - 2 * compression)
+        : -0.16 * Math.sin(Math.PI * recovery) ** 2;
+    const squash = (squashEffect?.amount || 0) * envelope;
     const speed = Math.hypot(m.ball.vx, m.ball.vy),
-      stretch = Math.abs(m.ball.x) < 1 ? 1 : 1 + clamp((speed - 5) / 30, 0, 0.3);
-    const direction = Math.atan2(-m.ball.vy, m.ball.vx),
-      impact = this.impacts.length ? Math.max(...this.impacts.map((e) => e.life)) : 0;
-    const squash = Math.abs(m.ball.x) >= 1 && impact > 0.34 ? 1 - (impact - 0.34) * 2 : 1;
+      stretch =
+        Math.abs(m.ball.x) < 1 ? 1 : 1 + clamp((speed - 5) / 30, 0, 0.3) * (1 - Math.abs(envelope));
+    const direction = Math.atan2(-m.ball.vy, m.ball.vx);
+    if (squashEffect && Math.abs(squash) > 1e-6) {
+      // Keep the floor-facing edge in place as the ball flattens and springs back.
+      if (squashEffect.floor) c.translate(0, 11.8 * squash);
+      c.rotate(squashEffect.angle);
+      c.scale(1 - squash, 1 / (1 - squash));
+      c.rotate(-squashEffect.angle);
+    }
     c.rotate(direction);
-    c.scale(stretch * 1.18 * squash, 1.18 / (stretch * squash));
+    c.scale(stretch * 1.18, 1.18 / stretch);
     c.rotate(-direction);
     c.rotate(m.ball.angle);
     drawBallDesign(c, m.config.ballSkin, this.pixelGraphics);
@@ -1012,7 +1024,6 @@ export class Renderer {
       c.restore();
     }
     c.restore();
-    if (serveReady && m.mode !== 'demo') this.text('НАЖМИ!', p.x, y - 22, 9, '#9e665b', 'center');
   }
   trajectory(ball, config, preview) {
     const points = traceBall(ball, config),
@@ -1155,9 +1166,13 @@ export class Renderer {
   effect(e, m) {
     if (e.type === 'serve-ready') {
       this.impacts = [];
+      this.ballSquash = null;
+      this.contactAccents = [];
       this.floorRipples = [];
     }
+    if (e.type === 'point' && Number.isFinite(e.groundX)) this.winningLanding(e.groundX, e.out);
     if (e.type === 'floor-touch') {
+      this.squashBall(e.speed, Math.PI / 2, true);
       const at = this.project(e.x ?? m.ball.x, 0);
       this.floorRipples.push({
         ...at,
@@ -1165,7 +1180,9 @@ export class Renderer {
         strength: clamp((e.speed || 4) / 8, 0.6, 1.2),
         color: e.out ? '#ff625c' : '#ffffff',
       });
+      if (e.winning) this.winningLanding(e.x ?? m.ball.x, e.out);
     }
+    if (e.type === 'floor') this.squashBall(e.speed, Math.PI / 2, true);
     if (e.type === 'skid' || e.type === 'land') {
       const at = this.project(e.x, 0);
       for (let i = 0; i < (e.type === 'skid' ? 5 : 3); i++)
@@ -1179,6 +1196,15 @@ export class Renderer {
         });
     }
     if (e.type === 'hit' || e.type === 'block') {
+      const incoming = e.incomingVelocity;
+      const incomingSpeed =
+        e.incomingSpeed ??
+        (incoming && Math.hypot(incoming.x || 0, incoming.y || 0, incoming.z || 0));
+      const angle =
+        incoming && (incoming.x || incoming.y)
+          ? Math.atan2(-incoming.y, incoming.x)
+          : Math.atan2(-m.ball.vy, m.ball.vx);
+      this.squashBall(incomingSpeed, angle);
       const p = this.project(e.x ?? m.ball.x, e.y ?? m.ball.y),
         color =
           { low: '#a4edff', back: '#c6e5ff', loft: '#c7ffb5', drive: '#ffe292', block: '#e0c6ff' }[
@@ -1189,6 +1215,43 @@ export class Renderer {
         life: 0.16,
         color,
         radius: 10 * (m.config.ballSize || 1.2) * 1.18 + 2,
+      });
+      const accent = contactAccent(e, m.config);
+      if (accent) {
+        this.contactAccents.push({ ...p, ...accent, life: accent.duration });
+        if (this.contactAccents.length > 24) this.contactAccents.shift();
+      }
+    }
+  }
+  squashBall(speed, angle, floor = false) {
+    const amount = 0.34 * (1 - Math.exp(-Math.max(0, (speed || 0) - 1) / 15));
+    // Every new contact owns the deformation direction, even after a stronger impact.
+    this.ballSquash = amount ? { amount, angle, floor, life: 0.2, duration: 0.2 } : null;
+  }
+  winningLanding(x, out) {
+    const at = this.project(x, 0);
+    const ripple = this.floorRipples.findLast((p) => Math.abs(p.x - at.x) < 1 && p.life > 0.4);
+    if (ripple?.winning) return;
+    if (ripple) Object.assign(ripple, { winning: true, strength: 1.4 });
+    else
+      this.floorRipples.push({
+        ...at,
+        winning: true,
+        life: 0.55,
+        strength: 1.4,
+        color: out ? '#ff625c' : '#ffffff',
+      });
+    // Small anchored dust burst: six motes, no persistent emitter.
+    for (let i = 0; i < 6; i++) {
+      const direction = i % 2 ? 1 : -1;
+      this.particles.push({
+        ...at,
+        vx: direction * (18 + i * 7),
+        vy: -9 - (i % 3) * 8,
+        life: 0.24 + (i % 3) * 0.05,
+        duration: 0.34,
+        dust: true,
+        color: out ? '#dd9b83' : '#ead6ac',
       });
     }
   }
@@ -1211,17 +1274,42 @@ export class Renderer {
       c.beginPath();
       c.ellipse(p.x, p.y, radius * 0.7, radius * 0.196, 0, 0, Math.PI * 2);
       c.stroke();
+      if (p.winning) {
+        c.globalAlpha = (1 - t) * 0.45;
+        c.fillStyle = p.color;
+        c.beginPath();
+        c.ellipse(p.x, p.y, radius * 0.55, radius * 0.12, 0, 0, Math.PI * 2);
+        c.fill();
+      }
       c.restore();
       p.life -= dt;
     }
   }
   drawParticles(dt) {
+    if (this.ballSquash) {
+      this.ballSquash.life -= dt;
+      if (this.ballSquash.life <= 0) this.ballSquash = null;
+    }
     this.particles = this.particles.filter((p) => p.life > 0);
     for (const p of this.particles) {
       p.life -= dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      this.rect(p.x, p.y, 3, 3, p.color);
+      if (p.dust) {
+        const c = this.ctx;
+        c.save();
+        c.globalAlpha = clamp(p.life / p.duration, 0, 1) * 0.7;
+        c.fillStyle = p.color;
+        c.beginPath();
+        c.ellipse(p.x, p.y, 3 + (1 - p.life / p.duration) * 3, 2.2, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      } else this.rect(p.x, p.y, 3, 3, p.color);
+    }
+    this.contactAccents = this.contactAccents.filter((p) => p.life > 0);
+    for (const effect of this.contactAccents) {
+      drawContactAccent(this.ctx, effect);
+      effect.life -= dt;
     }
     this.impacts = this.impacts.filter((p) => p.life > 0);
     for (const p of this.impacts) {

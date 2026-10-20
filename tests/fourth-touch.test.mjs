@@ -11,6 +11,7 @@ function fourthBall(team) {
   m.lastTouch = team;
   m.lastPlayer = team * 3 + 1;
   m.touches[team] = 3;
+  m.incomingShot = 'low';
   const p = m.players[team * 3];
   Object.assign(m.ball, { x: p.x, y: 1.8, vx: 0, vy: -2 });
   return { m, p };

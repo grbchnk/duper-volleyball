@@ -1,4 +1,5 @@
 import { createContactSettings } from './contact-settings-ui.js';
+import { createBlockLab } from './block-lab.js';
 import { configuredTeam } from './teams.js';
 import { drawBallDesign, pixelPresent, compositePixels } from './display.js';
 import { serveSettings } from './serve-settings.js';
@@ -44,7 +45,6 @@ export function simulateShot(
     manualControl: true,
     soft,
     fast,
-    ...(soft && fast ? { play: 'feint' } : {}),
   });
   const ball = {
     ...match.ball,
@@ -59,6 +59,7 @@ export function simulateShot(
   const free = shotImpulse(ball, player, kind, power, aim, match.players, {
     ...config,
     assist: false,
+    passAssist: 0,
     neutralPassAssist: 0,
     neutralAttackAssist: 0,
   });
@@ -84,7 +85,7 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
       <section id="shot-profile-editor" class="shot-profile-editor"></section><h3>Условия предпросмотра</h3><p class="hint">Сила, направление и время ниже меняют только пример.</p>
       <label for="shot-power">Сила <output id="shot-power-value"></output></label><input id="shot-power" type="range" min="0" max="100" value="50">
       <div id="shot-modifiers"><label><input id="shot-soft" type="checkbox"> Z / L2 — мягко</label><label><input id="shot-fast" type="checkbox"> C / R2 — мощнее</label></div>
-      <div id="shot-incoming-controls"><label for="shot-incoming-speed">Скорость входящего мяча <output id="shot-incoming-speed-value"></output></label><input id="shot-incoming-speed" type="range" min="0" max="30" step="1" value="0"><small>Мяч летит от соперника вниз под углом 37°. Перенос скорости включается в «Физике и помощи».</small></div>
+      <div id="shot-incoming-controls"><label for="shot-incoming-speed">Скорость входящего мяча <output id="shot-incoming-speed-value"></output></label><input id="shot-incoming-speed" type="range" min="0" max="30" step="1" value="0"><small>Условие примера: входящий мяч под углом 37°. Без направления нижний приём учитывает отскок от рук. Входящая скорость не усиливает удар.</small></div>
       <label for="shot-direction">Направление</label><select id="shot-direction"><option value="auto">Без направления</option><option value="manual">Задать угол</option></select>
       <div id="shot-dial" class="shot-dial" role="slider" tabindex="0" aria-label="Круг направления" aria-valuemin="-180" aria-valuemax="180" aria-valuenow="180">
         <svg viewBox="0 0 200 200" aria-hidden="true"><circle cx="100" cy="100" r="76"/><path class="dial-cross" d="M24 100H176 M100 24V176"/><g id="shot-needle"><path d="M100 100H166 M153 91L166 100L153 109"/><circle cx="166" cy="100" r="5"/></g><circle class="dial-center" cx="100" cy="100" r="5"/><text x="100" y="14">90°</text><text x="186" y="104">0°</text><text x="100" y="195">−90°</text><text x="14" y="104">180°</text></svg>
@@ -107,6 +108,57 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
       <p id="shot-explanation" class="arm-explanation">Готовое касание и полёт до земли, без последующих касаний игроков. Пунктир помогает увидеть, насколько помощь меняет выбранный удар. Время указано в секундах симуляции.</p>
     </section></div>`;
   const $ = (id) => dialog.querySelector('#shot-' + id);
+  const layout = dialog.querySelector('.shot-layout');
+  const modeLabel = dialog.querySelector('label[for="shot-mode"]');
+  const modeSelect = $('mode');
+  modeSelect.add(new Option('Блок · зона и время', 'block'));
+  const sectionPicker = document.createElement('div');
+  sectionPicker.className = 'lab-section-picker';
+  sectionPicker.append(modeLabel, modeSelect);
+  layout.before(sectionPicker);
+  const blockRoot = document.createElement('section');
+  blockRoot.className = 'block-lab-root';
+  blockRoot.hidden = true;
+  layout.after(blockRoot);
+  const drawBlock = createBlockLab(blockRoot, getConfig, applyConfig);
+  const variantRow = document.createElement('div');
+  variantRow.className = 'lab-variant-picker';
+  const variantTitle = document.createElement('h3');
+  variantTitle.textContent = 'Вариант удара';
+  variantRow.append(variantTitle);
+  variantRow.append($('modifiers'));
+  $('profile-editor').before(variantRow);
+  const assistControl = document.createElement('label');
+  assistControl.className = 'setting-label';
+  assistControl.htmlFor = 'shot-assistance';
+  assistControl.id = 'shot-assistance-label';
+  assistControl.innerHTML = 'Помощь верхнему пасу <output id="shot-assistance-value"></output>';
+  const assistSlider = document.createElement('input');
+  Object.assign(assistSlider, {
+    id: 'shot-assistance',
+    type: 'range',
+    min: '0',
+    max: '1',
+    step: '0.05',
+  });
+  const assistHint = document.createElement('small');
+  assistHint.id = 'shot-assistance-hint';
+  assistHint.className = 'setting-note';
+  assistHint.textContent =
+    'Пунктир — без помощи, зелёная дуга — с помощью. 50% — половина угловой коррекции. Скорость не меняется.';
+  assistSlider.setAttribute('aria-describedby', assistHint.id);
+  $('profile-editor').after(assistControl, assistSlider, assistHint);
+  $('assistance').oninput = (e) => {
+    applyConfig({ ...getConfig(), passAssist: +e.target.value });
+    rebuild();
+  };
+  for (const label of layout.querySelectorAll('.shot-controls > label[for]')) {
+    const input = $(label.htmlFor.replace('shot-', ''));
+    if (!input || !['range', 'number'].includes(input.type)) continue;
+    label.classList.add('setting-label');
+    if (input.nextElementSibling?.tagName === 'SMALL')
+      input.nextElementSibling.classList.add('setting-note');
+  }
   const serving = () => $('mode').value === 'serve';
   const settingsFor = (config, kind) =>
     serving() ? serveSettings(config, kind) : shotSettings(config, kind);
@@ -116,7 +168,13 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
     $('profile-editor'),
     getConfig,
     applyConfig,
-    () => ({ mode: $('mode').value, kind: $('kind').value, soft: $('soft').checked }),
+    () => ({
+      mode: $('mode').value,
+      kind: $('kind').value,
+      soft: $('soft').checked,
+      fast: $('fast').checked,
+      manual: $('direction').value === 'manual',
+    }),
     () => {
       stamp = null;
     },
@@ -146,13 +204,18 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
     const settings = settingsFor(config, kind);
     const manual = !serving();
     $('modifiers').hidden = !manual;
-    $('incoming-controls').hidden = !manual;
+    variantRow.hidden = !manual;
+    for (const control of [assistControl, assistSlider, assistHint])
+      control.hidden = !manual || kind !== 'loft';
+    $('assistance').value = config.passAssist;
+    $('assistance-value').textContent = Math.round(config.passAssist * 100) + '%';
+    $('incoming-controls').hidden = !manual || kind !== 'low';
     $('incoming-speed-value').textContent = $('incoming-speed').value + ' м/с';
     data.noSpin =
       data.hit === false ? [] : traceBall({ ...data.ball, ...data.impulse, spin: 0 }, config, 15);
     $('timing-preview').hidden = !serving();
     $('parameter-info').textContent = manual
-      ? 'S всегда поднимает мяч. W/D следуют направлению; R2 ускоряет и выпрямляет, L2 смягчает и имеет приоритет. Загиб атаки регулируется в «Физике и помощи». Рамка контакта показывает высоту и дальность, ладони — точку удержанного приёма.'
+      ? 'S всегда поднимает мяч. W/D следуют направлению. Выбранный вариант L2/R2 имеет собственную скорость, угол, вращение и темп. Загиб атаки — в профиле D. Рамка контакта показывает высоту и дальность, ладони — точку приёма.'
       : serving()
         ? ''
         : 'Угол в воздухе действует при высоте игрока > 0.25 м. Ручной угол с влиянием 100% заменяет угол профиля; помощь тоже может его скорректировать. Вращение > 0 сильнее загибает мяч вниз, < 0 замедляет падение; эффект небольшой и накапливается в полёте. Область приёма — над стопами: рамка показывает допуск, кружки — рабочие ладони. Для касания нужны оба условия.';
@@ -168,12 +231,11 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
             playerId: +$('player').value,
             timingOffset: offset,
           });
-          const color = !sample.hit
-            ? '#bb625a'
-            : sample.result === 'Идеально'
-              ? '#3b9472'
-              : '#dba640';
-          return `<button style="background:${color}" data-offset="${offset.toFixed(2)}" title="${offset.toFixed(2)} с: ${sample.result}" aria-label="${offset.toFixed(2)} с: ${sample.result}"></button>`;
+          const color = sample.hit
+            ? `hsl(${Math.round(sample.quality * 120)}, 40%, 52%)`
+            : '#bb625a';
+          const description = `${offset.toFixed(2)} с: ${sample.result} · качество ${Math.round(sample.quality * 100)}%`;
+          return `<button style="background:${color}" data-offset="${offset.toFixed(2)}" title="${description}" aria-label="${description}"></button>`;
         }).join('');
         for (const button of $('timing-map').querySelectorAll('button'))
           button.onclick = () => {
@@ -247,11 +309,17 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
     if (manual)
       $('limits').textContent =
         `Угол вылета: ${outgoing.toFixed(1)}°. ${validContact ? '' : 'Мяч вне допуска: показан условный запуск.'}`;
+    if (data.impulse.neutralReceive)
+      $('limits').textContent +=
+        ' Без направления: 70% подъёма вверх + 30% отскока от входящего мяча. Углы профиля действуют при заданном направлении.';
     $('time').max = (data.launchTime ?? 0.65) + (data.points.length - 1) * FIXED_DT;
     const end = data.points.at(-1),
       landed = end.y <= COURT.ballRadius;
     $('stats').textContent =
-      `${Math.hypot(data.impulse.vx, data.impulse.vy).toFixed(1)} м/с · перенос +${(data.impulse.inheritedSpeed || 0).toFixed(1)} м/с · вершина ${Math.max(...data.points.map((p) => p.y)).toFixed(1)} м · ${landed ? (isInside(end, config) ? 'На площадке' : 'Аут') : 'Полёт > 15 с'} · x = ${end.x.toFixed(1)} м · ${data.impulse.assisted ? 'помощь сработала' : 'без коррекции'}`;
+      `${Math.hypot(data.impulse.vx, data.impulse.vy).toFixed(1)} м/с · вершина ${Math.max(...data.points.map((p) => p.y)).toFixed(1)} м · ${landed ? (isInside(end, config) ? 'На площадке' : 'Аут') : 'Полёт > 15 с'} · x = ${end.x.toFixed(1)} м · ${data.impulse.assisted ? 'помощь сработала' : 'без коррекции'}`;
+    if (!serving())
+      $('stats').textContent +=
+        ` · ${data.impulse.assistIntent || 'Свободный удар'}${kind === 'loft' ? ' · помощь ' + Math.round(config.passAssist * 100) + '%' : ''} · коррекция ${(data.impulse.assistDegrees || 0).toFixed(1)}° · темп ${Math.round((data.impulse.flightTempo ?? 1) * 100)}%`;
     if (serving()) {
       $('timing-value').textContent =
         (+$('timing').value > 0 ? '+' : '') + Number($('timing').value).toFixed(2) + ' с';
@@ -262,7 +330,9 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
         settings.PerfectWindow.toFixed(2) +
         ' с · допустимое ±' +
         settings.HitWindow.toFixed(2) +
-        ' с';
+        ' с · качество касания ' +
+        Math.round(data.quality * 100) +
+        '%';
       $('limits').textContent =
         data.result +
         ' · угол вылета ' +
@@ -277,7 +347,7 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
             '°. Ручной угол: ' +
             Math.round(settings.AimBlend * 100) +
             '%.') +
-        ' Окно времени действует вместе с допуском расстояния до кисти.';
+        ' Качество плавно снижается от идеальной зоны к границам времени и допуска кисти. Мягкость ошибки регулирует потерю силы.';
       if (!data.hit)
         $('stats').textContent =
           'Промах: мяч падает после подброса. Измените момент второго нажатия или допуски контакта.';
@@ -310,6 +380,10 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
     rebuild();
   };
   $('mode').oninput = () => {
+    const blocking = $('mode').value === 'block';
+    layout.hidden = blocking;
+    blockRoot.hidden = !blocking;
+    if (blocking) return;
     const isServe = serving();
     const previous = $('kind').value;
     $('kind').replaceChildren(
@@ -405,6 +479,10 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
   };
   const draw = (dt) => {
     if (!dialog.open) return;
+    if ($('mode').value === 'block') {
+      drawBlock(dt);
+      return;
+    }
     if (!data || stamp !== getConfig()) rebuild();
     const duration = +$('time').max;
     if (playing) time += dt * +$('slow').value;
@@ -468,6 +546,15 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
     data.endpointPaths.forEach((points, i) => path(points, i ? '#d7718c' : '#739ec2', true));
     path(free, '#b6a38a', true);
     path(points, '#3a8276', false);
+    if (!serving() && impulse.assistTarget) {
+      const target = renderer.project(impulse.assistTarget.x, impulse.assistTarget.y);
+      c.strokeStyle = '#cc8b28';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(target.x, target.y, 12, 0, Math.PI * 2);
+      c.stroke();
+      renderer.text(impulse.assistIntent, target.x, target.y - 19, 13, '#8a652b', 'center');
+    }
     const landing = points.at(-1);
     if (landing.y <= COURT.ballRadius && !isInside(landing, match.config)) {
       const marker = renderer.project(landing.x, 0);

@@ -101,7 +101,9 @@ export function tryZoneReceive(match, previous, control, released = false, dt = 
   if (!match.canContact(p, a.kind)) return cancel(match, control);
   control.charge = control.pending = null;
   control.chargeLock = true;
-  p.releaseSlow = match.config.releaseWindow;
+  // A held reception starts recovery now; an already released shot keeps its elapsed recovery.
+  if (!released) p.releaseSlow = match.config.releaseWindow;
+  p.releaseSlowTotal ||= match.config.releaseWindow;
   return match.makeContact(
     p,
     a.kind,

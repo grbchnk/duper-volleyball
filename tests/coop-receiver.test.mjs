@@ -116,25 +116,31 @@ test('receiver forecasting excludes the teammate owned by the other controller',
   assert.notEqual(next, 2);
 });
 
-test('opponent serve toss and flight never preselect another co-op receiver on either role rotation', () => {
+test('opponent serve preserves co-op ownership and selects once at actual contact on either rotation', () => {
   for (const rallies of [0, 1, 2, 3]) {
-    const m = new Match();
+    const m = new Match({ cpuSkill: 100 });
     m.reset('coop');
     m.rallies = rallies * 2 + 1;
     m.coopRotationCount = rallies;
     m.server = 1;
     m.startServe();
-    const before = [m.coopPlayer(0), m.coopPlayer(2)];
+    let before = [m.coopPlayer(0), m.coopPlayer(2)];
+    const serial = m.shotSerial;
+    let selectedAtContact = false;
     m.beginServe({ kind: 'loft', power: 0.54, aim: { axis: -1 } });
     let flightFrames = 0;
     for (let i = 0; i < 600; i++) {
       m.tick(FIXED_DT);
+      if (!selectedAtContact && m.phase === 'rally' && m.shotSerial !== serial) {
+        before = [m.coopPlayer(0), m.coopPlayer(2)];
+        selectedAtContact = true;
+      }
       if (m.phase === 'rally' && m.ball.x < 0) break;
       if (m.phase === 'rally') flightFrames++;
       assert.deepEqual(
         [m.coopPlayer(0), m.coopPlayer(2)],
         before,
-        'no forecast switch during the opponent serve',
+        'no repeated forecast switch before the served ball reaches our side',
       );
       assert.ok(m.coopOwns(0, m.coopPlayer(0)));
       assert.ok(m.coopOwns(2, m.coopPlayer(2)));

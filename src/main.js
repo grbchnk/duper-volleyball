@@ -19,6 +19,7 @@ import { DEFAULTS, FIXED_DT, TEAMS, sanitizeConfig } from './config.js';
 import { InputBuffer, GAME_KEYS } from './input.js';
 import { GUIDE_HTML } from './guide.js';
 import { SHOTS, SERVES } from './moves.js';
+import { serveCue } from './serve-cue.js';
 import { createArmLab } from './arm-lab.js';
 import { createShotLab } from './shot-lab.js';
 import { gameCanvasSize } from './canvas-size.js';
@@ -176,6 +177,7 @@ function applyConfig(next, session = false) {
 }
 
 function formatPhysics(key, value) {
+  if (physicsFields[key][2] === '%') return Math.round(value * 100) + '%';
   return (
     value.toFixed(key === 'targetScore' ? 0 : physicsFields[key][1] < 0.01 ? 3 : 2) +
     ' ' +
@@ -238,8 +240,6 @@ function syncSettings() {
   $('speed').value = config.gameSpeed;
   $('speed-value').textContent = config.gameSpeed.toFixed(2) + '×';
   $('assist').checked = config.assist;
-  $('receive-momentum').checked = config.receiveMomentum;
-  $('variableJump').checked = config.variableJump;
   $('trajectory').checked = config.trajectory;
   $('difficulty').value = config.cpuSkill;
   $('difficulty-value').textContent = config.cpuSkill + ' / 100';
@@ -250,6 +250,8 @@ function syncSettings() {
       el.value = config[key];
       if (key === 'receiveTransfer' || key === 'receiveDamping')
         el.disabled = !config.receiveMomentum;
+      if (key === 'modifierSlowdown' || key === 'modifierSpeedup')
+        el.disabled = !config.modifierTempo;
       $('value-' + key).textContent = formatPhysics(key, config[key]);
     }
   }
@@ -318,7 +320,7 @@ function updateUI() {
   $('rule-label').textContent = `ТЕМП ${config.gameSpeed.toFixed(2)}×`;
   let title = 'Выбери подачу',
     hint =
-      '□ — снизу, △ — сверху, ○ — в прыжке. Зажми для силы, отпусти для подброса. Затем нажми ещё раз при мигании.',
+      '□ — снизу, △ — сверху, ○ — в прыжке. Зажми для силы, отпусти для подброса. Нажми ещё раз, когда зелёный круг сойдётся к мячу.',
     key = 'S';
   if (match.mode === 'test') {
     title = 'ТЕСТ · непрерывные мячи';
@@ -353,7 +355,7 @@ function updateUI() {
   } else if (match.phase === 'serve' && hud.charge) {
     title = SERVES[hud.charge.kind].name;
     hint =
-      '←/→ — направление, Shift + ↑/↓ — высота. Отпусти раньше для ручной подачи; полный заряд запускает только подброс. Для удара нажми ещё раз.';
+      '←/→ — направление, Shift + ↑/↓ — высота. Отпусти кнопку для подброса. Затем нажми ещё раз, когда круг сойдётся к мячу.';
     key = (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).key;
   } else if (hud.charge) {
     title = hud.contactWindow
@@ -372,10 +374,10 @@ function updateUI() {
       '3 выбирает нападающего у сетки. Затем ↑, короткий заряд D и отпускание у мяча. 1/2/3 — выбор игроков.';
     key = '3';
   } else if (match.phase === 'serve-motion') {
-    title = hud.contactWindow ? 'Идеальный момент — нажми!' : 'Мяч подброшен';
-    hint =
-      'Нажми кнопку подачи ещё раз для удара. Даже на 100% происходит только подброс. Без нового нажатия мяч упадёт.';
-    key = (SHOTS[match.serveAction.kind] || { key: 'Z + S' }).key;
+    const cue = serveCue(match);
+    title = cue?.title || (match.isHuman(match.server) ? 'Мяч подброшен' : 'Подаёт соперник');
+    hint = cue?.hint || 'Нажми кнопку подачи ещё раз в момент контакта.';
+    key = cue?.button || (SHOTS[match.serveAction.kind] || { key: 'Z + S' }).key;
   }
   if (
     match.mode === 'coop' &&
@@ -628,10 +630,8 @@ ambienceUI = createAmbienceUI({
   open: openDialog,
 });
 $('speed').oninput = (e) => applyConfig({ ...config, gameSpeed: Number(e.target.value) });
-for (const key of ['assist', 'trajectory', 'variableJump'])
+for (const key of ['assist', 'trajectory'])
   $(key).onchange = (e) => applyConfig({ ...config, [key]: e.target.checked });
-$('receive-momentum').onchange = (e) =>
-  applyConfig({ ...config, receiveMomentum: e.target.checked });
 $('difficulty').oninput = (e) => {
   const cpuSkill = Number(e.target.value);
   applyConfig({
@@ -664,9 +664,9 @@ for (const [key, [label, step, , group, hint]] of Object.entries(physicsFields))
     heading.textContent = group;
     container.append(heading);
   }
-  const div = document.createElement('div'),
-    lab = document.createElement('label');
-  lab.className = 'slider-label';
+  container.classList.add('flat-settings');
+  const lab = document.createElement('label');
+  lab.className = 'setting-label';
   lab.htmlFor = 'physics-' + key;
   lab.append(document.createTextNode(label));
   const out = document.createElement('output');
@@ -679,13 +679,15 @@ for (const [key, [label, step, , group, hint]] of Object.entries(physicsFields))
   slider.max = SETTINGS_SCHEMA[key].max;
   slider.step = step;
   slider.oninput = () => applyConfig({ ...config, [key]: Number(slider.value) });
-  div.append(lab, slider);
+  container.append(lab, slider);
   if (hint) {
     const note = document.createElement('small');
+    note.id = 'hint-' + key;
+    slider.setAttribute('aria-describedby', note.id);
     note.textContent = hint;
-    div.append(note);
+    note.className = 'setting-note';
+    container.append(note);
   }
-  container.append(div);
 }
 let resetSnapshot;
 function resetSettings(keys) {
@@ -700,6 +702,7 @@ $('reset-physics').onclick = () =>
   resetSettings([
     ...Object.keys(physicsFields).filter((key) => !visualKeys.has(key) && key !== 'targetScore'),
     'receiveMomentum',
+    'modifierTempo',
   ]);
 $('reset-appearance').onclick = () =>
   resetSettings(

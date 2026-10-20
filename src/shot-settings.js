@@ -99,3 +99,132 @@ export function shotSettings(config, kind) {
     ]),
   );
 }
+
+export const SHOT_VARIANTS = {
+  normal: 'Без модификатора',
+  soft: 'L2 / Z · мягкий',
+  fast: 'R2 / C · силовой',
+};
+export const VARIANT_FIELDS = {
+  SpeedMin: ['Скорость при 0% силы', 0, 40, 0.1, 'м/с', 'Скорость вылета при минимальном заряде.'],
+  SpeedMax: ['Скорость при 100% силы', 0, 40, 0.1, 'м/с', 'Скорость вылета при полном заряде.'],
+  PowerCurve: [
+    'Нарастание силы',
+    0.25,
+    3,
+    0.05,
+    '×',
+    '1 — равномерно; больше 1 — основная прибавка ближе к полному заряду.',
+  ],
+  GroundAngle: [
+    'Угол без направления с земли',
+    -90,
+    90,
+    1,
+    '°',
+    '0° — горизонтально к сетке, 90° — вертикально вверх.',
+  ],
+  AirAngle: [
+    'Угол без направления в прыжке',
+    -90,
+    90,
+    1,
+    '°',
+    'Работает выше 0.25 м. Угол стика или кнопок направления имеет приоритет.',
+  ],
+  AimScale: [
+    'Крутизна ручного угла',
+    0.3,
+    1.5,
+    0.05,
+    '×',
+    '1 — заданный угол; меньше 1 — более плоская траектория. Нижний приём всегда поднимает мяч.',
+  ],
+  SpinMin: [
+    'Вращение при 0% силы',
+    -2,
+    2,
+    0.05,
+    '',
+    'Положительное вращение немного усиливает падение; отрицательное — ослабляет.',
+  ],
+  SpinMax: [
+    'Вращение при 100% силы',
+    -2,
+    2,
+    0.05,
+    '',
+    'Вращение плавно меняется вместе с зарядом.',
+  ],
+  Dip: [
+    'Загиб атаки вниз',
+    0,
+    24,
+    0.5,
+    'м/с²',
+    'Дополнительное ускорение вниз при полном заряде; при половине заряда — четверть значения.',
+  ],
+  Tempo: [
+    'Темп полёта',
+    0.5,
+    1.5,
+    0.05,
+    '×',
+    'Меняет длительность полёта по той же дуге. 1 — обычный темп.',
+  ],
+};
+export const variantKey = (kind, variant, suffix) =>
+  variant === 'normal' &&
+  ['SpeedMin', 'SpeedMax', 'PowerCurve', 'SpinMin', 'SpinMax'].includes(suffix)
+    ? kind + suffix
+    : kind + variant[0].toUpperCase() + variant.slice(1) + suffix;
+export const VARIANT_DEFAULTS = {},
+  VARIANT_LIMITS = {};
+for (const kind of ['low', 'loft', 'drive'])
+  for (const variant of Object.keys(SHOT_VARIANTS)) {
+    const soft = variant === 'soft',
+      fast = variant === 'fast';
+    const values = {
+      SpeedMin: soft ? 2.8 : SHOT_BASES[kind].speed[0] * (fast ? 1.28 : 1),
+      SpeedMax: soft ? 6.3 : SHOT_BASES[kind].speed[1] * (fast ? 1.28 : 1),
+      PowerCurve: 1,
+      GroundAngle:
+        kind === 'low'
+          ? fast
+            ? 50
+            : 62
+          : kind === 'loft'
+            ? 65 * (fast ? 0.72 : 1)
+            : 24 * (fast ? 0.72 : 1),
+      AirAngle:
+        kind === 'low'
+          ? fast
+            ? 50
+            : 62
+          : kind === 'loft'
+            ? 65 * (fast ? 0.72 : 1)
+            : 12 * (fast ? 0.72 : 1),
+      AimScale: fast && kind !== 'low' ? 0.72 : 1,
+      SpinMin: soft || kind !== 'drive' ? 0 : 0.35,
+      SpinMax: soft || kind !== 'drive' ? 0 : 0.85,
+      Dip: kind === 'drive' && !soft ? 12 : 0,
+      Tempo: 1,
+    };
+    for (const [suffix, value] of Object.entries(values)) {
+      const key = variantKey(kind, variant, suffix);
+      VARIANT_DEFAULTS[key] = value;
+      VARIANT_LIMITS[key] = VARIANT_FIELDS[suffix].slice(1, 3);
+    }
+  }
+export function shotVariant(aim = {}) {
+  return aim.soft ? 'soft' : aim.fast ? 'fast' : 'normal';
+}
+export function variantSettings(config, kind, aim = {}) {
+  const variant = typeof aim === 'string' ? aim : shotVariant(aim);
+  return Object.fromEntries(
+    Object.keys(VARIANT_FIELDS).map((suffix) => {
+      const key = variantKey(kind, variant, suffix);
+      return [suffix, config[key] ?? VARIANT_DEFAULTS[key]];
+    }),
+  );
+}

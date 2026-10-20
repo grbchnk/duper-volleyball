@@ -224,6 +224,34 @@ test('a shot that crosses the net keeps the hitter selected even when it has a t
   assert.equal(m.selected[0], hitter.id);
 });
 
+test('outgoing shots retain control on subsequent frames until crossing the net', () => {
+  for (const [mode, team, slot] of [
+    ['versus', 0, 0],
+    ['versus', 1, 1],
+    ['coop', 0, 0],
+    ['coop', 0, 2],
+  ]) {
+    const m = incomingBall(mode, team);
+    const side = m.sign(team);
+    const hitter = m.players[m.controlledPlayer(m.controls[slot])];
+    hitter.x = side * 8;
+    Object.assign(m.ball, { x: hitter.x, y: 1, vx: 0, vy: 0 });
+    assert.equal(m.makeContact(hitter, 'low', 0.5, { vx: -side * 20, vy: 7, vz: 0 }), true);
+    assert.equal(m.teamPhases[team], 'defense');
+    const selected = [...m.selected];
+    const coopSelected = m.coopSelected;
+    let frames = 0;
+    while (m.ball.x * side > 0 && frames++ < 120) {
+      m.tick(FIXED_DT);
+      assert.equal(m.controlledPlayer(m.controls[slot]), hitter.id, `${mode}/${slot}/${frames}`);
+      assert.deepEqual(m.selected, selected);
+      assert.equal(m.coopSelected, coopSelected);
+    }
+    assert.ok(frames > 1);
+    assert.ok(m.ball.x * side <= 0, 'the ball crosses the net');
+  }
+});
+
 test('an occupied home becomes a reachable free position without crossing the controlled teammate', () => {
   const m = new Match();
   m.phase = 'rally';

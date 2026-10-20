@@ -8,7 +8,7 @@ const knownFields = new Set([
   'armStyle',
   'rightStickAim',
 ]);
-export const SETTINGS_VERSION = 5;
+export const SETTINGS_VERSION = 6;
 export function exportSettings(config) {
   return JSON.stringify(
     { version: SETTINGS_VERSION, game: 'Duper Volleyball', config: sanitizeConfig(config) },
@@ -19,8 +19,8 @@ export function exportSettings(config) {
 export function importSettings(text) {
   const data = JSON.parse(text);
   if (!data || typeof data !== 'object') throw new Error('нужен объект настроек');
-  if (data.version !== undefined && ![2, 3, 4, SETTINGS_VERSION].includes(data.version))
-    throw new Error('нужны настройки версии 2, 3, 4 или 5');
+  if (data.version !== undefined && ![2, 3, 4, 5, SETTINGS_VERSION].includes(data.version))
+    throw new Error('нужны настройки версии 2–6');
   const candidate = data.config ?? data;
   if (
     !candidate ||

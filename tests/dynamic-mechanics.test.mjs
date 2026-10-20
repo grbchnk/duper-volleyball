@@ -96,12 +96,13 @@ test('triggers change strength without changing contact type', () => {
   }
   assert.equal(input([0, 6, 7]).jumpVariant, 'normal');
 });
-test('left stick up aims without involuntary jump', () => {
+test('left stick up aims upward without triggering or holding a jump', () => {
   const p = pad();
   p.axes[1] = -1;
   const i = new InputBuffer(() => [p]);
   i.poll();
   assert.equal(i.read().jump, false);
+  assert.equal(i.read().jumpHeld, false);
   assert.equal(i.read().buttonVector.y, 1);
 });
 test('triggers and face buttons are independent on two controllers', () => {

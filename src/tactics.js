@@ -17,13 +17,7 @@ export const PLAYS = Object.freeze({
   feint: 'Ложный прыжок → атака партнёра',
   dump: 'Скидка со второго',
 });
-export const STYLES = Object.freeze({
-  balanced: 'Универсал',
-  blocker: 'Ранний блок',
-  deep: 'Глубокая защита',
-  trickster: 'Обманщик',
-  patient: 'Терпеливый',
-});
+export { STYLES } from './cpu-styles.js';
 
 export function contactQuality(ball, player) {
   const horizontal = Math.abs(ball.x - player.x);
@@ -35,8 +29,9 @@ export function contactQuality(ball, player) {
 export function tacticalAttack(ball, player, style, power, config, aim = {}) {
   const forward = player.team ? -1 : 1;
   const q = contactQuality(ball, player);
-  const depth = { power: 8.3, steep: 1.35, tip: 1.25, roll: 3.9, free: 7 }[style];
-  if (depth === undefined) return null;
+  const defaultDepth = { power: 8.3, steep: 1.35, tip: 1.25, roll: 3.9, free: 7 }[style];
+  if (defaultDepth === undefined) return null;
+  const depth = Number.isFinite(aim.targetDepth) ? clamp(aim.targetDepth, 0.65, 8.8) : defaultDepth;
   const launch = { ...ball };
   const distance = Math.abs(forward * depth - ball.x);
   const speed = (10 + power * 10) * config.hitPower * (0.9 + q * 0.1);
@@ -161,7 +156,7 @@ export function tacticalPass(ball, player, power, aim, players, config) {
 
 export function blockImpulse(ball, player, perfect, config) {
   const forward = player.team ? -1 : 1;
-  const edge = clamp((ball.y - (player.y + 2.05)) / 0.4, -1, 1);
+  const edge = clamp((ball.y - (player.y + 2.05)) / (config.blockHeight ?? 0.4), -1, 1);
   if (edge > 0.5)
     return {
       vx: ball.vx * 0.68,

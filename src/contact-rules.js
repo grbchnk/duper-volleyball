@@ -32,6 +32,8 @@ export function contactReason(match, player, kind, ball = match.ball) {
   )
     return 'Ожидание навеса для атаки';
   if (match.phase !== 'rally') return 'Сейчас нет розыгрыша';
+  if (match.incomingShot === 'serve' && match.lastTouch === player.team)
+    return 'Нельзя принимать подачу своей команды';
   if (player.recovery > 0) return 'Игрок поднимается';
   if (player.block > 0) return 'Игрок выполняет блок';
   if (match.cooldown > 0) return 'Еще действует пауза между касаниями';

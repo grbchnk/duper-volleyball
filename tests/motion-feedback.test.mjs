@@ -49,58 +49,24 @@ test('live movement produces one skid on a committed turn and landing emits a sh
   assert.ok(bodyOffset(p).drop > 0);
 });
 
-test('third-contact tempo ramps smoothly, expires without a hit, and leaves physical parameters intact', () => {
+test('old third-touch slowdown settings cannot slow the shared clock', () => {
   const m = new Match({ ...DEFAULTS, thirdTouchSlowdown: 0.4 });
   m.phase = 'rally';
   m.lastTouch = 0;
+  m.lastPlayer = 1;
   m.touches[0] = 2;
+  m.incomingShot = 'loft';
   const p = m.active();
   m.jump(p);
   p.jumpTime = p.jumpProfile.windup + 0.01;
   Object.assign(m.ball, { x: p.x, y: p.y + 2.1 });
-  const ball = { ...m.ball },
-    gravity = m.config.gravity;
-  const first = contactTempo(m, FIXED_DT);
-  assert.ok(first < 1 && first > 0.95);
-  let lowest = first,
-    last;
-  for (let i = 0; i < 90; i++) {
-    last = contactTempo(m, FIXED_DT);
-    lowest = Math.min(lowest, last);
+  for (let i = 0; i < 30; i++) {
+    assert.equal(contactTempo(m, FIXED_DT), 1);
+    const before = m.time;
+    m.tick(FIXED_DT);
+    assert.ok(Math.abs(m.time - before - FIXED_DT) < 1e-10);
   }
-  assert.ok(lowest >= 0.6 && lowest < 0.65);
-  assert.equal(last, 1);
-  assert.deepEqual(m.ball, ball);
-  assert.equal(m.config.gravity, gravity);
-  m.shotSerial++;
-  m.touches[0] = 3;
-  assert.equal(contactTempo(m, FIXED_DT), 1);
-  m.config.thirdTouchSlowdown = 0;
-  assert.equal(contactTempo(m, FIXED_DT), 1);
 });
-
-test('a third contact immediately clears active slowdown and the next tick runs at normal speed', () => {
-  const m = new Match({ ...DEFAULTS, thirdTouchSlowdown: 0.4 });
-  m.phase = 'rally';
-  m.lastTouch = 0;
-  m.touches[0] = 2;
-  const p = m.active();
-  m.jump(p);
-  p.jumpTime = p.jumpProfile.windup + 0.01;
-  Object.assign(m.ball, { x: p.x, y: p.y + 2.1 });
-  for (let i = 0; i < 14; i++) contactTempo(m, FIXED_DT);
-  assert.ok(m.contactTempoState.blend > 0.99);
-  assert.equal(m.makeContact(p, 'drive', 0.6, { vx: 10, vy: 3, vz: 0, spin: 0 }), true);
-  assert.equal(m.contactTempoState, null);
-  assert.equal(contactTempo(m, FIXED_DT), 1);
-  const before = m.time;
-  m.tick(FIXED_DT);
-  assert.ok(Math.abs(m.time - before - FIXED_DT) < 1e-10);
-
-  m.contactTempoState = { serial: m.shotSerial - 1, blend: 1 };
-  assert.equal(contactTempo(m, FIXED_DT), 1, 'a new contact cannot inherit the previous slowdown');
-});
-
 test('only a fast frontal head impact detaches a cosmetic head, medium impact keeps stars', () => {
   for (const fast of [false, true]) {
     const m = new Match();

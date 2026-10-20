@@ -21,7 +21,8 @@ export function flightTime(age, dt, config) {
     (dt * (1 - amount) + amount * (animationClock(age + dt, config) - animationClock(age, config)))
   );
 }
-export function resetFlight(ball) {
+export function resetFlight(ball, tempo = 1) {
+  ball.flightTempo = tempo;
   ball.flightAge = 0;
   ball.flightLaunchVy = ball.vy;
   ball.flightPhysicalAge = 0;
@@ -30,6 +31,8 @@ export function resetFlight(ball) {
 // Metres, seconds, +y up. Quadratic drag and a small topspin acceleration.
 // Velocity Verlet for gravity, semi-implicit drag, fixed 120 Hz simulation.
 export function integrateBall(ball, dt, config) {
+  // Re-time this flight, including its animation clock, without changing its impulse.
+  dt *= config.dynamic || config.modifierTempo ? (ball.flightTempo ?? 1) : 1;
   const age = ball.flightAge || 0;
   ball.flightAge = age + dt;
   ball.flightLaunchVy ??= ball.vy;
@@ -92,14 +95,14 @@ export function collideNet(ball, previous, restitution = 0.58, config = null) {
     ball.vx *= 0.82;
     ball.vy = Math.max(0.9, Math.min(3.2, Math.abs(ball.vy) * 0.45 + speed * 0.14));
     ball.spin *= 0.6;
-    resetFlight(ball);
+    resetFlight(ball, ball.flightTempo ?? 1);
     return true;
   }
   ball.x = plane;
   ball.vx = -ball.vx * restitution * 0.85;
   ball.vy *= 0.7;
   ball.spin *= 0.4;
-  resetFlight(ball);
+  resetFlight(ball, ball.flightTempo ?? 1);
   return true;
 }
 
@@ -115,7 +118,7 @@ export function bounceFloor(ball, config) {
   if (Math.hypot(ball.vx, ball.vz) < 0.03) ball.vx = ball.vz = 0;
   ball.spin *= 0.7;
   ball.attackGravity = 0;
-  resetFlight(ball);
+  resetFlight(ball, ball.flightTempo ?? 1);
 }
 
 export function isInside(ball, config = null) {

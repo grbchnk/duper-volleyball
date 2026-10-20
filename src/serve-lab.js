@@ -68,6 +68,7 @@ export function simulateServe(
     frames,
     motion,
     hit,
+    quality: hit ? match.lastContact.serveQuality : 0,
     pressTime: pressFrame === null ? null : pressFrame * FIXED_DT,
     pressFrame,
     launchTime: (frames.length - 1) * FIXED_DT,

@@ -27,8 +27,28 @@ export function netMesh(wave, top, bottom = 462, x = 480) {
   const pixels = [];
   for (let y = top + 4; y < bottom; y += 2) {
     const offset = Math.round((wave * Math.sin(((y - top) / (bottom - top)) * Math.PI)) / 2) * 2;
-    for (const column of [-2, 2]) pixels.push([x + column + offset, y, 2, 2]);
-    if ((y - top) % 12 === 0) pixels.push([x - 2 + offset, y, 6, 2]);
+    const phase = ((y - top) % 16) / 8;
+    const spread = Math.round((phase <= 1 ? phase : 2 - phase) * 3) * 2;
+    pixels.push([x - spread + offset, y, 2, 2]);
+    if (spread) pixels.push([x + spread + offset, y, 2, 2]);
   }
   return pixels;
+}
+
+export function diamondMesh(columns = 8, rows = 8) {
+  const segments = [];
+  for (let x = 0; x < columns; x++)
+    for (let y = 0; y < rows; y++) {
+      const points = [
+        [x + 0.5, y],
+        [x + 1, y + 0.5],
+        [x + 0.5, y + 1],
+        [x, y + 0.5],
+      ];
+      for (let i = 0; i < 4; i++)
+        segments.push(
+          [points[i], points[(i + 1) % 4]].map(([u, v]) => ({ u: u / columns, v: v / rows })),
+        );
+    }
+  return segments;
 }

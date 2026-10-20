@@ -80,6 +80,7 @@ export function tryHeldContact(
   control.pending = null;
   control.chargeLock = true;
   p.releaseSlow = a.kind === 'back' ? 0 : match.config.releaseWindow;
+  p.releaseSlowTotal = p.releaseSlow;
   return match.makeContact(
     p,
     a.kind,
@@ -149,6 +150,15 @@ export function recordContact(match, p, kind, power) {
 export function makeContact(match, p, kind, power, impulse) {
   const control = match.controls[match.humanSlot(p) ?? p.team];
   const team = p.team;
+  if (match.incomingShot === 'serve' && match.lastTouch === team) {
+    match.point(1 - team, 'КАСАНИЕ СВОЕЙ ПОДАЧИ');
+    return false;
+  }
+  // Capture the incoming flight before ownership and velocity change.
+  const incomingOpponent = match.lastTouch != null && match.lastTouch !== team;
+  const incomingVelocity = { x: match.ball.vx, y: match.ball.vy };
+  const incomingBurning =
+    !!match.config.ballFire && Math.hypot(match.ball.vx, match.ball.vy) >= match.config.fireSpeed;
   if (match.lastTouch !== team) match.touches[team] = 0;
   if (!match.config.duel && match.lastTouch === team && match.lastPlayer === p.id) {
     match.point(1 - team, 'ДВА КАСАНИЯ ОДНОГО ИГРОКА');
@@ -200,8 +210,12 @@ export function makeContact(match, p, kind, power, impulse) {
     });
   }
   if (impulse.arrival) match.planReadBlock(1 - team, impulse);
-  resetFlight(match.ball);
+  resetFlight(match.ball, impulse.flightTempo ?? 1);
   match.recordContact(p, kind, power);
+  const modifier = impulse.cpuModifier || impulse.contactModifier;
+  if (modifier) p.armSwing.aim = { soft: modifier === 'soft', fast: modifier === 'fast' };
+  if (!fourthTouch && incomingOpponent && incomingBurning)
+    p.handEmbers = { at: match.time, until: match.time + 5 };
   observeContact(match, p, kind, power);
   if (impulse.intent === 'soft') p.armSwing.aim = { soft: true };
   if (kind !== 'drive' && match.mode !== 'test' && !match.isHuman(team)) {
@@ -242,11 +256,13 @@ export function makeContact(match, p, kind, power, impulse) {
   if (kind === 'drive') match.stats.attacks[team]++;
   else match.stats.passes[team]++;
   match.lastAction = `${shotDefinition(kind).name} · ${Math.round(power * 100)}%`;
-  match.assistLabel = impulse.assisted
-    ? kind === 'drive'
-      ? 'Удар скорректирован над сеткой'
-      : 'Пас направлен партнёру'
-    : 'Свободная траектория';
+  match.assistLabel =
+    impulse.assistIntent ||
+    (impulse.assisted
+      ? kind === 'drive'
+        ? 'Удар скорректирован над сеткой'
+        : 'Пас направлен партнёру'
+      : 'Свободная траектория');
   match.label(impulse.feedback || match.lastAction);
   if (crosses) {
     match.selectOnOpponentContact(1 - team);
@@ -264,6 +280,12 @@ export function makeContact(match, p, kind, power, impulse) {
   if (match.isHuman(team) && p.id !== match.controlledPlayer(control)) match.clearPasser(p);
   match.emit('hit', {
     incomingSpeed,
+    incomingOpponent,
+    incomingBurning,
+    incomingVelocity,
+    modifier: impulse.cpuModifier || impulse.contactModifier || null,
+    outgoingVelocity: { x: impulse.vx, y: impulse.vy },
+    legal: !fourthTouch,
     comboStage: match.lastContact?.comboStage || 0,
     kind,
     power,

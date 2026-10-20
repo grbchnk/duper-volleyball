@@ -1,5 +1,6 @@
 import { aimOf } from './controllers.js';
 import { serveSettings } from './serve-settings.js';
+import { serveContactWindow } from './serve-contact.js';
 const EMPTY_INPUT = Object.freeze({});
 import { serveMotion, serveOrigin, sampleServeMotion } from './motion.js';
 import { shotImpulse, SERVES } from './moves.js';
@@ -7,13 +8,14 @@ import { traceBall, resetFlight } from './physics.js';
 import { COURT } from './config.js';
 import { observeContact } from './skill-feedback.js';
 import { cpuSkill } from './cpu.js';
+import { defenseScore } from './tactics.js';
 export function chooseServeInput(match, p, original) {
   const a = { ...original };
   const ball = { ...match.ball, ...serveOrigin(p, a.kind, match.config, true) };
   // AI chooses an input within the configured profile, never a replacement trajectory.
   const settings = serveSettings(match.config, a.kind);
   const angles = settings.Targeted ? [null] : [null, 25, 35, 45, 55, 65, 15, 75, 40, 50, 60];
-  let found = false;
+  let best = null;
   for (const power of [a.power, 0.3, 0.45, 0.65, 0.8, 1]) {
     for (const angle of angles) {
       const aim =
@@ -40,14 +42,13 @@ export function chooseServeInput(match, p, original) {
         end.x * match.sign(match.server) < -1 &&
         Math.abs(end.x) < COURT.halfLength - 0.3
       ) {
-        a.power = power;
-        a.aim = aim;
-        found = true;
-        break;
+        const opponents = match.players.filter((other) => !other.benched && other.team !== p.team);
+        const score = defenseScore(path, opponents, match.config) - (path.length / 120) * 0.15;
+        if (!best || score > best.score) best = { score, power, aim };
       }
     }
-    if (found) break;
   }
+  if (best) Object.assign(a, { power: best.power, aim: best.aim });
   return a;
 }
 
@@ -68,6 +69,8 @@ export function beginServe(match, action, control = match.controls[match.serverS
     cpuMiss,
     hand: match.config.dynamic ? (p.serveHand ?? 1) : match.visualRandom() < 0.5 ? 0 : 1,
   };
+  if (match.config.dynamic && match.isHuman(match.server))
+    match.serveAction.contactTiming = serveContactWindow(p, match.serveAction, match.config);
   match.phase = 'serve-motion';
   match.phaseTime = 0;
   control.aimPreview = null;
@@ -84,12 +87,17 @@ export function executeServe(match) {
     a = match.serveAction;
   if (match.isHuman(match.server) && match.config.dynamic)
     a.aim = aimOf(match.inputs?.[match.serverSlot()] || EMPTY_INPUT);
+  const toss = { vx: match.ball.vx, vy: match.ball.vy };
   Object.assign(
     match.ball,
     shotImpulse(match.ball, p, a.kind, a.power, a.aim, match.players, match.config, true),
   );
-  match.ball.vx *= a.quality ?? 1;
-  match.ball.vy *= a.quality ?? 1;
+  const quality = a.quality ?? 1;
+  for (const axis of ['vx', 'vy'])
+    match.ball[axis] = match.config.dynamic
+      ? match.ball[axis] + (toss[axis] - match.ball[axis]) * (1 - quality)
+      : match.ball[axis] * quality;
+  if (match.config.dynamic) match.ball.spin *= quality;
   resetFlight(match.ball);
   match.phase = 'rally';
   match.phaseTime = 0;
@@ -103,6 +111,7 @@ export function executeServe(match) {
   match.recordContact(p, a.kind, a.power);
   match.rallyInfo.start = match.time;
   observeContact(match, p, a.kind, a.power, true);
+  match.lastContact.serveQuality = quality;
   p.armSwing.serve = true;
   p.armSwing.hand = a.hand;
   match.shotSerial++;
@@ -112,6 +121,8 @@ export function executeServe(match) {
   match.emit('hit', {
     kind: a.kind,
     power: a.power,
+    incomingSpeed: Math.hypot(toss.vx, toss.vy),
+    incomingVelocity: toss,
     team: match.server,
     serve: true,
     x: match.ball.x,

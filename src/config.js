@@ -1,13 +1,22 @@
 import { TEAMS } from './teams.js';
+import { CPU_STYLES } from './cpu-styles.js';
 import { sanitizeAppearance } from './appearance.js';
 export { TEAMS } from './teams.js';
-import { SHOT_DEFAULTS, SHOT_LIMITS, SHOT_BASES } from './shot-settings.js';
+import {
+  SHOT_DEFAULTS,
+  SHOT_LIMITS,
+  SHOT_BASES,
+  VARIANT_DEFAULTS,
+  VARIANT_LIMITS,
+  variantKey,
+} from './shot-settings.js';
 import { SERVE_DEFAULTS, SERVE_LIMITS, SERVE_BASES, serveKey } from './serve-settings.js';
 import { SKINS } from './sprites.js';
 import { LEGACY_DEFAULTS, LEGACY_LIMITS } from './legacy-profile.js';
 export const FIXED_DT = 1 / 120;
 export const COURT = Object.freeze({
   halfLength: 9.25,
+  playerBackLimit: 11.25,
   width: 9,
   netHeight: 2.43,
   netDepth: 1,
@@ -30,11 +39,15 @@ export const DEFAULTS = Object.freeze({
   hitPower: 1,
   ...Object.fromEntries(Object.entries(SHOT_DEFAULTS).filter(([key]) => !key.startsWith('back'))),
   ...SERVE_DEFAULTS,
+  ...VARIANT_DEFAULTS,
   gameSpeed: 1,
   ballSpeed: 1.2,
+  modifierTempo: false,
+  modifierSlowdown: 0.15,
+  modifierSpeedup: 0.15,
   attackDip: 12,
   assist: true,
-  passAssist: 1,
+  passAssist: 0.5,
   driveAssist: 1,
   neutralPassAssist: 0.65,
   neutralAttackAssist: 0,
@@ -79,11 +92,12 @@ export const DEFAULTS = Object.freeze({
   jumpRise: 0.54,
   jumpHang: 0.12,
   jumpHoldThreshold: 0.02,
-  jumpHoldHang: 0.09,
+  jumpHoldHang: 0,
   jumpBallHang: 0.12,
   jumpFall: 0.45,
   blockWindow: 0.13,
   blockReach: 0.42,
+  blockHeight: 0.4,
   blockCooldown: 1.15,
   blockDeflect: 0.45,
   armScale: 1,
@@ -102,6 +116,99 @@ export const DEFAULTS = Object.freeze({
   smokeTrailLife: 1.2,
   armPowerMotion: 1,
   armJumpMotion: 1,
+  // User baseline supplied on 20 October 2026.
+  ...{
+    feintMode: 'queued',
+    cpuStyle: 'adaptive',
+    drag: 0.02,
+    restitution: 0.9,
+    playerSpeed: 4.5,
+    airMoveSpeed: 2,
+    jumpSpeed: 5.4,
+    lowContactMin: 0.32,
+    lowContactMax: 0.67,
+    lowReach: 1.2,
+    loftSpeedMin: 5.9,
+    loftContactMin: 1.42,
+    loftContactMax: 2.32,
+    driveSpeedMin: 6,
+    driveSpeedMax: 15,
+    driveSpinMin: 0.5,
+    driveSpinMax: 0.5,
+    driveContactMin: 1,
+    driveContactMax: 2,
+    driveReach: 1,
+    serveLowIdealMin: 0.46,
+    serveLowPerfectWindow: 0.1,
+    serveLowMistimePower: 1,
+    lowSoftSpeedMax: 7.4,
+    lowSoftTempo: 0.85,
+    loftSoftTempo: 0.85,
+    loftFastSpeedMin: 7.5520000000000005,
+    driveNormalDip: 5,
+    driveSoftTempo: 0.85,
+    driveFastSpeedMin: 7,
+    driveFastSpeedMax: 20,
+    driveFastDip: 10,
+    gameSpeed: 0.9,
+    modifierSpeedup: 0,
+    attackDip: 15,
+    neutralPassAssist: 0.5,
+    targetScore: 7,
+    difficulty: 'easy',
+    cpuSkill: 30,
+    skin: 'street',
+    homeColor: '#8bb6cd',
+    ballSize: 1,
+    ballSkin: 'classic',
+    fireSpeed: 13,
+    musicTrack: 'sunset',
+    musicVolume: 0.5,
+    arenaTheme: 'beach',
+    homeTeam: 'pumpkins',
+    customTeamAppearance: true,
+    appearanceSeed: 440592611,
+    teamPlayers: [
+      {
+        headShape: 'square',
+        head: 'mohawk',
+        body: 'stripes',
+        tone: '#f4cfac',
+        hair: '#302b32',
+      },
+      {
+        headShape: 'square',
+        head: 'visor',
+        body: 'chevron',
+        tone: '#edba91',
+        hair: '#302b32',
+      },
+      {
+        headShape: 'square',
+        head: 'straw',
+        body: 'sleeveless',
+        tone: '#d79b70',
+        hair: '#302b32',
+      },
+    ],
+    loftReceiveHoldTime: 0.1,
+    chargeSeconds: 0.25,
+    maxHold: 0.3,
+    jumpWindup: 0.05,
+    jumpRise: 0.55,
+    jumpHang: 0.15,
+    jumpHoldThreshold: 0.01,
+    jumpBallHang: 0.2,
+    jumpFall: 0.5,
+    blockWindow: 0.2,
+    blockReach: 0.3,
+    blockHeight: 0.45,
+    blockDeflect: 0.5,
+    armScale: 1.1,
+    armLength: 1.1,
+    smokeTrailOpacity: 0.35,
+    smokeTrailLife: 1,
+  },
 });
 export const PRESETS = {
   arcade: { ...DEFAULTS },
@@ -136,9 +243,12 @@ export const LIMITS = {
   jumpSpeed: [3, 6.5],
   hitPower: [0.7, 1.4],
   ...SHOT_LIMITS,
+  ...VARIANT_LIMITS,
   ...SERVE_LIMITS,
   gameSpeed: [0.5, 1.5],
   ballSpeed: [0.6, 1.4],
+  modifierSlowdown: [0, 0.5],
+  modifierSpeedup: [0, 0.5],
   targetScore: [5, 25],
   releaseWindow: [0, 0.35],
   lowReceiveHoldTime: [0, 0.25],
@@ -156,6 +266,7 @@ export const LIMITS = {
   jumpFall: [0.25, 0.85],
   blockWindow: [0.04, 0.35],
   blockReach: [0.2, 0.75],
+  blockHeight: [0.15, 0.8],
   blockCooldown: [0.6, 2],
   blockDeflect: [0.25, 0.8],
   elbowHeight: [-12, 12],
@@ -216,8 +327,7 @@ export function sanitizeConfig(value = {}) {
   }
   result.targetScore = Math.round(result.targetScore);
   result.setsToWin = Math.round(result.setsToWin);
-  if (['balanced', 'blocker', 'deep', 'trickster', 'patient'].includes(value.cpuStyle))
-    result.cpuStyle = value.cpuStyle;
+  if (Object.hasOwn(CPU_STYLES, value.cpuStyle)) result.cpuStyle = value.cpuStyle;
   if (['manual', 'queued'].includes(value.feintMode)) result.feintMode = value.feintMode;
   for (const kind of Object.keys(SERVE_BASES)) {
     const key = (suffix) => serveKey(kind, suffix);
@@ -238,6 +348,7 @@ export function sanitizeConfig(value = {}) {
     'approachAssist',
     'assist',
     'receiveMomentum',
+    'modifierTempo',
     'trajectory',
     'variableJump',
     'ballFire',
@@ -255,11 +366,10 @@ export function sanitizeConfig(value = {}) {
   if (['miami', 'beach', 'gym', 'farm', 'alpine', 'sky', 'championship'].includes(value.arenaTheme))
     result.arenaTheme = value.arenaTheme;
   if (['easy', 'normal', 'hard'].includes(value.difficulty)) result.difficulty = value.difficulty;
-  if (
-    !Number.isFinite(value.cpuSkill) ||
-    (value.cpuSkill === DEFAULTS.cpuSkill && value.difficulty && value.difficulty !== 'normal')
-  )
-    result.cpuSkill = { easy: 20, normal: 55, hard: 90 }[result.difficulty];
+  if (!Number.isFinite(value.cpuSkill))
+    result.cpuSkill = value.difficulty
+      ? { easy: 20, normal: 55, hard: 90 }[result.difficulty]
+      : DEFAULTS.cpuSkill;
   result.cpuSkill = Math.round(result.cpuSkill);
   if (Object.hasOwn(SKINS, value.skin)) result.skin = value.skin;
   if (Object.hasOwn(SKINS, value.awaySkin)) result.awaySkin = value.awaySkin;
@@ -270,6 +380,45 @@ export function sanitizeConfig(value = {}) {
   for (const key of ['homeTeam', 'awayTeam'])
     if (TEAMS.some((team) => team.id === value[key])) result[key] = value[key];
   result.appearanceSeed = Math.round(result.appearanceSeed);
+  if (!historical) {
+    // Retired experiments cannot be reactivated by an old settings file.
+    result.receiveMomentum = false;
+    result.thirdTouchSlowdown = 0;
+    result.variableJump = false;
+    result.jumpHoldHang = 0;
+    result.approachAssist = true;
+    result.modifierTempo = false;
+    if (!Number.isFinite(value.lowNormalGroundAngle) && Number.isFinite(value.neutralPassAssist))
+      result.passAssist = Math.max(0, Math.min(1, value.neutralPassAssist));
+    for (const kind of ['low', 'loft', 'drive'])
+      for (const variant of ['normal', 'soft', 'fast']) {
+        if (variant === 'fast')
+          for (const suffix of ['SpeedMin', 'SpeedMax']) {
+            const key = variantKey(kind, variant, suffix);
+            if (!Number.isFinite(value[key]) && Number.isFinite(value[kind + suffix]))
+              result[key] = Math.min(40, result[kind + suffix] * 1.28);
+          }
+        const curve = variantKey(kind, variant, 'PowerCurve');
+        if (!Number.isFinite(value[curve]) && Number.isFinite(value[kind + 'PowerCurve']))
+          result[curve] = result[kind + 'PowerCurve'];
+        const tempo = variantKey(kind, variant, 'Tempo');
+        if (!Number.isFinite(value[tempo]) && value.modifierTempo && variant !== 'normal')
+          result[tempo] =
+            variant === 'soft'
+              ? 1 - (result.modifierSlowdown ?? 0.15)
+              : 1 + (result.modifierSpeedup ?? 0.15);
+        const low = variantKey(kind, variant, 'SpeedMin'),
+          high = variantKey(kind, variant, 'SpeedMax');
+        result[high] = Math.max(result[low], result[high]);
+        if (
+          kind === 'drive' &&
+          variant !== 'soft' &&
+          !Number.isFinite(value[variantKey(kind, variant, 'Dip')]) &&
+          Number.isFinite(value.attackDip)
+        )
+          result[variantKey(kind, variant, 'Dip')] = result.attackDip;
+      }
+  }
   if (Array.isArray(value.teamPlayers))
     result.teamPlayers = value.teamPlayers.slice(0, 3).map((p) => sanitizeAppearance(p));
   return result;

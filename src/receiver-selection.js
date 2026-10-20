@@ -19,6 +19,13 @@ export function nextReceiver(
   if (config.duel) return team * 3;
   const run = match.teamRuns?.[team];
   if (match.phase !== 'rally' || (ball.x < 0 ? 0 : 1) !== team) return null;
+  // An outgoing attack needs no teammate reception before it crosses the net.
+  if (
+    match.lastTouch === team &&
+    match.teamPhases[team] === 'defense' &&
+    ball.vx * match.sign(team) < 0
+  )
+    return null;
   const current = match.players[currentId];
   if (
     run?.feint &&
@@ -34,8 +41,7 @@ export function nextReceiver(
   // Do not steal a just-started manual jump while the ball is still approaching.
   if (current.jumpProfile && current.jumpTime < 0.15 && (ball.x - current.x) * ball.vx <= 0)
     return current.id;
-  if (match.incomingShot === 'serve' && match.lastTouch === team && ball.vx * match.sign(team) < 0)
-    return null;
+  if (match.incomingShot === 'serve' && match.lastTouch === team) return null;
   // Both co-op owners consume the same forecast at the same simulation instant.
   const stamp = [
     match.time,
@@ -48,6 +54,7 @@ export function nextReceiver(
     ball.spin,
     ball.attackGravity,
     ball.flightAge,
+    ball.flightTempo,
     ball.flightPhysicalAge,
     ball.flightLaunchVy,
     config.gravity,

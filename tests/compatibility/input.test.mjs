@@ -13,7 +13,7 @@ function controller() {
   };
 }
 
-test('left stick never triggers a jump, even when aimed straight up', () => {
+test('left stick up and diagonals keep aiming without triggering a jump', () => {
   const pad = controller(),
     input = new InputBuffer(() => [pad]);
   for (const x of [-1, -0.7, 0.7, 1]) {
@@ -21,11 +21,17 @@ test('left stick never triggers a jump, even when aimed straight up', () => {
     pad.axes[1] = -0.8;
     input.poll();
     assert.equal(input.read().jump, false);
+    assert.equal(input.read().jumpHeld, false);
+    assert.ok(input.read().buttonVector.y > 0);
   }
   pad.axes[0] = 0.2;
   pad.axes[1] = -0.9;
   input.poll();
   assert.equal(input.read().jump, false);
+  pad.axes[1] = -0.2;
+  input.poll();
+  assert.equal(input.read().jump, false);
+  assert.equal(input.read().jumpHeld, false);
 });
 
 test('DualSense face buttons, shoulders, and d-pad map to game actions', () => {
@@ -76,6 +82,7 @@ test('Cross jumps normally with L2 and without stick drift', () => {
   pad.axes[1] = -0.9;
   input.poll();
   assert.equal(input.read().jump, false);
+  pad.axes[1] = 0;
   pad.buttons[0].pressed = true;
   input.poll();
   assert.equal(input.read().jump, true);

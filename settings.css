@@ -1,4 +1,149 @@
 /* Shared settings frame. Header/navigation never participate in content scroll. */
+.setting-label,
+.settings-panel .shot-controls .setting-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 0 3px;
+  color: #304e44;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+.setting-label output {
+  color: #2b7764;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.setting-note,
+.settings-panel .shot-controls .setting-note {
+  display: block;
+  margin: 2px 0 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #60736c;
+}
+.flat-settings > input[type='range'],
+.settings-panel .shot-controls input[type='range'] {
+  margin: 7px 0 4px;
+  width: 100%;
+  accent-color: #347f6b;
+}
+.settings-panel #contact-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 60px;
+  gap: 3px 8px;
+  align-items: center;
+}
+#contact-fields > .setting-label,
+#contact-fields > .setting-note {
+  grid-column: 1 / -1;
+}
+#contact-fields > .setting-number {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 5px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.settings-panel .shot-controls {
+  gap: 4px;
+}
+.flat-settings > h3 {
+  margin: 18px 0 8px;
+}
+.flat-settings > h3:first-child {
+  margin-top: 0;
+}
+.lab-section-picker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 0 14px;
+  flex: 0 0 auto;
+}
+.lab-section-picker label {
+  margin: 0;
+}
+.lab-section-picker select {
+  max-width: 320px;
+  margin: 0;
+}
+.lab-variant-picker {
+  padding: 6px 0;
+  background: transparent;
+  border-radius: 10px;
+  margin: 0 0 8px;
+}
+.lab-variant-picker #shot-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lab-variant-picker label {
+  margin: 0;
+}
+.block-layout {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 24px;
+  height: 100%;
+  min-height: 0;
+}
+.block-lab-root {
+  flex: 1;
+  overflow: hidden !important;
+  min-height: 0;
+}
+.block-layout > aside,
+.block-layout > section {
+  overflow: auto;
+  min-height: 0;
+  padding-right: 6px;
+}
+.block-layout canvas {
+  width: 100%;
+  height: auto;
+  background: #edf1df;
+  border-radius: 12px;
+}
+.block-layout > section {
+  min-width: 0;
+}
+@media (max-width: 800px) {
+  .block-layout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .block-lab-root {
+    overflow: auto !important;
+  }
+}
+.block-timeline {
+  position: relative;
+  background: #dfe4dc;
+  height: 20px;
+  margin: 18px 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+#block-window-band {
+  position: absolute;
+  inset-block: 0;
+  background: #6cad91;
+}
+#block-time-marker {
+  position: absolute;
+  inset-block: 0;
+  width: 3px;
+  background: #283e4b;
+}
+[hidden] {
+  display: none !important;
+}
 dialog.settings-panel {
   width: min(1180px, calc(100vw - 32px));
   height: calc(100dvh - 32px);
@@ -110,7 +255,8 @@ dialog.settings-panel[open] {
   height: 200px;
 }
 .settings-panel .shot-layout {
-  height: 100%;
+  flex: 1;
+  height: auto;
   min-height: 0;
   display: grid;
   grid-template-columns: 310px minmax(0, 1fr);
@@ -118,6 +264,12 @@ dialog.settings-panel[open] {
 }
 .settings-panel > .dialog-content:has(.shot-layout) {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.settings-panel > .dialog-content:has(.shot-layout) > section:not(.shot-layout) {
+  overflow: auto;
+  min-height: 0;
 }
 .settings-panel .shot-controls,
 .settings-panel .shot-preview {

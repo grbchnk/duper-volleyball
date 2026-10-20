@@ -1,0 +1,518 @@
+{
+  "protocol": "Each style at 100 vs balanced 75, mirrored sides, seeded full simulation, 5 points or 200 game seconds. Small diagnostic sample, not a proof of invincibility.",
+  "games": [
+    {
+      "style": "patient",
+      "side": 0,
+      "finished": false,
+      "score": [
+        0,
+        0
+      ],
+      "points": 0,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 225,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 105,
+        "soft": 3,
+        "fast": 14,
+        "combos": 0,
+        "intents": {
+          "loft": 46,
+          "roll": 8,
+          "free": 25,
+          "steep": 7,
+          "power": 10,
+          "tip": 3,
+          "low": 2,
+          "drive": 2,
+          "soft-receive": 1,
+          "high": 1
+        }
+      }
+    },
+    {
+      "style": "patient",
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        1
+      ],
+      "points": 1,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 230,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 107,
+        "soft": 3,
+        "fast": 11,
+        "combos": 0,
+        "intents": {
+          "loft": 45,
+          "roll": 7,
+          "soft-receive": 1,
+          "low": 2,
+          "steep": 8,
+          "free": 26,
+          "power": 9,
+          "high": 2,
+          "drive": 4,
+          "tip": 3
+        }
+      }
+    },
+    {
+      "style": "deep",
+      "side": 0,
+      "finished": false,
+      "score": [
+        0,
+        1
+      ],
+      "points": 0,
+      "conceded": 1,
+      "seconds": 200,
+      "contacts": 241,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 113,
+        "soft": 8,
+        "fast": 22,
+        "combos": 0,
+        "intents": {
+          "loft": 47,
+          "tip": 7,
+          "roll": 10,
+          "free": 9,
+          "power": 25,
+          "soft-receive": 2,
+          "pipe": 1,
+          "steep": 5,
+          "drive": 5,
+          "high": 1,
+          "low": 1
+        }
+      }
+    },
+    {
+      "style": "deep",
+      "side": 1,
+      "finished": false,
+      "score": [
+        1,
+        0
+      ],
+      "points": 0,
+      "conceded": 1,
+      "seconds": 200,
+      "contacts": 235,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 110,
+        "soft": 5,
+        "fast": 13,
+        "combos": 0,
+        "intents": {
+          "loft": 46,
+          "tip": 6,
+          "power": 21,
+          "drive": 2,
+          "steep": 3,
+          "free": 15,
+          "soft-receive": 4,
+          "roll": 7,
+          "pipe": 5,
+          "high": 1
+        }
+      }
+    },
+    {
+      "style": "blocker",
+      "side": 0,
+      "finished": false,
+      "score": [
+        2,
+        0
+      ],
+      "points": 2,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 233,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 114,
+        "soft": 6,
+        "fast": 25,
+        "combos": 1,
+        "intents": {
+          "loft": 45,
+          "power": 22,
+          "soft-receive": 3,
+          "tip": 11,
+          "steep": 9,
+          "free": 5,
+          "roll": 5,
+          "drive": 6,
+          "back": 2,
+          "high": 2,
+          "quick": 2,
+          "low": 1,
+          "pipe": 1
+        }
+      }
+    },
+    {
+      "style": "blocker",
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        3
+      ],
+      "points": 3,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 223,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 104,
+        "soft": 12,
+        "fast": 18,
+        "combos": 0,
+        "intents": {
+          "loft": 41,
+          "free": 6,
+          "roll": 11,
+          "power": 14,
+          "tip": 9,
+          "drive": 4,
+          "steep": 9,
+          "soft-receive": 2,
+          "high": 5,
+          "low": 2,
+          "quick": 1
+        }
+      }
+    },
+    {
+      "style": "balanced",
+      "side": 0,
+      "finished": false,
+      "score": [
+        2,
+        0
+      ],
+      "points": 2,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 235,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 120,
+        "soft": 5,
+        "fast": 16,
+        "combos": 0,
+        "intents": {
+          "loft": 47,
+          "tip": 7,
+          "steep": 13,
+          "quick": 1,
+          "roll": 19,
+          "free": 7,
+          "drive": 4,
+          "power": 11,
+          "high": 5,
+          "soft-receive": 3,
+          "low": 1,
+          "pipe": 2
+        }
+      }
+    },
+    {
+      "style": "balanced",
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        2
+      ],
+      "points": 2,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 243,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 114,
+        "soft": 4,
+        "fast": 12,
+        "combos": 0,
+        "intents": {
+          "loft": 46,
+          "free": 6,
+          "tip": 10,
+          "roll": 15,
+          "power": 17,
+          "steep": 9,
+          "quick": 2,
+          "drive": 2,
+          "feint": 1,
+          "pipe": 3,
+          "high": 2,
+          "soft-receive": 1
+        }
+      }
+    },
+    {
+      "style": "quick",
+      "side": 0,
+      "finished": false,
+      "score": [
+        3,
+        0
+      ],
+      "points": 3,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 253,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 132,
+        "soft": 33,
+        "fast": 14,
+        "combos": 16,
+        "intents": {
+          "soft-receive": 32,
+          "free": 3,
+          "high": 4,
+          "steep": 20,
+          "loft": 19,
+          "roll": 12,
+          "quick": 17,
+          "pipe": 4,
+          "drive": 3,
+          "power": 13,
+          "feint": 1,
+          "back": 1,
+          "tip": 3
+        }
+      }
+    },
+    {
+      "style": "quick",
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        3
+      ],
+      "points": 3,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 258,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 132,
+        "soft": 40,
+        "fast": 16,
+        "combos": 15,
+        "intents": {
+          "loft": 21,
+          "drive": 4,
+          "tip": 9,
+          "soft-receive": 31,
+          "power": 17,
+          "roll": 9,
+          "steep": 18,
+          "quick": 16,
+          "free": 3,
+          "low": 1,
+          "high": 2,
+          "pipe": 1
+        }
+      }
+    },
+    {
+      "style": "trickster",
+      "side": 0,
+      "finished": false,
+      "score": [
+        3,
+        0
+      ],
+      "points": 3,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 234,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 113,
+        "soft": 9,
+        "fast": 14,
+        "combos": 0,
+        "intents": {
+          "loft": 41,
+          "tip": 15,
+          "roll": 26,
+          "power": 6,
+          "steep": 15,
+          "low": 3,
+          "feint": 2,
+          "pipe": 2,
+          "back": 1,
+          "drive": 1,
+          "soft-receive": 1
+        }
+      }
+    },
+    {
+      "style": "trickster",
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        3
+      ],
+      "points": 3,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 240,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 110,
+        "soft": 11,
+        "fast": 11,
+        "combos": 0,
+        "intents": {
+          "loft": 38,
+          "roll": 22,
+          "soft-receive": 5,
+          "back": 1,
+          "steep": 16,
+          "tip": 18,
+          "power": 4,
+          "drive": 3,
+          "feint": 1,
+          "free": 1,
+          "low": 1
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "side": 0,
+      "finished": false,
+      "score": [
+        2,
+        1
+      ],
+      "points": 2,
+      "conceded": 1,
+      "seconds": 200,
+      "contacts": 225,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 108,
+        "soft": 10,
+        "fast": 17,
+        "combos": 1,
+        "intents": {
+          "loft": 41,
+          "steep": 11,
+          "soft-receive": 3,
+          "back": 2,
+          "roll": 10,
+          "tip": 8,
+          "free": 7,
+          "power": 11,
+          "drive": 6,
+          "quick": 3,
+          "low": 1,
+          "pipe": 2,
+          "high": 3
+        }
+      }
+    },
+    {
+      "style": "adaptive",
+      "side": 1,
+      "finished": false,
+      "score": [
+        0,
+        4
+      ],
+      "points": 4,
+      "conceded": 0,
+      "seconds": 200,
+      "contacts": 218,
+      "faults": 0,
+      "telemetry": {
+        "contacts": 104,
+        "soft": 4,
+        "fast": 15,
+        "combos": 0,
+        "intents": {
+          "loft": 40,
+          "free": 5,
+          "tip": 6,
+          "steep": 10,
+          "pipe": 3,
+          "power": 10,
+          "quick": 2,
+          "drive": 9,
+          "roll": 12,
+          "soft-receive": 2,
+          "high": 3,
+          "back": 2
+        }
+      }
+    }
+  ],
+  "ranking": [
+    {
+      "style": "deep",
+      "points": 0,
+      "conceded": 2,
+      "rate": 0
+    },
+    {
+      "style": "adaptive",
+      "points": 6,
+      "conceded": 1,
+      "rate": 0.8571428571428571
+    },
+    {
+      "style": "patient",
+      "points": 1,
+      "conceded": 0,
+      "rate": 1
+    },
+    {
+      "style": "blocker",
+      "points": 5,
+      "conceded": 0,
+      "rate": 1
+    },
+    {
+      "style": "balanced",
+      "points": 4,
+      "conceded": 0,
+      "rate": 1
+    },
+    {
+      "style": "quick",
+      "points": 6,
+      "conceded": 0,
+      "rate": 1
+    },
+    {
+      "style": "trickster",
+      "points": 6,
+      "conceded": 0,
+      "rate": 1
+    }
+  ]
+}

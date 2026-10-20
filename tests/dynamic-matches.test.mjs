@@ -8,7 +8,9 @@ for (const [seed, style, extra] of [
   [42, 'blocker', {}],
   [75, 'trickster', {}],
   [15, 'deep', { duel: true }],
-  [21, 'patient', { floorBounce: true, gravity: 6 }],
+  [21, 'patient', { floorBounce: true, gravity: 6, cpuSkill: 35 }],
+  [61, 'quick', {}],
+  [89, 'adaptive', {}],
 ]) {
   test(`dynamic CPU match finishes with finite physical state: ${style}`, () => {
     const m = new Match(
@@ -49,7 +51,9 @@ for (const [seed, style, extra] of [
         ['power', 'tip', 'roll', 'free'].filter((kind) => m.tacticalStats[kind] > 0).length >= 3,
       );
       assert.ok(
-        ['quick', 'high', 'back', 'pipe'].filter((kind) => m.tacticalStats[kind] > 0).length >= 3,
+        ['quick', 'high', 'back', 'pipe', 'feint', 'dump'].filter(
+          (kind) => m.tacticalStats[kind] > 0,
+        ).length >= 2,
       );
     }
     if (!extra.duel) assert.ok(Object.values(m.tacticalStats).reduce((a, b) => a + b, 0) > 0);

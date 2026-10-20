@@ -1,4 +1,5 @@
 import { ATTACKS, PLAYS, STYLES } from './tactics.js';
+import { cpuStyle } from './cpu-styles.js';
 
 export function createDynamicUI(match, hooks) {
   const panel = document.createElement('section');
@@ -10,12 +11,7 @@ export function createDynamicUI(match, hooks) {
   panel.innerHTML = `<h2>Формат матча</h2>
     <label>Формат <select id="dynamic-format"><option value="quick">3 × 3 · один сет</option><option value="series">3 × 3 · до двух сетов</option><option value="duel">Дуэль · 1 × 1</option></select></label>
     <label>Соперник <select id="dynamic-opponent">${options(STYLES)}</select></label>
-    <label>Обманка L2 + R2 <select id="dynamic-feint"><option value="manual">1 · Ручная атака</option><option value="queued">2 · Заранее подготовленный удар</option></select></label>
-    <p>Навес □ / △ с L2 + R2. В варианте 2 заранее зарядите и отпустите ○: атакующий сам выйдет под высокий пас у сетки и прыгнет.</p>
-    <details><summary>Управление командой</summary>
-    <label class="dynamic-check"><input type="checkbox" id="dynamic-approach" checked>Разбег CPU после передачи</label>
-    <p>Бот подбегает к своей передаче. Ваши игроки сохраняют ручное управление.</p>
-    </details>
+    <p id="dynamic-style-hint" class="hint"></p>
     <details><summary>Необычные правила</summary>
     <label class="dynamic-check"><input id="dynamic-bounce" type="checkbox">Один отскок от пола</label>
     <p>Можно сочетать. Настройки применяются к обеим командам.</p></details>
@@ -34,8 +30,7 @@ export function createDynamicUI(match, hooks) {
   const team = 0;
   function sync() {
     $('opponent').value = hooks.config().cpuStyle;
-    $('feint').value = hooks.config().feintMode;
-    $('approach').checked = hooks.config().approachAssist;
+    $('style-hint').textContent = cpuStyle(hooks.config()).description;
     $('bounce').checked = hooks.config().floorBounce;
     $('format').value = hooks.config().duel
       ? 'duel'
@@ -93,9 +88,6 @@ export function createDynamicUI(match, hooks) {
     cursor = Number(e.target.value);
   };
   $('opponent').onchange = (e) => hooks.apply({ ...hooks.config(), cpuStyle: e.target.value });
-  $('feint').onchange = (e) => hooks.apply({ ...hooks.config(), feintMode: e.target.value });
-  $('approach').onchange = (e) =>
-    hooks.apply({ ...hooks.config(), approachAssist: e.target.checked });
   $('format').onchange = (e) => {
     hooks.apply({
       ...hooks.config(),

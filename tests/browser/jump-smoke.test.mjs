@@ -25,8 +25,6 @@ test(
     const page = await browser.newPage({ viewport: { width: 1000, height: 1120 } });
     await page.goto(base);
     for (const [key, value] of Object.entries({
-      jumpHoldThreshold: '0.02',
-      jumpHoldHang: '0.09',
       smokeTrailOpacity: '0.16',
       smokeTrailLife: '1.2',
     })) {
