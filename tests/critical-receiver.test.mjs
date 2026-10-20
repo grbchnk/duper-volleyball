@@ -161,7 +161,9 @@ function chasingReceiver(mode, team, rotated) {
     m.coopSelected = 1;
   } else m.selected[team] = team * 3 + 1;
   const side = m.sign(team);
-  for (const [i, x] of [7, 3.7, 0.8].entries()) m.players[team * 3 + i].x = side * x;
+  // At the current narrow reception height, 3.7 m no longer leaves enough
+  // approach time after acceleration; 4 m is reachable throughout this run.
+  for (const [i, x] of [7, 4, 0.8].entries()) m.players[team * 3 + i].x = side * x;
   Object.assign(m.ball, { x: side * 5.9, y: 3.2, vx: side * 2.6, vy: 0 });
   return { m, slot, side };
 }

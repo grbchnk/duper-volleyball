@@ -20,14 +20,15 @@ function reception() {
   return m;
 }
 
-test('full power is reached twice as quickly, with unchanged power ranges and automatic serve release', () => {
+test('legacy rally charge keeps its rate and shot ranges; a full serve waits for release', () => {
   assert.equal(DEFAULTS.chargeSeconds, 0.82 / 2);
   assert.deepEqual(SHOTS.drive.speed, [7.4, 18]);
   assert.deepEqual(SERVES.drive.speed, [11.5, 18.5]);
   const m = new Match();
-  ticks(m, 48, { low: true });
-  assert.equal(m.serveAction.power, 1);
-  ticks(m, 100, { low: true });
+  ticks(m, 150, { low: true });
+  assert.equal(m.charge.power, 1);
+  assert.equal(m.phase, 'serve');
+  ticks(m, 1);
   assert.equal(m.phase, 'serve-motion');
   ticks(m, 80, { low: true });
   assert.equal(m.stats.serves[0], 0);

@@ -138,7 +138,12 @@ test('players can retreat behind the baseline, jump there and receive a teammate
     m.lastTouch = team;
     m.lastPlayer = team * 3 + 1;
     m.cooldown = 0;
-    Object.assign(m.ball, { x: p.x, y: 1, vx: 0, vy: -1 });
+    Object.assign(m.ball, {
+      x: p.x,
+      y: (m.config.lowContactMin + m.config.lowContactMax) / 2,
+      vx: 0,
+      vy: -1,
+    });
     assert.equal(m.canContact(p, 'low'), true);
     assert.equal(m.makeContact(p, 'low', 0.5, { vx: -m.sign(team) * 5, vy: 5, vz: 0 }), true);
     assert.equal(m.phase, 'rally');

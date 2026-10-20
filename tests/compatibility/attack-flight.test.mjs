@@ -31,6 +31,7 @@ test('a second set never creates automatic approach, jump or shot, on either hum
     m.lastTouch = team;
     m.lastPlayer = team * 3;
     m.touches[team] = 1;
+    m.incomingShot = 'loft';
     const setter = m.players[team * 3 + 1];
     Object.assign(m.ball, { x: setter.x, y: 2.1, vx: 0, vy: 0 });
     m.makeContact(setter, 'loft', 0.5, { vx: team ? -2 : 2, vy: 7, vz: 0, spin: 0 });

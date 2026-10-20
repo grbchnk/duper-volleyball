@@ -2,7 +2,7 @@ import { DEFAULTS } from './legacy-contract.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SKINS, BODY_CLIPS, frameOf, playerFrame, paintBody } from '../../src/sprites.js';
-import { TEAMS, FIXED_DT, sanitizeConfig } from '../../src/config.js';
+import { DEFAULTS as CURRENT, TEAMS, FIXED_DT, sanitizeConfig } from '../../src/config.js';
 import { Match } from './legacy-contract.js';
 const ticks = (m, n, input = {}) => {
   for (let i = 0; i < n; i++) m.tick(FIXED_DT, input);
@@ -40,7 +40,7 @@ test('three distinct pixel skins, default without ears, exactly one with ears; s
     assert.equal(sanitizeConfig(JSON.parse(JSON.stringify({ ...DEFAULTS, skin }))).skin, skin);
   }
   assert.equal(signatures.size, 3);
-  assert.equal(sanitizeConfig({ skin: 'missing' }).skin, 'club');
+  assert.equal(sanitizeConfig({ skin: 'missing' }).skin, CURRENT.skin);
   const upper = (skin) =>
     Math.min(...[...bodyPixels(skin).keys()].map((k) => Number(k.split(',')[1])));
   assert.ok(upper('fox') < upper('club'));

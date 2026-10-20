@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { MUSIC_TRACKS, musicBar, Music } from '../src/music.js';
 import { DRUMS, percussionBar, synthDrum } from '../src/percussion.js';
 import { ARENAS, drawArenaBackdrop } from '../src/arenas.js';
-import { sanitizeConfig } from '../src/config.js';
+import { DEFAULTS, sanitizeConfig } from '../src/config.js';
 import { exportSettings, importSettings } from '../src/settings-file.js';
 
 test('three original sixteen-bar themes have complete measures, bounded notes and different melodies', () => {
@@ -128,10 +128,10 @@ test('seven detailed backdrops retain the same court and save with music in JSON
   }
   assert.equal(new Set(layouts).size, 7);
   for (const retired of ['street', 'paris', 'stadium'])
-    assert.equal(sanitizeConfig({ arenaTheme: retired }).arenaTheme, 'miami');
+    assert.equal(sanitizeConfig({ arenaTheme: retired }).arenaTheme, DEFAULTS.arenaTheme);
   const bad = sanitizeConfig({ arenaTheme: 'oops', musicTrack: 'oops', musicVolume: 100 });
-  assert.equal(bad.arenaTheme, 'miami');
-  assert.equal(bad.musicTrack, 'boardwalk');
+  assert.equal(bad.arenaTheme, DEFAULTS.arenaTheme);
+  assert.equal(bad.musicTrack, DEFAULTS.musicTrack);
   assert.equal(bad.musicVolume, 0.5);
 });
 

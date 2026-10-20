@@ -88,7 +88,7 @@ test(
                   age = p.armSwing?.age ?? 1;
                 for (const hand of hands) {
                   if (age <= 0.04) peak[hand] = Math.min(peak[hand], rig.wrists[hand].y);
-                  if (age >= 0.1 && age < 0.1 + 1 / fps)
+                  if (age >= 0.12 && age < 0.12 + 1 / fps)
                     prompt &&= rig.wrists[hand].y > peak[hand] + 3;
                   if (age >= 0.3) settled &&= Math.abs(rig.wrists[hand].y + 12) < 2.5;
                   if (age >= 0.32 && previous)

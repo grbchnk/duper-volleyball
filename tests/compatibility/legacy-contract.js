@@ -4,9 +4,15 @@ import { SHOT_DEFAULTS } from '../../src/shot-settings.js';
 // Controller contracts are migrated to v3; dynamic-mechanics tests use real v3 defaults.
 import { Match as CoreMatch, EMPTY_INPUT } from '../../src/engine.js';
 import { DEFAULTS as CURRENT } from '../../src/config.js';
+import { DEFAULTS as FROZEN } from '../../versions/frozen-v2-2026-10-12/src/config.js';
 export { EMPTY_INPUT };
 export const DEFAULTS = {
   ...CURRENT,
+  ...Object.fromEntries(
+    Object.entries(FROZEN).filter(
+      ([key]) => key in CURRENT || key in LEGACY_DEFAULTS || key in SHOT_DEFAULTS,
+    ),
+  ),
   ...SHOT_DEFAULTS,
   ...LEGACY_DEFAULTS,
   gravity: 9.81,
@@ -23,6 +29,8 @@ export const DEFAULTS = {
   targetScore: 15,
   trajectory: true,
   releaseWindow: 0.06,
+  armLength: 1,
+  armFollowThrough: 5,
 };
 export class Match extends CoreMatch {
   get charge() {

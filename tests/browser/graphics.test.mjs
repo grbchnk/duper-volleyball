@@ -45,7 +45,7 @@ test(
       canvas.width = 960;
       canvas.height = 540;
       const r = new Renderer(canvas),
-        m = new Match();
+        m = new Match({ ...DEFAULTS, arenaTheme: 'miami' });
       const armCanvas = document.createElement('canvas');
       armCanvas.width = armCanvas.height = 80;
       const armContext = armCanvas.getContext('2d');

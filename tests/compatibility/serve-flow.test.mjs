@@ -9,7 +9,7 @@ import { playerFrame } from '../../src/sprites.js';
 const ticks = (m, n, input = {}) => {
   for (let i = 0; i < n; i++) m.tick(FIXED_DT, input);
 };
-test('serve selection starts neutral and full charge tosses without ever auto-hitting', () => {
+test('serve selection starts neutral and releasing full charge tosses without ever auto-hitting', () => {
   const m = new Match();
   ticks(m, 10, { loft: true });
   assert.equal(m.phase, 'serve');
@@ -17,6 +17,10 @@ test('serve selection starts neutral and full charge tosses without ever auto-hi
   assert.equal(m.active().armSwing, null);
   assert.equal(playerFrame(m.active(), m).state, 'idle');
   ticks(m, 300, { loft: true });
+  assert.equal(m.phase, 'serve');
+  assert.equal(m.charge.power, 1);
+  m.tick();
+  for (let i = 0; i < 300 && m.phase === 'serve-motion'; i++) m.tick();
   assert.equal(m.stats.serves[0], 0);
   assert.equal(m.pointReason, 'ПОДАЧА: МЯЧ НЕ УДАРЕН');
 });

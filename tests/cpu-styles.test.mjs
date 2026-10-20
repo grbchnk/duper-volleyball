@@ -6,6 +6,7 @@ import { Match } from '../src/engine.js';
 import { DEFAULTS, sanitizeConfig } from '../src/config.js';
 import { TOUR } from '../src/club.js';
 import { traceBall } from '../src/physics.js';
+import { shotImpulse } from '../src/moves.js';
 
 test('every tour opponent has a distinct, selectable personality independent from difficulty', () => {
   assert.equal(new Set(TOUR.map((round) => round.style)).size, TOUR.length);
@@ -128,7 +129,24 @@ test('quick style can deliberately receive with a real one-hand L2 impulse', () 
   const shot = chooseCPUShot(m, p, ['low']);
   assert.equal(shot.impulse.intent, 'soft-receive');
   assert.equal(shot.impulse.cpuModifier, 'soft');
-  assert.ok(Math.hypot(shot.impulse.vx, shot.impulse.vy) <= 6.31 * DEFAULTS.hitPower);
+  const manual = shotImpulse(
+    m.ball,
+    p,
+    'low',
+    shot.power,
+    {
+      manualControl: true,
+      cpuControl: true,
+      soft: true,
+      vector: { x: shot.impulse.vx, y: shot.impulse.vy },
+    },
+    m.players,
+    { ...m.config, assist: false },
+  );
+  assert.ok(
+    Math.abs(Math.hypot(shot.impulse.vx, shot.impulse.vy) - Math.hypot(manual.vx, manual.vy)) <
+      1e-10,
+  );
   assert.ok(shot.impulse.targetId !== p.id);
 });
 

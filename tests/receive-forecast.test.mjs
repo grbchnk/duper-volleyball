@@ -4,11 +4,13 @@ import { predictedLowContact } from '../src/receive-forecast.js';
 import { localReceiveAim } from '../src/receive-pose.js';
 import { contactBounds } from '../src/contact-rules.js';
 import { integrateBall } from '../src/physics.js';
-import { DEFAULTS, FIXED_DT } from '../src/config.js';
+import { DEFAULTS as USER_DEFAULTS, FIXED_DT } from '../src/config.js';
 import { Match } from '../src/engine.js';
 
 const player = { x: -4, y: 0, z: 4.5, vx: 0, vy: 0, team: 0, facing: 1 };
 const incoming = { x: -0.8, y: 5, z: 4.5, vx: -6, vy: -2, vz: 0 };
+// These trajectories exercise both sides of a deliberately wide receiving zone.
+const DEFAULTS = { ...USER_DEFAULTS, lowContactMin: 0.16, lowContactMax: 1.35 };
 
 test('lower hands prepare on the future contact side even when the ball is currently on the other side', () => {
   const target = predictedLowContact(player, incoming, DEFAULTS);
@@ -58,7 +60,7 @@ test('an already reachable ball uses its actual location; impossible future cont
 
 test('prepared lower hands receive the real incoming flight on either contact side without an early hit', () => {
   for (const vx of [-4.5, -5, -5.5, -6]) {
-    const m = new Match();
+    const m = new Match(DEFAULTS);
     m.reset('versus');
     m.phase = 'rally';
     const p = m.players[1];

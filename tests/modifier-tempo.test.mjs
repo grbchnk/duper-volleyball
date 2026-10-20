@@ -75,7 +75,7 @@ test('fixed-step forecast and laboratory agree on slower and faster arrival with
       ) < 0.03,
     );
     const ratio = (after.points.length - 1) / (before.points.length - 1);
-    assert.ok(Math.abs(ratio - 1 / after.impulse.flightTempo) < 0.03);
+    assert.ok(Math.abs(ratio - before.impulse.flightTempo / after.impulse.flightTempo) < 0.03);
     const landing = predictAtHeight({ ...after.ball, ...after.impulse }, 0.105, enabled, 15);
     assert.ok(Math.abs(landing.time - (after.points.length - 1) * FIXED_DT) < 0.025);
     assert.ok(Math.abs(landing.x - b.x) < 0.06);

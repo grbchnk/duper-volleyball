@@ -37,7 +37,12 @@ test('opponents may receive a serve and the serving team may receive their retur
     for (const receivingTeam of [1 - team, team]) {
       const p = m.players[receivingTeam * 3 + 1];
       m.cooldown = 0;
-      Object.assign(m.ball, { x: p.x, y: 1, vx: 0, vy: -1 });
+      Object.assign(m.ball, {
+        x: p.x,
+        y: (m.config.lowContactMin + m.config.lowContactMax) / 2,
+        vx: 0,
+        vy: -1,
+      });
       assert.equal(m.canContact(p, 'low'), true);
       assert.equal(
         m.makeContact(p, 'low', 0.5, { vx: -m.sign(receivingTeam) * 10, vy: 6, vz: 0 }),

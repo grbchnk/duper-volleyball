@@ -6,10 +6,7 @@
       "skill": 0,
       "side": 0,
       "finished": true,
-      "score": [
-        1,
-        5
-      ],
+      "score": [1, 5],
       "points": 1,
       "conceded": 5,
       "seconds": 67,
@@ -39,10 +36,7 @@
       "skill": 0,
       "side": 1,
       "finished": true,
-      "score": [
-        5,
-        0
-      ],
+      "score": [5, 0],
       "points": 0,
       "conceded": 5,
       "seconds": 56,
@@ -74,10 +68,7 @@
       "skill": 50,
       "side": 0,
       "finished": false,
-      "score": [
-        2,
-        2
-      ],
+      "score": [2, 2],
       "points": 2,
       "conceded": 2,
       "seconds": 200,
@@ -111,10 +102,7 @@
       "skill": 50,
       "side": 1,
       "finished": false,
-      "score": [
-        3,
-        2
-      ],
+      "score": [3, 2],
       "points": 2,
       "conceded": 3,
       "seconds": 200,
@@ -147,10 +135,7 @@
       "skill": 100,
       "side": 0,
       "finished": false,
-      "score": [
-        2,
-        1
-      ],
+      "score": [2, 1],
       "points": 2,
       "conceded": 1,
       "seconds": 200,
@@ -183,10 +168,7 @@
       "skill": 100,
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        4
-      ],
+      "score": [0, 4],
       "points": 4,
       "conceded": 0,
       "seconds": 200,

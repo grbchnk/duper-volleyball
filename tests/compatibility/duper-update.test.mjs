@@ -1,7 +1,7 @@
 import { DEFAULTS } from './legacy-contract.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FIXED_DT, sanitizeConfig } from '../../src/config.js';
+import { DEFAULTS as CURRENT, FIXED_DT, sanitizeConfig } from '../../src/config.js';
 import { InputBuffer } from '../../src/input.js';
 import { Match } from './legacy-contract.js';
 import { preparedHands } from '../../src/held-contact.js';
@@ -67,7 +67,7 @@ test('appearance and controls roundtrip through validated JSON', () => {
   });
   assert.deepEqual(sanitizeConfig(JSON.parse(JSON.stringify(config))), config);
   assert.equal(sanitizeConfig({ ballSize: 9, homeColor: 'red' }).ballSize, 1.8);
-  assert.equal(sanitizeConfig({ homeColor: 'red' }).homeColor, DEFAULTS.homeColor);
+  assert.equal(sanitizeConfig({ homeColor: 'red' }).homeColor, CURRENT.homeColor);
 });
 test('a missed fast ball hands control to the reachable teammate, on either side', () => {
   for (const team of [0, 1]) {
@@ -97,6 +97,7 @@ test('receiver selection excludes the last hitter and unavailable teammates', ()
   m.players[0].x = -7;
   m.lastTouch = 0;
   m.lastPlayer = 1;
+  m.incomingShot = 'loft';
   Object.assign(m.ball, { x: -4, y: 1, vx: -18, vy: -1 });
   assert.equal(nextReceiver(m, 0), 0);
   m.players[0].recovery = 1;

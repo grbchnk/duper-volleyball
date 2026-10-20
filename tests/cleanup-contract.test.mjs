@@ -28,7 +28,7 @@ test('old files migrate to three current actions without restoring retired contr
   assert.equal(migrated.dynamic, true);
   assert.equal(migrated.gravity, 12);
   assert.equal(migrated.homeColor, '#aabbcc');
-  assert.equal(migrated.armLength, 1);
+  assert.equal(migrated.armLength, DEFAULTS.armLength);
   for (const key of ['cartoonFlight', 'armStyle', 'rightStickAim', 'backSpeedMax'])
     assert.equal(Object.hasOwn(migrated, key), false);
   assert.deepEqual(Object.keys(SHOTS), ['low', 'loft', 'drive']);

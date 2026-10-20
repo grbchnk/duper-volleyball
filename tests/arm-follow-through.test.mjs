@@ -18,7 +18,10 @@ test('follow-through tuning preserves contact, controls travel and returns to re
     });
   for (const reach of [0, 5, 12]) {
     assert.deepEqual(pose(reach, 0).wrists[1], { x: 15, y: -40 });
-    assert.equal(pose(reach, 0.07).wrists[1].x, 15 + reach);
+    assert.equal(
+      pose(reach, 0.07).wrists[1].x,
+      15 + reach * ARM_STYLES.whip.size * DEFAULTS.armLength,
+    );
     assert.deepEqual(pose(reach, 1).wrists, pose(5, 1).wrists);
   }
   assert.equal(
@@ -59,7 +62,11 @@ test('R2 reuses the ordinary drive with the other striking hand and the same com
   ]) {
     const normal = pose({}, phase),
       fast = pose({ fast: true }, phase);
-    assert.deepEqual(fast.wrists, [...normal.wrists].reverse());
+    for (const [i, point] of fast.wrists.entries()) {
+      const expected = normal.wrists[1 - i];
+      assert.ok(Math.abs(point.x - expected.x) < 1e-10);
+      assert.ok(Math.abs(point.y - expected.y) < 1e-10);
+    }
     assert.deepEqual(pose({ fast: true, soft: true }, phase), pose({ soft: true }, phase));
     for (const point of fast.elbows)
       assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));

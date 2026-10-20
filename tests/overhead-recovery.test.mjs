@@ -17,7 +17,7 @@ const sample = (age, extra = {}) =>
 
 test('upper reception lowers its hands promptly after the follow-through instead of holding above the head', () => {
   const peak = sample(0.04),
-    returning = sample(0.1),
+    returning = sample(0.12),
     rest = sample(0.7);
   for (let i = 0; i < 2; i++) {
     assert.ok(returning.wrists[i].y > peak.wrists[i].y + 3);

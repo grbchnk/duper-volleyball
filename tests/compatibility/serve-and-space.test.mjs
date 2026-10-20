@@ -34,7 +34,7 @@ test('three face buttons select serves; soft modifier selects the lower scoop an
   assert.equal(input.read().low, false);
 });
 
-test('four serves have distinct windups and full charge only tosses before a fresh strike press', () => {
+test('four serves have distinct windups; release tosses before a fresh strike press', () => {
   const poses = new Set();
   let outs = 0;
   for (const kind of ['low', 'back', 'loft', 'drive']) {
@@ -46,10 +46,18 @@ test('four serves have distinct windups and full charge only tosses before a fre
     });
     poses.add(JSON.stringify(pose.wrists));
     const m = new Match();
-    while (m.phase === 'serve') m.tick(FIXED_DT, { [kind]: true });
-    while (m.phaseTime < m.serveAction.ideal - FIXED_DT * 2) m.tick(FIXED_DT, { [kind]: true });
-    assert.equal(m.stats.serves[0], 0);
+    for (let i = 0; i < 150; i++) m.tick(FIXED_DT, { [kind]: true });
+    assert.equal(m.phase, 'serve');
+    assert.equal(m.charge.power, 1);
     m.tick();
+    for (
+      let i = 0;
+      i < 500 && m.phase === 'serve-motion' && m.phaseTime < m.serveAction.ideal - FIXED_DT;
+      i++
+    )
+      m.tick();
+    assert.equal(m.phase, 'serve-motion');
+    assert.equal(m.stats.serves[0], 0);
     m.tick(FIXED_DT, { [kind]: true });
     assert.equal(m.stats.serves[0], 1, kind);
     assert.equal(m.players[0].armSwing.power, 1);
@@ -62,14 +70,15 @@ test('four serves have distinct windups and full charge only tosses before a fre
   assert.ok(outs > 0, 'maximum power must not be silently corrected into court');
 });
 
-test('retired analog shot fields cannot cap charge or bypass full-charge toss', () => {
+test('retired analog shot fields cannot cap charge or bypass release to toss', () => {
   const m = new Match();
-  for (let i = 0; i < 90; i++)
+  for (let i = 0; i < 150; i++)
     m.tick(FIXED_DT, { low: true, stickShot: 'low', stickStrength: 0.5 });
-  assert.equal(m.phase, 'serve-motion');
-  assert.equal(m.serveAction.power, 1);
+  assert.equal(m.phase, 'serve');
+  assert.equal(m.charge.power, 1);
   m.tick();
   assert.equal(m.phase, 'serve-motion');
+  assert.equal(m.serveAction.power, 1);
   assert.equal(m.stats.serves[0], 0);
 });
 
@@ -107,6 +116,7 @@ test('front player clears an overhead pass and returns after the next contact on
   for (const team of [0, 1]) {
     const m = new Match();
     m.startDrill('receive');
+    m.incomingShot = 'loft';
     const p = m.player(team, 'open');
     const x = p.x;
     Object.assign(m.ball, { x, y: 2.1 });

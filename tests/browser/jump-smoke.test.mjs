@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { DEFAULTS } from '../../src/config.js';
 
 test(
   'jump and smoke sliders work; smoke stays anchored after the receiver takes the ball',
@@ -25,8 +26,8 @@ test(
     const page = await browser.newPage({ viewport: { width: 1000, height: 1120 } });
     await page.goto(base);
     for (const [key, value] of Object.entries({
-      smokeTrailOpacity: '0.16',
-      smokeTrailLife: '1.2',
+      smokeTrailOpacity: String(DEFAULTS.smokeTrailOpacity),
+      smokeTrailLife: String(DEFAULTS.smokeTrailLife),
     })) {
       const slider = page.locator('#physics-' + key);
       await slider.waitFor({ state: 'attached' });
@@ -100,7 +101,7 @@ test(
       assert.equal(result.before[i].x, result.after[i].x);
       assert.equal(result.before[i].y, result.after[i].y);
       assert.ok(result.after[i].alpha < result.before[i].alpha);
-      assert.ok(result.before[i].alpha <= 0.16);
+      assert.ok(result.before[i].alpha <= DEFAULTS.smokeTrailOpacity);
     }
     await page.screenshot({ path: '.cache/jump-smoke-review.png', fullPage: true });
   },

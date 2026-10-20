@@ -78,7 +78,7 @@ for (const kind of ['loft']) {
     test(`${kind}: leaving the zone cancels even when ${release ? 'releasing' : 'holding'}`, () => {
       const { m, p, control } = ready(kind);
       m.tryHeldContact();
-      m.ball.y = p.y + (kind === 'low' ? 0.13 : 1.5);
+      m.ball.y = p.y + m.config[kind + 'ContactMin'] - 0.05;
       if (release) m.updateCharge(0.01, {}, () => false, control);
       else m.tryHeldContact();
       assert.equal(m.contacts, 0);

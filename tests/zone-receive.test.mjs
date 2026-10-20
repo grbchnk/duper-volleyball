@@ -7,7 +7,16 @@ import { expressivePose } from '../src/arm-motion.js';
 import { ARM_STYLES } from '../src/arms.js';
 
 function scenario(kind, delay = 0.08, extra = {}) {
-  const m = new Match({ ...DEFAULTS, [kind + 'ReceiveHoldTime']: delay, ...extra });
+  // Explicit zones keep timing and palm tests independent of the user's preset.
+  const m = new Match({
+    ...DEFAULTS,
+    lowContactMin: 0.16,
+    lowContactMax: 1.35,
+    loftContactMin: 1.65,
+    loftContactMax: 2.45,
+    [kind + 'ReceiveHoldTime']: delay,
+    ...extra,
+  });
   m.reset('test');
   const p = m.active();
   Object.assign(m.ball, { x: p.x + 0.2, y: kind === 'low' ? 1.25 : 2.4, vx: 0, vy: 0 });

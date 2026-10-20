@@ -12,6 +12,7 @@ import { DEFAULTS, COURT, FIXED_DT } from './config.js';
 import { SHOTS, SERVES, shotImpulse } from './moves.js';
 import { traceBall, isInside } from './physics.js';
 import { preparedHands } from './held-contact.js';
+import { contactBounds } from './contact-rules.js';
 import { drawOutCross } from './landing-visual.js';
 
 // Preview and playback share the match's impulse, fixed step and net collision.
@@ -53,10 +54,15 @@ export function simulateShot(
   match.lastPlayer = touchesBefore
     ? match.players.find((p) => p.team === player.team && p.id !== player.id).id
     : (1 - player.team) * 3;
+  const bounds = contactBounds(player, kind, config);
+  const preferredHeight = height + (kind === 'low' ? 0.85 : 2.05);
   const ball = {
     ...match.ball,
     x: player.x,
-    y: height + (contactHeight ?? (kind === 'low' ? 0.85 : 2.05)),
+    y:
+      contactHeight === null
+        ? Math.max(bounds.minY, Math.min(bounds.maxY, preferredHeight))
+        : height + contactHeight,
     z: player.z,
     vx: (player.team === 0 ? -1 : 1) * incomingSpeed * 0.8,
     vy: -incomingSpeed * 0.6,

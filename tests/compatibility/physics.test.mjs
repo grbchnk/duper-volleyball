@@ -52,7 +52,7 @@ test('untrusted configuration is bounded and rejects non-objects', () => {
   });
   assert.equal(c.gravity, 5);
   assert.equal(c.hitPower, 1.4);
-  assert.equal(c.gameSpeed, 1);
+  assert.equal(c.gameSpeed, sanitizeConfig({}).gameSpeed);
   assert.equal(c.scoring, 'rally');
   assert.equal(c.assist, true);
   assert.throws(() => sanitizeConfig(null));

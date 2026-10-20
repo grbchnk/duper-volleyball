@@ -75,6 +75,9 @@ test('every serve accepts explicit backward aim; neutral soft serve keeps its ta
 test('full power never hits for the human server without a new press', () => {
   for (const kind of ['low', 'back', 'loft', 'drive']) {
     const m = new Match();
+    for (let i = 0; i < 150; i++) m.tick(FIXED_DT, { [kind]: true });
+    assert.equal(m.phase, 'serve');
+    m.tick(FIXED_DT, {});
     for (let i = 0; i < 300 && !['point', 'set-end'].includes(m.phase); i++)
       m.tick(FIXED_DT, { [kind]: true });
     assert.equal(m.stats.serves[0], 0);

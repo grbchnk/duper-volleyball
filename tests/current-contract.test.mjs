@@ -7,6 +7,7 @@ import { simulateShot } from '../src/shot-lab.js';
 import { simulateServe } from '../src/serve-lab.js';
 import { importSettings, exportSettings } from '../src/settings-file.js';
 import { contactReason } from '../src/contact-rules.js';
+import { shotSettings } from '../src/shot-settings.js';
 import { captureScene, capture, restore } from '../src/replay.js';
 import { nextReceiver } from '../src/receiver-selection.js';
 import { challengeProfileKey, profileRecords } from '../src/records.js';
@@ -83,11 +84,24 @@ test('laboratory impulse equals the actual manual contact on both teams with eac
           }
 });
 
+test('laboratory defaults stay inside custom contact zones and explicit heights remain inspectable', () => {
+  for (const kind of ['low', 'loft', 'drive'])
+    for (const height of [0, 1.2]) {
+      const config = { ...DEFAULTS, [kind + 'ContactMin']: 0.4, [kind + 'ContactMax']: 0.6 };
+      const sample = simulateShot(config, { kind, height, power: 0.5 });
+      assert.equal(contactReason(sample.match, sample.player, kind, sample.ball), null);
+      const outside = simulateShot(config, { kind, height, power: 0.5, contactHeight: 1 });
+      assert.equal(outside.ball.y, height + 1);
+      assert.match(contactReason(outside.match, outside.player, kind, outside.ball), /высоко/);
+    }
+});
+
 test('contact diagnostics report the same rule used by gameplay', () => {
   const match = new Match();
   match.phase = 'rally';
   const p = match.players[0];
-  Object.assign(match.ball, { x: p.x, y: 1 });
+  const settings = shotSettings(match.config, 'low');
+  Object.assign(match.ball, { x: p.x, y: (settings.ContactMin + settings.ContactMax) / 2 });
   assert.equal(contactReason(match, p, 'low'), null);
   match.ball.y = 4;
   assert.equal(match.canContact(p, 'low'), false);

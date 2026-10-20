@@ -5,10 +5,7 @@
       "style": "patient",
       "side": 0,
       "finished": false,
-      "score": [
-        0,
-        0
-      ],
+      "score": [0, 0],
       "points": 0,
       "conceded": 0,
       "seconds": 200,
@@ -37,10 +34,7 @@
       "style": "patient",
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        1
-      ],
+      "score": [0, 1],
       "points": 1,
       "conceded": 0,
       "seconds": 200,
@@ -69,10 +63,7 @@
       "style": "deep",
       "side": 0,
       "finished": false,
-      "score": [
-        0,
-        1
-      ],
+      "score": [0, 1],
       "points": 0,
       "conceded": 1,
       "seconds": 200,
@@ -102,10 +93,7 @@
       "style": "deep",
       "side": 1,
       "finished": false,
-      "score": [
-        1,
-        0
-      ],
+      "score": [1, 0],
       "points": 0,
       "conceded": 1,
       "seconds": 200,
@@ -134,10 +122,7 @@
       "style": "blocker",
       "side": 0,
       "finished": false,
-      "score": [
-        2,
-        0
-      ],
+      "score": [2, 0],
       "points": 2,
       "conceded": 0,
       "seconds": 200,
@@ -169,10 +154,7 @@
       "style": "blocker",
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        3
-      ],
+      "score": [0, 3],
       "points": 3,
       "conceded": 0,
       "seconds": 200,
@@ -202,10 +184,7 @@
       "style": "balanced",
       "side": 0,
       "finished": false,
-      "score": [
-        2,
-        0
-      ],
+      "score": [2, 0],
       "points": 2,
       "conceded": 0,
       "seconds": 200,
@@ -236,10 +215,7 @@
       "style": "balanced",
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        2
-      ],
+      "score": [0, 2],
       "points": 2,
       "conceded": 0,
       "seconds": 200,
@@ -270,10 +246,7 @@
       "style": "quick",
       "side": 0,
       "finished": false,
-      "score": [
-        3,
-        0
-      ],
+      "score": [3, 0],
       "points": 3,
       "conceded": 0,
       "seconds": 200,
@@ -305,10 +278,7 @@
       "style": "quick",
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        3
-      ],
+      "score": [0, 3],
       "points": 3,
       "conceded": 0,
       "seconds": 200,
@@ -339,10 +309,7 @@
       "style": "trickster",
       "side": 0,
       "finished": false,
-      "score": [
-        3,
-        0
-      ],
+      "score": [3, 0],
       "points": 3,
       "conceded": 0,
       "seconds": 200,
@@ -372,10 +339,7 @@
       "style": "trickster",
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        3
-      ],
+      "score": [0, 3],
       "points": 3,
       "conceded": 0,
       "seconds": 200,
@@ -405,10 +369,7 @@
       "style": "adaptive",
       "side": 0,
       "finished": false,
-      "score": [
-        2,
-        1
-      ],
+      "score": [2, 1],
       "points": 2,
       "conceded": 1,
       "seconds": 200,
@@ -440,10 +401,7 @@
       "style": "adaptive",
       "side": 1,
       "finished": false,
-      "score": [
-        0,
-        4
-      ],
+      "score": [0, 4],
       "points": 4,
       "conceded": 0,
       "seconds": 200,

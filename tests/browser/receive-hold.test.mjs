@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
+import { DEFAULTS } from '../../src/config.js';
 
 test(
   'receive hold slider and rendered hands follow a freely falling ball',
@@ -26,7 +27,7 @@ test(
     await page.goto(base);
     const slider = page.locator('#physics-loftReceiveHoldTime');
     await slider.waitFor({ state: 'attached' });
-    assert.equal(await slider.inputValue(), '0.08');
+    assert.equal(await slider.inputValue(), String(DEFAULTS.loftReceiveHoldTime));
     assert.equal(await slider.getAttribute('max'), '0.25');
     await slider.evaluate((el) => {
       el.value = '0.12';
@@ -127,7 +128,7 @@ test(
         const m = new Match({ lowReceiveHoldTime: 0.08, loftReceiveHoldTime: 0.08 });
         m.reset('test');
         const p = m.active();
-        Object.assign(m.ball, { x: p.x + 0.2, y: kind === 'low' ? 1.25 : 2.4, vx: 0, vy: 0 });
+        Object.assign(m.ball, { x: p.x + 0.2, y: kind === 'low' ? 0.5 : 2.2, vx: 0, vy: 0 });
         const canvas = document.createElement('canvas');
         canvas.width = 960;
         canvas.height = 540;

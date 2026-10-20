@@ -190,7 +190,7 @@ test('steep attack from low contact is not magically lifted over net', () => {
     p = { ...player, y: 0 };
   const i = tacticalAttack(b, p, 'steep', 0.8, DEFAULTS);
   const end = traceBall({ ...b, ...i }, DEFAULTS, 6).at(-1);
-  assert.ok(end.x < 0);
+  assert.equal(end.netFault, true, 'a low attack crossing under the net is a fault');
   assert.match(i.feedback, /Низкий/);
 });
 test('contact location changes the shot continuously without random failures', () => {

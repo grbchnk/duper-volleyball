@@ -54,7 +54,7 @@ test('pass assistance blends direction at constant power and zero is fully manua
 });
 
 test('pass assistance is bounded and survives settings export without breaking old saves', () => {
-  assert.equal(sanitizeConfig({}).passAssist, 1);
+  assert.equal(sanitizeConfig({}).passAssist, 0.5);
   assert.equal(sanitizeConfig({ passAssist: -1 }).passAssist, 0);
   assert.equal(sanitizeConfig({ passAssist: 5 }).passAssist, 1);
   assert.equal(sanitizeConfig(JSON.parse(JSON.stringify({ passAssist: 0.35 }))).passAssist, 0.35);

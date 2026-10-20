@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
+import { DEFAULTS } from '../../src/config.js';
 
 test(
   'labs: shared tuning, navigation, contact heights, bounded input and live arm preview',
@@ -51,7 +52,12 @@ test(
       await settleSettings(page);
       assert.equal(
         await page.locator('#shot-contact-height').inputValue(),
-        kind === 'low' ? '0.85' : kind === 'back' ? '1' : '2.05',
+        String(
+          Math.max(
+            DEFAULTS[kind + 'ContactMin'],
+            Math.min(DEFAULTS[kind + 'ContactMax'], kind === 'low' ? 0.85 : 2.05),
+          ),
+        ),
       );
       for (const player of ['1', '4']) {
         await page.locator('#shot-player').selectOption(player);
@@ -96,7 +102,10 @@ test(
     }
     await page.locator('#shot-mode').selectOption('rally');
     await settleSettings(page);
-    assert.equal(await page.locator('#shot-contact-height').inputValue(), '2.05');
+    assert.equal(
+      await page.locator('#shot-contact-height').inputValue(),
+      String(DEFAULTS.driveContactMax),
+    );
     await mkdir('.cache/labs', { recursive: true });
     assert.equal(await page.locator('#shot-shared-gravity').count(), 0);
     await page.locator('.shot-controls').evaluate((el) => {

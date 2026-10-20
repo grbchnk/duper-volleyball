@@ -30,7 +30,7 @@ test('optional hold duration increases jump height, while the default jump ignor
   assert.ok(Math.abs(jumpHeight(false, 1) - jumpHeight(false, 70)) < 0.002);
   assert.equal(sanitizeConfig({}).variableJump, false);
   assert.equal(
-    sanitizeConfig(JSON.parse(JSON.stringify({ variableJump: true }))).variableJump,
+    sanitizeConfig(JSON.parse(JSON.stringify({ dynamic: false, variableJump: true }))).variableJump,
     true,
   );
 });
