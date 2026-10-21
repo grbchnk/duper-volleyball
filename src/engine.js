@@ -327,6 +327,7 @@ export class Match {
     return this.players[this.selected[team]];
   }
   emit(type, data = {}) {
+    if (this.training && ['serve-ready', 'whistle', 'point'].includes(type)) return;
     this.events.push({ type, time: this.time, ...data });
     if (this.events.length > 80) this.events.shift();
   }
@@ -1730,6 +1731,7 @@ export class Match {
   }
   movePlayer(p, dt, raw) {
     if (p.benched) return;
+    if (this.tutorialScriptedOpponents && p.team === 1) return;
     if (
       (this.phase === 'serve' || this.phase === 'serve-motion') &&
       p.id === this.serverPlayer().id
@@ -1822,6 +1824,7 @@ export class Match {
       p.facing = -this.sign(p.team);
       const j = jumpProfile(this.config);
       if (
+        !run.reception &&
         Math.abs(p.x - target) < 0.45 &&
         run.at - this.time < j.windup + j.rise + (p.id === run.decoyId ? 0.2 : 0)
       )
@@ -2029,6 +2032,7 @@ export class Match {
       };
   }
   updateCPU() {
+    if (this.tutorialScriptedOpponents) return;
     if (this.cpuBlockPlan && this.time >= this.cpuBlockPlan.at) {
       const plan = this.cpuBlockPlan;
       this.cpuBlockPlan = null;
@@ -2348,6 +2352,10 @@ export class Match {
     if (this.trail.length > 15) this.trail.shift();
   }
   point(winner, reason, contactPlayer = null) {
+    if (this.training) {
+      this.training.onPoint(reason);
+      return;
+    }
     if (['point', 'set-end', 'finished'].includes(this.phase)) return;
     if (this.challenge) {
       resolveChallenge(this, reason);

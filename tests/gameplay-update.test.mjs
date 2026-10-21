@@ -41,8 +41,12 @@ test('neutral passes on either team retain speed while correcting towards nearby
     assert.notEqual(target.id, playerId);
     assert.ok(
       Math.abs(
-        predictAtHeight({ ...sample.ball, ...sample.impulse }, 2.8, c, 4 / c.ballSpeed).x -
-          target.x,
+        predictAtHeight(
+          { ...sample.ball, ...sample.impulse },
+          sample.impulse.assistTarget.y,
+          c,
+          4 / c.ballSpeed,
+        ).x - sample.impulse.targetX,
       ) < 0.8,
     );
   }

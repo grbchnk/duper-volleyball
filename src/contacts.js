@@ -197,6 +197,7 @@ export function makeContact(match, p, kind, power, impulse) {
           at: match.time + impulse.arrival,
           decoyId: impulse.decoyId,
           intent: impulse.intent,
+          reception: !!impulse.reception,
         }
       : null;
   if (impulse.feint && match.teamRuns[team]) {

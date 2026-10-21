@@ -1,5 +1,5 @@
-import { traceBall, launchTo } from './physics.js';
-import { coachFor, controllerGraphic, resultGraphic } from './tutorial-visuals.js';
+import { TutorialSession } from './tutorial-session.js';
+import { coachFor, controlIcon } from './tutorial-visuals.js';
 
 // Short, controller-first chapters; keyboard testing uses the unchanged input bindings.
 export const LESSONS = [
@@ -7,38 +7,50 @@ export const LESSONS = [
     id: 'move',
     title: 'Движение и прыжок',
     drill: 'footwork',
-    demo: 'move',
     goals: [
-      {
-        id: 'walk',
-        label: 'Пройти 1 метр',
-      },
-      {
-        id: 'jump',
-        label: 'Прыгнуть',
-      },
+      { id: 'walk-left', label: 'Левая отметка', x: -8 },
+      { id: 'walk-right', label: 'Правая отметка', x: -2 },
+      { id: 'jump-left', label: 'Алмаз слева', x: -7.5, y: 3 },
+      { id: 'jump-right', label: 'Алмаз справа', x: -2.5, y: 3 },
     ],
   },
   {
     id: 'receive',
-    title: 'Приём: слабый пас и высокий навес',
+    title: 'Три приёма',
     drill: 'receive',
-    demo: 'pass',
     goals: [
-      {
-        id: 'weak',
-        label: 'Слабый нижний пас · до 60%',
-        kind: 'low',
-        soft: true,
-        maxPower: 0.6,
-      },
-      {
-        id: 'high',
-        label: 'Сильный верхний навес · от 65%',
-        kind: 'loft',
-        minPower: 0.65,
-        high: true,
-      },
+      { id: 'basic-low', label: 'Нижний пас', kind: 'low' },
+      { id: 'basic-loft', label: 'Верхний пас', kind: 'loft' },
+      { id: 'basic-drive', label: 'Удар', kind: 'drive' },
+    ],
+  },
+  {
+    id: 'streak',
+    title: 'Пять мячей подряд',
+    drill: 'receive',
+    goals: Array.from({ length: 5 }, (_, i) => ({
+      id: 'catch-' + i,
+      label: 'Приём ' + (i + 1),
+      any: true,
+    })),
+  },
+  {
+    id: 'block',
+    title: 'Блок и защита',
+    drill: 'block',
+    goals: [
+      { id: 'block', label: 'Блок у сетки' },
+      { id: 'defend', label: 'Нижний приём в защите', kind: 'low' },
+    ],
+  },
+  {
+    id: 'power',
+    title: 'Сила и направление',
+    drill: 'set',
+    goals: [
+      { id: 'gem-0', label: 'Близкая цель', x: -5, y: 3.4 },
+      { id: 'gem-1', label: 'Высокая цель', x: -3.5, y: 4.6 },
+      { id: 'gem-2', label: 'Дальняя цель', x: -7, y: 5.4 },
     ],
   },
   {
@@ -170,18 +182,6 @@ export const LESSONS = [
     ],
   },
   {
-    id: 'block',
-    title: 'Блок у сетки',
-    drill: 'block',
-    demo: 'block',
-    goals: [
-      {
-        id: 'block',
-        label: 'Заблокировать учебный мяч',
-      },
-    ],
-  },
-  {
     id: 'one-hand',
     title: 'Приём одной рукой',
     drill: 'receive',
@@ -231,316 +231,9 @@ export const LESSONS = [
   },
 ];
 
-export class Tutorial {
+export class Tutorial extends TutorialSession {
   constructor(match) {
-    this.match = match;
-    this.index = -1;
-  }
-  get active() {
-    return this.index >= 0;
-  }
-  get lesson() {
-    return LESSONS[this.index];
-  }
-  get objective() {
-    return this.lesson?.goals[this.completed];
-  }
-  get frozen() {
-    return this.active && (this.menuOpen || this.phase !== 'practice');
-  }
-  start() {
-    this.index = 0;
-    this.enter();
-  }
-  leave() {
-    if (this.savedBenched)
-      this.match.players.forEach((p, i) => {
-        p.benched = this.savedBenched[i];
-      });
-    this.savedBenched = null;
-    this.index = -1;
-    this.menuOpen = false;
-    this.match.tutorialNoBall = false;
-  }
-  enter() {
-    this.completed = 0;
-    this.ready = false;
-    this.phase = 'explain';
-    this.phaseAge = 0;
-    this.menuOpen = false;
-    this.previousPasser = null;
-    this.savedBenched ??= this.match.players.map((p) => p.benched);
-    this.setup();
-    this.feedback = this.objective.label;
-  }
-  setup() {
-    const m = this.match,
-      g = this.objective;
-    let drill = this.lesson.drill;
-    if (this.lesson.id === 'receive') drill = g.kind === 'loft' ? 'set' : 'receive';
-    if (this.lesson.id === 'attack' && this.completed) drill = 'spike';
-    if (g.id === 'dive-left') drill = 'dive-back';
-    m.startDrill(drill);
-    m.clearControls();
-    m.tutorialNoBall = drill === 'footwork';
-    m.players.forEach((p) => {
-      p.benched = p.team === 1;
-    });
-    if (this.lesson.id === 'rally') {
-      m.players[0].benched = true;
-      m.players[1].x = -6;
-      m.players[2].x = -3;
-      m.selected[0] = 1;
-    }
-    if (drill === 'spike') m.selected[0] = 2;
-    this.startPlayer = m.selected[0];
-    // Keep the demonstrated receiver selected until the first real contact.
-    m.controls[0].manualSerial = m.shotSerial;
-    this.startX = m.players[this.startPlayer].x;
-    this.startedAt = m.time;
-    this.seenContact = m.lastContact;
-    this.blocks = m.stats.blocks[0];
-    if (drill === 'block') {
-      Object.assign(m.ball, { x: 7, y: 3.6 });
-      launchTo(m.ball, { x: -5, y: 0.2, z: 4.5 }, 1.3 / m.config.ballSpeed, m.config);
-    }
-    this.pending = null;
-    this.retryAfter = null;
-    if (g.kind && !g.serve && !g.across) {
-      if (g.exchange && this.previousPasser != null) {
-        m.selected[0] = this.previousPasser === 1 ? 2 : 1;
-        this.startPlayer = m.selected[0];
-      }
-      const p = m.players[this.startPlayer];
-      const upper = g.kind === 'loft';
-      Object.assign(m.ball, {
-        x: p.x + (upper ? 0 : 0.65),
-        y: upper ? 5.4 : 3.6,
-        vx: 0,
-        vy: 0,
-        vz: 0,
-      });
-      // This is an illustration; the live ball still obeys configured physics.
-      this.origin = { x: m.ball.x, y: upper ? 2 : 1 };
-      const partner = m.players
-        .filter((q) => q.team === 0 && !q.benched && q.id !== p.id)
-        .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
-      this.target = { x: partner.x, y: upper ? 3 : 2 };
-    } else if (g.across || g.serve) {
-      this.origin = { x: m.ball.x, y: g.serve ? 1.5 : 3.6 };
-      this.target = { x: 4, y: 0.5 };
-    } else {
-      this.origin = this.target = null;
-    }
-  }
-  begin(retry = false) {
-    if (!this.active || this.ready) return;
-    if (this.lesson.id === 'rally') {
-      this.previousPasser = null;
-      this.completed = 0;
-    }
-    this.setup();
-    this.phase = 'countdown';
-    this.countdown = retry ? 1.2 : this.lesson.drill === 'footwork' ? 0 : 3;
-    this.phaseAge = 0;
-    if (!this.countdown) this.phase = 'practice';
-    this.input = {};
-  }
-  advance(dt) {
-    if (!this.active || this.menuOpen) return;
-    this.phaseAge = (this.phaseAge || 0) + dt;
-    if (this.phase === 'explain') {
-      const duration = this.lesson.id === 'move' ? 3 : this.lesson.id === 'serve' ? 5.5 : 4.2;
-      if (this.phaseAge >= duration) this.begin();
-    } else if (this.phase === 'success') {
-      if (this.index < LESSONS.length - 1 && this.phaseAge >= 1.4) this.next();
-    } else if (this.phase === 'countdown') {
-      this.countdown = Math.max(0, this.countdown - dt);
-      if (!this.countdown) {
-        this.phase = 'practice';
-        this.phaseAge = 0;
-        this.match.clearControls();
-      }
-    }
-  }
-  complete() {
-    this.completed++;
-    if (this.completed === this.lesson.goals.length) {
-      this.ready = true;
-      this.phase = 'success';
-      this.phaseAge = 0;
-      this.feedback = 'Этап пройден!';
-    } else {
-      this.feedback = 'Получилось! Следующая задача: ' + this.objective.label;
-      // Upper-pass exchanges and set→attack continue with the actual live ball.
-      if (['rally', 'attack'].includes(this.lesson.id)) {
-        this.origin = { x: this.match.ball.x, y: this.match.ball.y };
-        const receiver = this.match.players[this.match.selected[0]];
-        this.target = this.lesson.id === 'attack' ? { x: 4, y: 0.5 } : { x: receiver.x, y: 2.2 };
-        this.phaseAge = 0;
-        return;
-      }
-      if (['move', 'switch'].includes(this.lesson.id)) return;
-      this.setup();
-      this.phase = 'explain';
-      this.phaseAge = 0;
-    }
-  }
-  observe(input) {
-    if (!this.active) return;
-    this.input = input;
-    if (this.frozen) return;
-    const m = this.match,
-      g = this.objective;
-    if (g.id === 'walk' && Math.abs(m.players[this.startPlayer].x - this.startX) >= 1)
-      this.complete();
-    else if (g.id === 'jump' && m.players[m.selected[0]].y > 0.35) this.complete();
-    else if (g.id === 'switch' && m.selected[0] !== this.startPlayer) this.complete();
-    else if (g.id === 'crouch' && m.players[m.selected[0]].crouchAmount > 0.75) this.complete();
-    else if (g.id === 'block' && m.stats.blocks[0] > this.blocks) this.complete();
-    if (this.ready) return;
-    const contact = m.lastContact;
-    if (contact && contact !== this.seenContact && contact.time >= this.startedAt) {
-      this.seenContact = contact;
-      if (contact.team === 0) this.checkContact(contact);
-    }
-    if (this.ready) return;
-    if (this.pending) {
-      if (m.ball.x > 0.3 && m.ball.y > 0.2 && m.lastTouch === 0) {
-        this.pending = null;
-        this.complete();
-      }
-    }
-    if (this.ready) return;
-    if (
-      m.phase === 'point' ||
-      m.time - this.startedAt > 12 ||
-      (this.retryAfter && m.time >= this.retryAfter)
-    ) {
-      const feedback = this.feedback;
-      this.begin(true);
-      this.feedback =
-        this.lesson.id === 'rally'
-          ? 'Серия прервана · 0 / 5. Начни пять передач заново.'
-          : 'Ещё попытка. ' + feedback;
-    }
-  }
-  checkContact(c) {
-    const g = this.objective,
-      m = this.match;
-    if (!g.kind && !g.save) return;
-    let error =
-      c.serve !== !!g.serve
-        ? 'Сейчас нужна другая техника.'
-        : g.kind && c.kind !== g.kind
-          ? 'Используй кнопку текущего задания.'
-          : g.soft && c.modifier !== 'soft'
-            ? 'Удерживай L2 при контакте.'
-            : g.fast && c.modifier !== 'fast'
-              ? 'Удерживай R2 при контакте.'
-              : g.maxPower && c.power > g.maxPower
-                ? 'Слишком сильно: нажми короче.'
-                : g.minPower && c.power < g.minPower
-                  ? 'Нужно сильнее: начни заряжать раньше.'
-                  : g.airborne && !c.airborne
-                    ? 'Для атаки нужно прыгнуть.'
-                    : g.save && !c.save
-                      ? 'Нужно коснуться мяча в броске.'
-                      : g.exchange && c.playerId === this.previousPasser
-                        ? 'Передачу должен выполнить другой игрок.'
-                        : '';
-    if (!error && g.high && Math.max(...traceBall(m.ball, m.config, 4).map((p) => p.y)) < 4.5)
-      error = 'Навес низкий. Отклони левый стик вверх.';
-    if (!error && !g.serve && !g.across && !g.save && c.vy <= 0)
-      error = 'Подними мяч вверх к партнёру.';
-    if (error) {
-      if (this.lesson.id === 'rally') {
-        this.begin(true);
-        this.feedback = 'Серия прервана · 0 / 5. ' + error;
-        return;
-      }
-      this.feedback = error;
-      this.retryAfter = m.time + 1.5;
-      return;
-    }
-    this.retryAfter = null;
-    if (g.across || g.serve) {
-      this.pending = true;
-      this.feedback = 'Есть касание. Мяч должен перелететь сетку.';
-    } else {
-      if (g.exchange) {
-        // The passing exercise permits more than three team touches; all physical
-        // contacts and the same-player restriction still use normal game rules.
-        m.touches[0] = 0;
-        this.startedAt = m.time;
-        // Count a delivered pass only when its recipient makes the next contact.
-        if (this.previousPasser == null) {
-          this.previousPasser = c.playerId;
-          this.feedback = 'Теперь прими пас другим игроком.';
-          return;
-        }
-        this.previousPasser = c.playerId;
-      }
-      this.complete();
-    }
-  }
-  next() {
-    if (!this.ready) return false;
-    if (this.index === LESSONS.length - 1) {
-      this.leave();
-      return true;
-    }
-    this.index++;
-    this.enter();
-    return true;
-  }
-  draw(renderer) {
-    if (
-      this.active &&
-      this.objective?.id === 'walk' &&
-      this.phase === 'practice' &&
-      !this.menuOpen
-    ) {
-      const c = renderer.ctx;
-      c.save();
-      c.strokeStyle = '#3c9c7d';
-      c.lineWidth = 2;
-      c.setLineDash([4, 4]);
-      for (const direction of [-1, 1]) {
-        const p = renderer.project(this.startX + direction * 1.2, 0);
-        c.beginPath();
-        c.ellipse(p.x, p.y, 16, 6, 0, 0, Math.PI * 2);
-        c.stroke();
-      }
-      c.restore();
-    }
-    if (
-      !this.active ||
-      !this.origin ||
-      this.menuOpen ||
-      (this.phase === 'practice' && this.phaseAge > 3)
-    )
-      return;
-    const c = renderer.ctx,
-      a = renderer.project(this.origin.x, this.origin.y),
-      b = renderer.project(this.target.x, this.target.y);
-    c.save();
-    c.strokeStyle = '#237b69';
-    c.fillStyle = '#237b6925';
-    c.lineWidth = 2;
-    c.fillRect(b.x - 22, b.y - 25, 44, 50);
-    c.strokeRect(b.x - 22, b.y - 25, 44, 50);
-    c.setLineDash([6, 6]);
-    c.beginPath();
-    c.moveTo(a.x, a.y);
-    c.quadraticCurveTo((a.x + b.x) / 2, Math.min(a.y, b.y) - 65, b.x, b.y);
-    c.stroke();
-    c.setLineDash([]);
-    c.fillStyle = '#155b4b';
-    c.font = 'bold 12px sans-serif';
-    c.textAlign = 'center';
-    c.fillText('ЦЕЛЬ', b.x, b.y - 34);
-    c.restore();
+    super(match, LESSONS);
   }
 }
 
@@ -552,20 +245,12 @@ export function createTutorial(match, hooks) {
   panel.className = 'tutorial-overlay';
   panel.hidden = true;
   panel.setAttribute('aria-label', 'Обучение с геймпадом');
-  panel.innerHTML = `<header class="tutorial-topbar"><div><small>ШКОЛА ВОЛЕЙБОЛА</small><strong id="tutorial-title"></strong></div>
-    <progress id="tutorial-progress" max="${LESSONS.length}" value="0" aria-label="Прогресс курса"></progress>
-    <button id="tutorial-menu-toggle" aria-label="Меню обучения"><span class="pad-option">Options</span> Меню</button></header>
-    <article class="tutorial-coach"><div class="tutorial-coach-heading"><span id="tutorial-stage"></span><span id="tutorial-step-count"></span></div>
-    <h2 id="tutorial-objective"></h2><div class="tutorial-demonstration"><div id="tutorial-pad"></div><div id="tutorial-demo"></div></div>
-    <p id="tutorial-hint"></p><ol id="tutorial-goals" class="tutorial-goals" aria-label="Задачи этапа"></ol>
-    <div class="tutorial-power"><span>Сила</span><div class="tutorial-power-track"><span class="tutorial-power-target"></span><meter id="tutorial-power" min="0" max="1" value="0"></meter></div><output id="tutorial-power-value">0%</output></div>
-    <p id="tutorial-result" role="status" aria-live="polite"></p>
-    <footer class="tutorial-coach-actions"><button id="tutorial-begin"><span class="pad-key pad-cross">✕</span> Пропустить показ</button>
-    <button id="tutorial-next" hidden><span class="pad-key pad-cross">✕</span> Дальше</button><span id="tutorial-auto"></span></footer></article>
-    <div id="tutorial-countdown" class="tutorial-countdown" hidden><strong></strong><span>Приготовься</span></div>
-    <div id="tutorial-menu" class="tutorial-menu" hidden><div class="tutorial-menu-card"><h2>Твой темп, твой урок</h2><p>Левый стик — выбор · ✕ — открыть · ○ — вернуться</p>
-    <div id="tutorial-menu-items"><button id="tutorial-resume">Вернуться на площадку</button><button id="tutorial-repeat">Показать этот приём снова</button>
-    <div id="tutorial-chapters"></div><button id="tutorial-exit">Закончить обучение · играть матч</button></div></div></div>`;
+  panel.innerHTML = `<header class="tutorial-topbar"><strong id="tutorial-title"></strong><progress id="tutorial-progress" max="${LESSONS.length}"></progress><button id="tutorial-menu-toggle"><span class="pad-option">Options</span></button></header>
+    <article class="training-cues"><div id="tutorial-pad"></div><div class="serve-rhythm" aria-label="Заряди, подбрось, нажми снова"><span><i class="rhythm-charge"></i>Зажми</span><span><i class="rhythm-ball"></i>Отпусти</span><span><i class="rhythm-tap"></i>Нажми</span></div><p id="tutorial-hint"></p><ol id="tutorial-goals" aria-label="Задачи этапа"></ol>
+    <div class="tutorial-power"><span>Сила</span><meter id="tutorial-power" min="0" max="1"></meter><output id="tutorial-power-value"></output></div>
+    <button id="tutorial-next" hidden>Играть матч</button></article>
+    <div id="tutorial-menu" class="tutorial-menu" hidden><div class="tutorial-menu-card"><h2>Выбрать упражнение</h2><p>Стик — выбор · крестик — открыть · круг — вернуться</p>
+    <div id="tutorial-menu-items"><button id="tutorial-resume">Вернуться на площадку</button><button id="tutorial-repeat">Начать упражнение заново</button><div id="tutorial-chapters"></div><button id="tutorial-exit">Закончить обучение · играть матч</button></div></div></div>`;
   arena.append(panel);
   const find = (id) => panel.querySelector('#tutorial-' + id);
   LESSONS.forEach((lesson, index) => {
@@ -636,49 +321,66 @@ export function createTutorial(match, hooks) {
       fit();
     }
     const lesson = session.lesson,
-      current = session.objective || lesson.goals.at(-1),
-      coach = coachFor(lesson, current);
-    if (lesson.id === 'attack' && current.id === 'set' && session.phase !== 'practice') {
-      coach.controls = ['triangle', 'cross', 'circle'];
-      coach.sequence = true;
-    }
+      current = session.objective || lesson.goals.at(-1);
+    const coach = coachFor(lesson, current);
     panel.dataset.phase = session.phase;
     panel.dataset.motion = coach.motion;
+    panel.dataset.lesson = lesson.id;
     panel.dataset.menu = String(!!session.menuOpen);
-    find('title').textContent = `${session.index + 1} / ${LESSONS.length} · ${lesson.title}`;
+    panel.classList.toggle('streak-reset', match.time - (session.resetAt ?? -10) < 0.45);
+    find('title').textContent = lesson.id === 'move' ? '' : lesson.title;
     find('progress').value = session.index + Number(session.ready);
-    find('stage').textContent = {
-      explain: 'Смотри и пробуй',
-      countdown: 'Приготовься',
-      practice: 'Твоя очередь',
-      success: 'Получилось!',
-    }[session.phase];
-    find('step-count').textContent =
-      lesson.id === 'rally'
-        ? `${session.completed} / 5 подряд`
-        : `${Math.min(session.completed + 1, lesson.goals.length)} / ${lesson.goals.length}`;
-    find('objective').textContent = session.ready
-      ? session.index === LESSONS.length - 1
-        ? 'Ты готов к матчу!'
-        : 'Отлично, идём дальше!'
-      : coach.title;
-    find('hint').textContent = session.ready
-      ? session.index === LESSONS.length - 1
-        ? 'Все приёмы освоены. Время выйти на площадку.'
-        : 'Следующий приём откроется сам.'
-      : coach.hint;
-    const nextStamp = `${session.index}:${session.completed}:${!!coach.sequence}`;
+    const controls =
+      lesson.id === 'move'
+        ? ['stick', 'cross']
+        : lesson.id === 'block'
+          ? ['r1', 'square']
+          : lesson.id === 'receive' || lesson.id === 'streak'
+            ? ['square', 'triangle', 'circle']
+            : coach.controls;
+    const labels = {
+      stick:
+        lesson.id === 'power'
+          ? 'Направление'
+          : lesson.id === 'dive'
+            ? 'Три отклонения'
+            : current.id === 'crouch'
+              ? 'Вниз'
+              : 'Ходить',
+      cross: 'Прыжок',
+      square: lesson.id === 'block' ? 'Задний игрок' : 'Нижний пас',
+      triangle: 'Верхний пас',
+      circle: 'Удар',
+      l1: 'Смена игрока',
+      r1: 'Блок',
+      l2: 'Мягко',
+      r2: 'Быстро',
+    };
+    const nextStamp = session.index + ':' + controls.join();
     if (stamp !== nextStamp) {
       stamp = nextStamp;
-      find('pad').innerHTML = controllerGraphic(coach);
-      find('demo').innerHTML = resultGraphic(coach);
-      find('goals').innerHTML = lesson.goals
+      find('pad').innerHTML = controls
         .map(
-          (g, i) =>
-            `<li class="${i < session.completed ? 'done' : i === session.completed ? 'current' : ''}" aria-label="${g.label}${i < session.completed ? ' — выполнено' : ''}"><span>${i < session.completed ? '✓' : i + 1}</span></li>`,
+          (id) =>
+            `<div class="training-control" data-kind="${id}">${controlIcon(id)}<span>${labels[id]}</span>${['receive', 'block'].includes(lesson.id) ? '<i class="control-check"></i>' : ''}</div>`,
         )
         .join('');
+      find('goals').innerHTML = lesson.goals
+        .map((g) => `<li aria-label="${g.label}"><span></span></li>`)
+        .join('');
     }
+    find('hint').textContent = ['move', 'receive'].includes(lesson.id) ? '' : coach.hint;
+    [...find('goals').children].forEach((el, i) => {
+      const done = session.done.has(i);
+      el.classList.toggle('done', done);
+      el.firstElementChild.textContent = done ? '✓' : '';
+      el.setAttribute('aria-label', lesson.goals[i].label + (done ? ' — выполнено' : ''));
+    });
+    if (['receive', 'block'].includes(lesson.id))
+      [...find('pad').children].forEach((el, i) => {
+        el.classList.toggle('done', session.done.has(i));
+        el.querySelector('.control-check').textContent = session.done.has(i) ? '✓' : '';
+      });
     const input = session.input || {},
       vector = input.buttonVector || { x: input.axis || 0, y: input.crouch ? -1 : 0 };
     const held = {
@@ -689,44 +391,15 @@ export function createTutorial(match, hooks) {
       circle: input.drive,
       l1: input.switch,
       r1: input.block,
-      l2: input.l2 || input.intent === 'soft',
-      r2: input.r2 || input.intent === 'fast',
+      l2: input.l2,
+      r2: input.r2,
     };
-    for (const element of find('pad').querySelectorAll('[data-control]'))
-      element.classList.toggle(
-        'is-pressed',
-        session.phase === 'practice' && !!held[element.dataset.control],
-      );
-    find('pad').style.setProperty('--stick-x', `${(vector.x || 0) * 13}px`);
-    find('pad').style.setProperty('--stick-y', `${-(vector.y || 0) * 13}px`);
+    for (const el of find('pad').querySelectorAll('[data-control]'))
+      el.classList.toggle('is-pressed', !!held[el.dataset.control]);
     const power = match.controls[0].charge?.power || match.controls[0].pending?.power || 0;
     find('power').value = power;
-    find('power-value').textContent = `${Math.round(power * 100)}%`;
-    panel.style.setProperty('--power-min', `${(current.minPower || 0) * 100}%`);
-    panel.style.setProperty('--power-max', `${(current.maxPower || 1) * 100}%`);
-    const message =
-      session.phase === 'countdown'
-        ? 'Смотри на мяч и приготовь нужную кнопку.'
-        : session.ready
-          ? '✓ Все задачи выполнены.'
-          : session.phase === 'explain'
-            ? 'Сейчас покажем — затем твоя очередь.'
-            : session.feedback === current.label
-              ? ''
-              : session.feedback;
-    if (find('result').textContent !== message) find('result').textContent = message;
-    find('begin').hidden = session.phase !== 'explain';
-    find('next').hidden = !session.ready;
-    find('next').innerHTML =
-      `<span class="pad-key pad-cross">✕</span> ${session.index === LESSONS.length - 1 ? 'Играть матч' : 'Дальше'}`;
-    find('auto').textContent =
-      session.phase === 'explain'
-        ? 'Начнётся автоматически'
-        : session.ready && session.index < LESSONS.length - 1
-          ? 'Переходим дальше…'
-          : '';
-    find('countdown').hidden = session.phase !== 'countdown' || session.menuOpen;
-    find('countdown').querySelector('strong').textContent = Math.ceil(session.countdown) || '→';
+    find('power-value').textContent = Math.round(power * 100) + '%';
+    find('next').hidden = !(session.ready && session.index === LESSONS.length - 1);
     find('menu').hidden = !session.menuOpen;
     if (session.menuOpen) {
       menuButtons().forEach((button, i) => {
@@ -750,11 +423,6 @@ export function createTutorial(match, hooks) {
     session.leave();
     sync();
     hooks.finish();
-  };
-  find('begin').onclick = () => {
-    session.begin();
-    sync();
-    focusGame();
   };
   find('next').onclick = () => {
     if (!session.next()) return;
@@ -783,7 +451,10 @@ export function createTutorial(match, hooks) {
       return session.frozen;
     },
     get canConfirm() {
-      return session.active && (session.menuOpen || session.ready || session.phase === 'explain');
+      return (
+        session.active &&
+        (session.menuOpen || (session.ready && session.index === LESSONS.length - 1))
+      );
     },
     toggleMenu,
     handleNavigation(input, dt) {
@@ -814,7 +485,6 @@ export function createTutorial(match, hooks) {
     confirm() {
       if (session.menuOpen) menuButtons()[menuIndex].click();
       else if (session.ready) find('next').click();
-      else if (session.phase === 'explain') find('begin').click();
     },
     retry() {
       if (!session.active) return;

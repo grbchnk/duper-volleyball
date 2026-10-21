@@ -1,4 +1,4 @@
-const transient = new Set(['replay', 'events', 'inputs', 'receiverForecast']);
+const transient = new Set(['replay', 'events', 'inputs', 'receiverForecast', 'training']);
 const sceneKeys = [
   'ball',
   'players',

@@ -11,7 +11,7 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
   if (aim.cpuControl) return result;
 
   const directed = hasShotDirection(aim);
-  const amount = clamp(
+  let amount = clamp(
     kind === 'drive'
       ? directed
         ? 0
@@ -22,10 +22,13 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
   );
   const speed = Math.hypot(result.vx, result.vy);
   if (!amount || speed < 0.1) return result;
+  // With no directional request the target is the intent, not a halfway turn
+  // towards it (which used to send backward passes away from both players).
+  if (!directed && kind !== 'drive') amount = 1;
   const original = Math.atan2(result.vy, result.vx);
   const forward = player.team === 0 ? 1 : -1;
   const rotate = (desired, details) => {
-    const limit = kind === 'drive' ? Math.PI : ((directed ? 12 : 75) * Math.PI) / 180;
+    const limit = kind === 'drive' || !directed ? Math.PI : (12 * Math.PI) / 180;
     const delta = clamp(turn(desired, original), -limit, limit) * amount;
     const angle = original + delta;
     return {
@@ -156,7 +159,7 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
       if (Math.abs(p.x + forward * 0.9) <= 1 + config.playerSpeed * 0.55)
         targets.unshift({ x: -forward * 0.9, y: 3.2, id: p.id, player: p, label: 'Навес у сетки' });
   let best = null;
-  const budget = directed ? 12 : 75;
+  const budget = directed ? 12 : 180;
   const incomingSpeed = Math.hypot(ball.vx || 0, ball.vy || 0);
   for (let degrees = -budget; degrees <= budget; degrees += 1) {
     const angle = original + (degrees * Math.PI) / 180;
@@ -181,7 +184,12 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
         continue;
       if (directed && (target.x - ball.x) * result.vx < -0.05) continue;
       const miss = Math.abs(at.x - target.x);
-      if (miss > 0.8) continue;
+      // A neutral pass may meet a teammate a few steps away, including behind
+      // the passer. Power stays unchanged; the receiver runs to the intercept.
+      const reach = directed
+        ? 0.8
+        : Math.min(2.2, 0.6 + config.playerSpeed * Math.max(0, at.time - 0.3));
+      if (miss > reach) continue;
       const travel = Math.abs(at.x - target.player.x);
       if (travel > config.playerSpeed * Math.max(0, at.time - 0.15) + 0.8) continue;
       const movement = Math.abs(
@@ -191,21 +199,21 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
         Math.max(0, (at.x - ball.x) * (ball.vx || 0)) / Math.max(1, incomingSpeed);
       const score =
         miss * 2 +
-        Math.abs(degrees) * 0.012 +
+        Math.abs(degrees) * (directed ? 0.012 : 0.001) +
         movement * (0.12 + Math.min(incomingSpeed, 20) * 0.005) +
         continuedDrift * 0.03 +
         (setting && target.y < 2 ? 0.6 : 0) +
         at.time * 0.03 -
         (!directed && count === 0 && target.player.role === 'setter' ? 0.8 : 0) -
         (target.label === 'Навес у сетки' ? 1 : 0);
-      if (!best || score < best.score) best = { angle, target, score };
+      if (!best || score < best.score) best = { angle, target, score, intercept: at.x, reach };
     }
   }
   if (!best)
     return { ...result, assistIntent: 'Свободный пас · нет доступной цели', assistDegrees: 0 };
   const corrected = rotate(best.angle, {
     assistIntent: best.target.label,
-    assistTarget: { x: best.target.x, y: best.target.y },
+    assistTarget: { x: best.intercept, y: best.target.y },
     targetId: null,
   });
   const at = predictAtHeight(
@@ -214,7 +222,13 @@ export function assistManualShot(ball, player, kind, result, aim, players, confi
     config,
     4 / config.ballSpeed,
   );
-  if (at.y <= best.target.y && Math.abs(at.x - best.target.x) <= 0.8)
+  if (at.y <= best.target.y && Math.abs(at.x - best.target.x) <= best.reach) {
     corrected.targetId = best.target.id;
+    if (!directed) {
+      corrected.targetX = at.x;
+      corrected.arrival = at.time / (result.flightTempo ?? 1);
+      corrected.reception = true;
+    }
+  }
   return corrected;
 }

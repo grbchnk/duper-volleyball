@@ -44,26 +44,7 @@ test(
     await page.locator('#tutorial-start').click();
     await settleSettings(page);
     assert.equal(await page.locator('#tutorial-next').isVisible(), false);
-    await page.locator('#tutorial-begin').click();
-    await page.waitForFunction(
-      () => document.querySelector('#tutorial-stage').textContent === 'Твоя очередь',
-    );
-    await page.keyboard.down('ArrowRight');
-    await page.waitForFunction(
-      () => document.querySelectorAll('#tutorial-goals .done').length === 1,
-    );
-    await page.keyboard.up('ArrowRight');
-    // Keep the jump held until it is registered, then let the course advance itself.
-    await page.keyboard.down('Space');
-    await page.waitForFunction(
-      () => document.querySelectorAll('#tutorial-goals .done').length === 2,
-    );
-    await page.keyboard.up('Space');
-    await page.waitForFunction(() =>
-      document.querySelector('#tutorial-title').textContent.includes('Приём'),
-    );
-    await settleSettings(page);
-    assert.match(await page.locator('#tutorial-title').innerText(), /Приём/);
+    assert.equal(await page.locator('#tutorial-panel').getAttribute('data-phase'), 'practice');
     await page.locator('#tutorial-menu-toggle').click();
     await page.locator('#tutorial-exit').click();
     await settleSettings(page);

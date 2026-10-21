@@ -85,252 +85,6 @@
   border-radius: 5px;
   padding: 2px 4px;
 }
-.tutorial-coach {
-  position: absolute;
-  top: 17%;
-  left: 10%;
-  width: 80%;
-  pointer-events: auto;
-  padding: 1.8cqw 2.3cqw;
-  border: 1px solid #c9d9cd;
-  border-radius: 2cqw;
-  background: #fffdf3f7;
-  box-shadow: 0 10px 40px #153d3326;
-  max-height: 78%;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-}
-.tutorial-coach-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.78em;
-  color: #6b8176;
-}
-.tutorial-coach h2 {
-  font:
-    750 clamp(13px, 2.6cqw, 30px)/1.15 system-ui,
-    sans-serif;
-  margin: 0.55cqw 0 0.5cqw;
-  color: #254d43;
-}
-.tutorial-demonstration {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  gap: 2cqw;
-}
-.tutorial-demonstration svg {
-  display: block;
-  width: 100%;
-  height: clamp(55px, 18cqw, 180px);
-  overflow: visible;
-}
-.tutorial-coach p {
-  margin: 0.5cqw 0 0.8cqw;
-  font-size: clamp(10px, 1.55cqw, 18px);
-}
-#tutorial-hint {
-  max-width: 48em;
-}
-.tutorial-coach-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 1.2cqw;
-  margin-top: 0.7cqw;
-  min-height: 0;
-  border: 0;
-  font-size: inherit;
-}
-.tutorial-coach-actions:has(> button[hidden]):not(:has(> button:not([hidden]))) {
-  display: none;
-}
-.tutorial-overlay[data-phase='explain'] #tutorial-result,
-.tutorial-overlay[data-phase='countdown'] #tutorial-result {
-  display: none;
-}
-.tutorial-coach-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7cqw;
-  background: #2f7868;
-  border: 1px solid #2f7868;
-  border-radius: 0.8cqw;
-  color: #fffdf2;
-  padding: 0.7cqw 1.2cqw;
-}
-.tutorial-coach-actions > span {
-  color: #7c8d7d;
-  font-size: 0.78em;
-}
-.pad-key {
-  display: inline-grid;
-  place-items: center;
-  width: 1.7em;
-  height: 1.7em;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  color: #99c9f7;
-}
-.tutorial-goals {
-  display: flex;
-  gap: 0.7cqw;
-  list-style: none;
-  margin: 0.65cqw 0;
-  padding: 0;
-}
-.tutorial-goals li > span {
-  display: grid;
-  place-items: center;
-  width: clamp(14px, 2.5cqw, 29px);
-  height: clamp(14px, 2.5cqw, 29px);
-  border: 1.5px solid #bfccbd;
-  border-radius: 50%;
-  font-size: 0.8em;
-  color: #89978a;
-  background: #f2f0df;
-}
-.tutorial-goals li.current > span {
-  border-color: #2f7868;
-  color: #2f7868;
-  box-shadow: 0 0 0 2px #70ad9620;
-}
-.tutorial-goals li.done > span {
-  background: #2f7868;
-  color: #fff;
-  border-color: #2f7868;
-}
-.tutorial-power {
-  display: flex;
-  align-items: center;
-  gap: 0.8cqw;
-  font-size: 0.75em;
-  margin-top: 0.8cqw;
-}
-.tutorial-power-track {
-  position: relative;
-  height: clamp(6px, 0.9cqw, 10px);
-  width: 45%;
-  background: #e8e9dd;
-  border-radius: 12px;
-  overflow: hidden;
-}
-.tutorial-power-target {
-  position: absolute;
-  inset: 0 calc(100% - var(--power-max, 100%)) 0 var(--power-min, 0%);
-  background: repeating-linear-gradient(135deg, #a8d3b14d 0 3px, #a8d3b194 3px 5px);
-}
-.tutorial-power meter {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  opacity: 0.85;
-}
-.tutorial-power meter::-webkit-meter-bar {
-  background: transparent;
-  border: 0;
-}
-.tutorial-power meter::-webkit-meter-optimum-value {
-  background: #2f7868;
-}
-.tutorial-power meter::-moz-meter-bar {
-  background: #2f7868;
-}
-#tutorial-result {
-  font-size: clamp(9px, 1.2cqw, 14px);
-  color: #986b3a;
-}
-#tutorial-result:empty {
-  display: none;
-}
-.tutorial-countdown {
-  position: absolute;
-  left: 41%;
-  top: 36%;
-  width: 18%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #fffbeded;
-  border: 3px solid #65a78b;
-  box-shadow: 0 0 0 1cqw #fffbed55;
-}
-.tutorial-countdown strong {
-  font: 800 6cqw/1 system-ui;
-  color: #2a6959;
-}
-.tutorial-countdown span {
-  font-size: clamp(8px, 1cqw, 13px);
-  margin-top: 0.5cqw;
-}
-.tutorial-overlay[data-phase='practice'] .tutorial-coach,
-.tutorial-overlay[data-phase='countdown'] .tutorial-coach {
-  left: auto;
-  right: 2.5%;
-  top: 16%;
-  width: 35%;
-  padding: 1.2cqw;
-  border-radius: 1.3cqw;
-  background: #fffdf1ed;
-}
-.tutorial-overlay[data-phase='practice'] .tutorial-coach h2,
-.tutorial-overlay[data-phase='countdown'] .tutorial-coach h2 {
-  font-size: clamp(11px, 1.75cqw, 20px);
-}
-.tutorial-overlay[data-phase='practice'] .tutorial-demonstration,
-.tutorial-overlay[data-phase='countdown'] .tutorial-demonstration {
-  float: left;
-  width: 37%;
-  margin-right: 1cqw;
-  display: block;
-}
-.tutorial-overlay[data-phase='practice'] .tutorial-demonstration svg,
-.tutorial-overlay[data-phase='countdown'] .tutorial-demonstration svg {
-  height: auto;
-}
-.tutorial-overlay[data-phase='practice'] #tutorial-demo,
-.tutorial-overlay[data-phase='countdown'] #tutorial-demo {
-  display: none;
-}
-.tutorial-overlay[data-phase='practice'] #tutorial-hint,
-.tutorial-overlay[data-phase='countdown'] #tutorial-hint {
-  font-size: clamp(9px, 1.2cqw, 14px);
-  margin-top: 0.5cqw;
-}
-.tutorial-overlay[data-phase='practice'] .tutorial-goals,
-.tutorial-overlay[data-phase='countdown'] .tutorial-goals {
-  clear: both;
-  padding-top: 0.6cqw;
-}
-.tutorial-overlay[data-phase='success'] .tutorial-coach {
-  top: 28%;
-  left: 20%;
-  width: 60%;
-  text-align: center;
-}
-.tutorial-overlay[data-phase='success'] .tutorial-demonstration,
-.tutorial-overlay[data-phase='success'] .tutorial-power {
-  display: none;
-}
-.tutorial-overlay[data-phase='success'] .tutorial-goals,
-.tutorial-overlay[data-phase='success'] .tutorial-coach-actions {
-  justify-content: center;
-}
-.tutorial-overlay[data-motion='walk'] .tutorial-power,
-.tutorial-overlay[data-motion='jump'] .tutorial-power,
-.tutorial-overlay[data-motion='switch'] .tutorial-power,
-.tutorial-overlay[data-motion='crouch'] .tutorial-power,
-.tutorial-overlay[data-motion='block'] .tutorial-power {
-  display: none;
-}
 .tutorial-menu {
   position: absolute;
   inset: 0;
@@ -396,380 +150,349 @@
   grid-column: 1/-1;
   text-align: center;
 }
-.pad-body {
-  fill: #364954;
-  stroke: #243740;
-  stroke-width: 2;
+/* Continuous on-court coaching. No cards cover the active player. */
+.training-cues {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 90%;
+  text-align: center;
+  color: #23483d;
+  filter: drop-shadow(0 1px 2px #fff);
 }
-.pad-dpad,
-.pad-idle-stick {
-  fill: #233740;
-  stroke: #819797;
-  stroke-width: 1.5;
-  opacity: 0.65;
+#tutorial-pad {
+  display: flex;
+  justify-content: center;
+  gap: 2.4cqw;
 }
-.pad-touch {
-  fill: #53636a;
-  stroke: #859692;
+.training-control {
+  display: grid;
+  justify-items: center;
+  gap: 0.15cqw;
+  position: relative;
+  font-size: clamp(9px, 1.15cqw, 15px);
+  font-weight: 650;
+}
+.control-icon {
+  width: clamp(34px, 5.2cqw, 62px);
+  height: auto;
+  overflow: visible;
+}
+.control-rim {
+  fill: #182e38;
+  stroke: #789592;
   stroke-width: 1;
-  opacity: 0.5;
 }
-.pad-button {
-  opacity: 0.27;
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: scale 0.08s ease;
+.control-base {
+  fill: #364f59;
+  stroke: #c1d6d0;
+  stroke-width: 1.5;
 }
-.pad-button.is-pressed {
-  scale: 0.9;
-}
-.tutorial-overlay[data-phase='practice'] .pad-button.is-taught:not(.is-pressed) {
-  animation: coach-button 2.6s infinite;
-}
-.pad-button rect,
-.pad-button-base {
-  fill: #243942;
-  stroke: #8da49f;
-  stroke-width: 1.7;
-}
-.pad-button text {
-  text-anchor: middle;
-  fill: #e4f1e3;
-  font: 700 10px system-ui;
-}
-.pad-glyph {
+.control-glyph {
   fill: none;
-  stroke-width: 2;
+  stroke: #b5dbf5;
+  stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.pad-triangle .pad-glyph {
-  stroke: #78c7ad;
+.control-square .control-glyph {
+  stroke: #f1a6cf;
 }
-.pad-square .pad-glyph {
-  stroke: #e49fbe;
+.control-triangle .control-glyph {
+  stroke: #84ebbb;
 }
-.pad-circle .pad-glyph {
-  stroke: #eea29d;
+.control-circle .control-glyph {
+  stroke: #ffa3a6;
 }
-.pad-cross .pad-glyph {
-  stroke: #95c4f2;
-}
-.pad-button.is-taught {
-  opacity: 1;
-}
-.pad-button.is-taught > rect,
-.pad-button.is-taught .pad-button-base {
-  stroke: #e4f4d7;
-  stroke-width: 2.5;
-}
-.pad-button.is-pressed > rect,
-.pad-button.is-pressed .pad-button-base {
-  fill: #7ab6a2;
-  stroke: #d6ffe6;
-  stroke-width: 3;
-}
-.pad-stick {
-  opacity: 0.35;
-}
-.pad-stick.is-taught {
-  opacity: 1;
-}
-.stick-ring {
-  fill: #253c45;
-  stroke: #8ba39c;
-  stroke-width: 2;
-}
-.stick-thumb circle:first-child {
-  fill: #607e7a;
-  stroke: #d2e9d6;
-  stroke-width: 2;
-}
-.stick-thumb circle:nth-child(2) {
-  fill: #3c5b59;
-  stroke: #a3beb0;
-  stroke-width: 1;
-}
-.stick-thumb text {
+.control-glyph text {
+  fill: #eef6ee;
+  stroke: none;
+  font: bold 12px system-ui;
   text-anchor: middle;
-  fill: #e7efe3;
-  font: 700 10px system-ui;
 }
-.tutorial-overlay[data-phase='practice'] .stick-thumb {
-  transform: translate(var(--stick-x, 0px), var(--stick-y, 0px));
+.control-face {
+  animation: button-depress 2.4s steps(1, end) infinite;
 }
-.tutorial-overlay[data-phase='explain'] .is-taught.pad-button,
-.tutorial-overlay[data-phase='countdown'] .is-taught.pad-button {
-  animation: coach-button 2.2s infinite;
+.control-face.is-pressed {
+  animation: none;
+  transform: translateY(2px);
 }
-.tutorial-overlay[data-phase='explain'][data-motion='serve'] .is-taught.pad-button,
-.tutorial-overlay[data-phase='countdown'][data-motion='serve'] .is-taught.pad-button {
-  animation: coach-serve-press 3.2s infinite;
+.control-face.is-pressed .control-base {
+  fill: #193b3a;
+  stroke: #69d8a7;
 }
-.tutorial-overlay[data-phase='explain'][data-motion='walk'] .stick-thumb,
-.tutorial-overlay[data-phase='countdown'][data-motion='walk'] .stick-thumb {
-  animation: coach-stick-walk 2.8s infinite;
-}
-.tutorial-overlay[data-motion='dive-right']:not([data-phase='practice']) .stick-thumb {
-  animation: coach-stick-triple 2.4s infinite;
-}
-.tutorial-overlay[data-motion='dive-left']:not([data-phase='practice']) .stick-thumb {
-  animation: coach-stick-triple-left 2.4s infinite;
-}
-.tutorial-overlay[data-motion='crouch']:not([data-phase='practice']) .stick-thumb {
-  animation: coach-stick-down 2.4s infinite;
-}
-.tutorial-overlay[data-motion='rally']:not([data-phase='practice']) .stick-thumb {
-  animation: coach-stick-aim 2.4s infinite;
-}
-.demo-floor,
-.demo-net {
-  fill: none;
-  stroke: #a6b9ac;
-  stroke-width: 2;
-}
-.demo-head {
-  fill: #e8bd9d;
-  stroke: #655653;
-  stroke-width: 2;
-}
-.demo-eyes {
-  stroke: #554d51;
-  stroke-width: 2;
-}
-.demo-body {
-  fill: #75ac98;
-  stroke: #41695b;
-  stroke-width: 2;
-}
-.demo-limbs,
-.demo-blocker {
-  fill: none;
-  stroke: #657864;
-  stroke-width: 4;
-  stroke-linecap: round;
-}
-.demo-trajectory {
-  fill: none;
-  stroke: #488b73;
-  stroke-width: 2;
-  stroke-dasharray: 5 5;
-}
-.demo-ball {
-  fill: #ebbb62;
-  stroke: #8c764a;
-  stroke-width: 1;
-}
-.demo-target {
-  fill: #91d0a82a;
-  stroke: #66a286;
-  stroke-dasharray: 3 4;
-}
-.demo-serve-ring {
-  fill: none;
-  stroke: #48a86b;
-  stroke-width: 2;
-}
-.demo-caption {
-  text-anchor: middle;
-  fill: #5b7d69;
-  font: 12px system-ui;
-}
-.demo-jumping {
-  animation: coach-player-jump 2.2s infinite;
-}
-.demo-walking {
-  animation: coach-player-walk 2.8s infinite;
-}
-.demo-diving {
-  transform-origin: 46px 110px;
-  animation: coach-player-dive 3.2s infinite;
-}
-@keyframes coach-button {
+@keyframes button-depress {
   0%,
-  25%,
-  80%,
-  100% {
-    opacity: 1;
-    filter: brightness(1);
-  }
-  35%,
-  65% {
-    opacity: 1;
-    scale: 0.92;
-    filter: brightness(1.7) drop-shadow(0 0 4px #7ac5aa);
-  }
-}
-.tutorial-overlay:not([data-phase='practice']) .is-sequence .is-taught.pad-button {
-  animation: coach-sequence-press 3.2s infinite;
-  animation-delay: var(--press-delay, 0s);
-}
-@keyframes coach-sequence-press {
-  0%,
-  18%,
-  100% {
-    scale: 1;
-    filter: brightness(1);
-  }
-  5%,
-  13% {
-    scale: 0.9;
-    filter: brightness(1.8) drop-shadow(0 0 4px #8dd8a2);
-  }
-}
-@keyframes coach-serve-press {
-  0%,
-  20%,
-  64%,
-  100% {
-    filter: brightness(1);
-  }
-  5%,
-  15%,
   55%,
-  60% {
-    filter: brightness(1.8) drop-shadow(0 0 4px #8dd8a2);
-  }
-}
-@keyframes coach-stick-walk {
-  0%,
-  45%,
-  100% {
-    transform: translateX(0);
-  }
-  20%,
-  30% {
-    transform: translateX(13px);
-  }
-  65%,
-  75% {
-    transform: translateX(-13px);
-  }
-}
-@keyframes coach-stick-triple {
-  0%,
-  12%,
-  24%,
-  36%,
-  100% {
-    transform: translateX(0);
-  }
-  6%,
-  18%,
-  30% {
-    transform: translateX(14px);
-  }
-}
-@keyframes coach-stick-triple-left {
-  0%,
-  12%,
-  24%,
-  36%,
-  100% {
-    transform: translateX(0);
-  }
-  6%,
-  18%,
-  30% {
-    transform: translateX(-14px);
-  }
-}
-@keyframes coach-stick-down {
-  0%,
-  20%,
-  85%,
   100% {
     transform: translateY(0);
   }
-  40%,
-  65% {
-    transform: translateY(13px);
-  }
-}
-@keyframes coach-stick-aim {
-  0%,
-  15%,
-  85%,
-  100% {
-    transform: translate(0, 0);
-  }
-  35%,
-  65% {
-    transform: translate(10px, -10px);
-  }
-}
-@keyframes coach-player-jump {
-  0%,
-  15%,
-  80%,
-  100% {
-    translate: 0 0;
-  }
-  35%,
+  30%,
   50% {
-    translate: 0 -43px;
+    transform: translateY(2px);
   }
 }
-@keyframes coach-player-walk {
+.stick-arrows {
+  fill: none;
+  stroke: #40665a;
+  stroke-width: 2;
+}
+.cue-stick {
+  animation: cue-rock 2.4s ease-in-out infinite;
+}
+.cue-stick circle {
+  fill: #728f8c;
+  stroke: #d5ede0;
+  stroke-width: 2;
+}
+@keyframes cue-rock {
   0%,
-  45%,
   100% {
-    translate: 0 0;
+    transform: translateX(-8px);
+  }
+  50% {
+    transform: translateX(8px);
+  }
+}
+#tutorial-hint {
+  margin: 0.6cqw 0;
+  font-size: clamp(9px, 1.15cqw, 15px);
+}
+#tutorial-hint:empty {
+  display: none;
+}
+#tutorial-goals {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  gap: 0.8cqw;
+  padding: 0;
+  margin: 1cqw 0 0;
+}
+#tutorial-goals li,
+.control-check {
+  display: grid;
+  place-items: center;
+  width: clamp(16px, 2.2cqw, 27px);
+  height: clamp(16px, 2.2cqw, 27px);
+  border: 2px solid #90b6a8;
+  border-radius: 50%;
+  background: #fffdf2c9;
+  font-style: normal;
+  font-weight: 800;
+  color: #18754d;
+}
+#tutorial-goals li.done,
+.training-control.done .control-check {
+  background: #b6f2cc;
+  border-color: #399569;
+  animation: goal-reward 1.2s ease-out;
+}
+.control-check {
+  position: absolute;
+  right: -1cqw;
+  top: -0.3cqw;
+}
+@keyframes goal-reward {
+  0%,
+  35% {
+    box-shadow: 0 0 0 5px #82e8b177;
   }
   20%,
-  30% {
-    translate: 40px 0;
+  60% {
+    box-shadow: 0 0 0 1px #82e8b122;
   }
-  65%,
-  75% {
-    translate: -20px 0;
+  100% {
+    box-shadow: 0 0 0 10px #82e8b100;
   }
 }
-@keyframes coach-player-dive {
+.tutorial-overlay[data-phase='success'] .training-cues {
+  animation: lesson-reward 2.8s both;
+}
+@keyframes lesson-reward {
   0%,
-  15%,
-  90%,
+  60% {
+    opacity: 1;
+  }
   100% {
-    translate: 0 0;
-    rotate: 0deg;
+    opacity: 0;
   }
-  40%,
-  65% {
-    translate: 70px 5px;
-    rotate: 65deg;
+}
+.tutorial-overlay[data-phase='success']:has(#tutorial-next:not([hidden])) .training-cues {
+  animation: none;
+}
+.streak-reset #tutorial-goals {
+  animation: reset-shake 0.35s;
+}
+@keyframes reset-shake {
+  25% {
+    translate: -4px;
   }
+  75% {
+    translate: 4px;
+  }
+}
+.tutorial-topbar {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  min-height: 0;
+  padding: 0;
+}
+.tutorial-topbar progress {
+  display: none;
+}
+#tutorial-menu-toggle {
+  margin-left: auto;
+  background: #fffdf2cc;
+}
+.tutorial-overlay[data-lesson='move'] .tutorial-topbar strong {
+  display: none;
+}
+.tutorial-overlay[data-lesson='receive'] #tutorial-goals {
+  display: none;
+}
+.training-cues .tutorial-power {
+  display: none;
+}
+.tutorial-overlay[data-lesson='power'] .tutorial-power {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+}
+.training-cues meter {
+  width: 12cqw;
+  accent-color: #2ea36e;
 }
 @media (prefers-reduced-motion: reduce) {
-  .tutorial-overlay *,
-  .tutorial-overlay *::before {
+  .training-cues *,
+  .training-cues {
     animation: none !important;
-    transition: none !important;
-  }
-  .tutorial-overlay animateMotion,
-  .tutorial-overlay animate {
-    display: none;
   }
 }
-@container (max-height: 350px) {
-  .tutorial-coach {
-    padding: 1.1cqw 1.5cqw;
+
+.tutorial-overlay[data-lesson='block'] #tutorial-goals {
+  display: none;
+}
+.training-cues meter {
+  position: static;
+  height: 14px;
+  display: block;
+}
+.serve-rhythm {
+  display: none;
+}
+.tutorial-overlay[data-lesson='serve'] .serve-rhythm {
+  display: flex;
+  justify-content: center;
+  gap: 2cqw;
+  margin-top: 1cqw;
+}
+.serve-rhythm > span {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: clamp(9px, 1.1cqw, 14px);
+}
+.serve-rhythm i {
+  display: block;
+  width: 24px;
+  height: 10px;
+  border: 2px solid #3f7567;
+  border-radius: 3px;
+}
+.rhythm-charge {
+  background: linear-gradient(to right, #40b98c 50%, #eaf3e7 50%);
+  animation: rhythm-charge 3s steps(5, end) infinite;
+}
+@keyframes rhythm-charge {
+  0% {
+    background-size: 0% 100%;
   }
-  .tutorial-demonstration svg {
-    height: clamp(36px, 22cqh, 72px);
+  30%,
+  100% {
+    background-size: 200% 100%;
   }
-  .tutorial-coach h2 {
-    font-size: clamp(12px, 2.3cqw, 18px);
-    margin: 0.3cqw 0;
+}
+.serve-rhythm .rhythm-ball {
+  border-radius: 50%;
+  width: 10px;
+  background: #f9df91;
+  animation: rhythm-toss 3s infinite;
+}
+@keyframes rhythm-toss {
+  0%,
+  30%,
+  80%,
+  100% {
+    transform: translateY(0);
   }
-  .tutorial-coach p {
-    font-size: clamp(10px, 1.4cqw, 12px);
-    margin: 0.4cqw 0;
+  55% {
+    transform: translateY(-12px);
   }
-  .tutorial-overlay[data-phase='explain'] .tutorial-power,
-  .tutorial-overlay[data-phase='explain'] .tutorial-goals {
-    display: none;
+}
+.rhythm-tap {
+  animation: rhythm-tap 3s steps(1, end) infinite;
+}
+@keyframes rhythm-tap {
+  0%,
+  80%,
+  100% {
+    background: #eaf3e7;
+    transform: translateY(0);
   }
-  .tutorial-coach-actions {
-    font-size: clamp(9px, 1.35cqw, 12px);
+  65% {
+    background: #40b98c;
+    transform: translateY(2px);
+  }
+}
+.tutorial-overlay[data-lesson='power'] .cue-stick {
+  animation: cue-aim 2.4s ease-in-out infinite;
+}
+@keyframes cue-aim {
+  0%,
+  100% {
+    transform: translate(-6px, -5px);
+  }
+  50% {
+    transform: translate(6px, -5px);
+  }
+}
+.tutorial-overlay[data-motion='dive-right'] .cue-stick {
+  animation: cue-triple 2.4s infinite;
+}
+.tutorial-overlay[data-motion='dive-left'] .cue-stick {
+  animation: cue-triple 2.4s infinite;
+  --cue-direction: -1;
+}
+@keyframes cue-triple {
+  0%,
+  16%,
+  32%,
+  48%,
+  100% {
+    transform: translateX(0);
+  }
+  8%,
+  24%,
+  40% {
+    transform: translateX(calc(9px * var(--cue-direction, 1)));
+  }
+}
+.tutorial-overlay[data-motion='crouch'] .cue-stick {
+  animation: cue-down 2s steps(1, end) infinite;
+}
+@keyframes cue-down {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(8px);
   }
 }

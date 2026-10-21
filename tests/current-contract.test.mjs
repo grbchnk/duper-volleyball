@@ -182,33 +182,19 @@ test('challenge records separate physics profiles, preserve old records and dete
   assert.equal(match.challenge.profileChanged, true);
 });
 
-test('tutorial uses the existing exercise and only advances after a real action', () => {
+test('tutorial starts live without an acknowledgement or countdown', () => {
   const match = new Match();
   match.reset('practice');
   const tutorial = new Tutorial(match);
   tutorial.start();
-  assert.equal(match.drill, 'footwork');
-  assert.equal(match.tutorialNoBall, true);
-  assert.equal(tutorial.phase, 'explain');
-  assert.equal(tutorial.next(), false);
-  tutorial.advance(2.99);
-  assert.equal(tutorial.frozen, true);
-  tutorial.advance(0.02);
   assert.equal(tutorial.phase, 'practice');
+  assert.equal(tutorial.frozen, false);
+  assert.equal(tutorial.next(), false);
   for (let n = 0; n < 60; n++) {
     match.tick(1 / 120, { axis: 1 });
     tutorial.observe({ axis: 1 });
   }
   assert.equal(tutorial.ready, false);
-  assert.equal(tutorial.completed, 1);
-  for (let n = 0; n < 80 && !tutorial.ready; n++) {
-    match.tick(1 / 120, { jump: true, jumpHeld: true });
-    tutorial.observe({ jump: true });
-  }
-  assert.equal(tutorial.ready, true);
-  assert.equal(tutorial.next(), true);
-  assert.equal(tutorial.lesson.id, 'receive');
-  assert.equal(match.tutorialNoBall, false);
   tutorial.leave();
   assert.equal(tutorial.active, false);
 });

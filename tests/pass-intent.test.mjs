@@ -63,7 +63,7 @@ test('0, 50 and 100 percent interpolate the same chosen angle without adding ene
         for (const touchesBefore of [0, 1, 2]) {
           const { m, p } = setup(team);
           const [raw, half, full] = [0, 0.5, 1].map((amount) =>
-            shot(m, p, kind, { ...modifier, touchesBefore }, amount),
+            shot(m, p, kind, { ...modifier, touchesBefore, vector: { x: 1, y: 0.8 } }, amount),
           );
           assert.ok(
             Math.abs(
