@@ -366,7 +366,7 @@
     "armJumpMotion": 1,
     "transferShotOnSwitch": true,
     "passDirectionPreview": false,
-    "neutralPassError": 0.15,
-    "neutralPassSpeedError": 0.75
+    "neutralPassError": 0,
+    "neutralPassSpeedError": 0
   }
 }

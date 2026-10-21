@@ -13,9 +13,8 @@ test(
     await openSettingsSection(page, 'Матч и управление');
     await page.locator('#transferShotOnSwitch').uncheck();
     await openSettingsSection(page, 'Физика и помощь');
-    await page.locator('#physics-neutralPassError').fill('0.3');
-    await page.locator('#physics-neutralPassSpeedError').fill('0.5');
-    await page.locator('#physics-neutralPassError').dispatchEvent('change');
+    assert.equal(await page.locator('#physics-neutralPassError').count(), 0);
+    assert.equal(await page.locator('#physics-neutralPassSpeedError').count(), 0);
     await openSettingsSection(page, 'Мяч и графика');
     await page.locator('#passDirectionPreview').check();
     await page.locator('dialog[open] .close').click();
@@ -31,7 +30,7 @@ test(
         c.passDirectionPreview,
       ];
     });
-    assert.deepEqual(saved, [false, 0.3, 0.5, true]);
+    assert.deepEqual(saved, [false, 0, 0, true]);
     await page.locator('#start').click();
     await page.evaluate(async () => {
       const { match: m } = await import('/src/main.js');
@@ -95,6 +94,10 @@ test(
       ),
       true,
     );
+    await settleSettings(page);
+    await page
+      .locator('#arena')
+      .screenshot({ path: '.cache/reception-options-qa/neutral-lift.png' });
     assert.deepEqual(errors, []);
   },
 );

@@ -14,7 +14,6 @@ import { traceBall, isInside } from './physics.js';
 import { preparedHands } from './held-contact.js';
 import { contactBounds } from './contact-rules.js';
 import { drawOutCross } from './landing-visual.js';
-import { receptionErrorSeed } from './neutral-reception.js';
 
 // Preview and playback share the match's impulse, fixed step and net collision.
 export function simulateShot(
@@ -51,7 +50,6 @@ export function simulateShot(
     soft,
     fast,
     tutorialAutoPass,
-    neutralErrorSeed: receptionErrorSeed(match.visualSeed, match.shotSerial, player.id),
   });
   match.touches[player.team] = touchesBefore;
   match.lastTouch = touchesBefore ? player.team : 1 - player.team;
@@ -334,10 +332,10 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
         `Угол вылета: ${outgoing.toFixed(1)}°. ${validContact ? '' : 'Мяч вне допуска: показан условный запуск.'}`;
     if (data.impulse.neutralReceive)
       $('limits').textContent +=
-        ' Без стика — встречное направление прилёта, ограниченная помощь и ошибка. Со стиком ошибки нет.';
+        ' Без стика — подъём над собой. Боковое отклонение зависит от входящего мяча и положения рук.';
     if (data.impulse.neutralReception)
       $('limits').textContent +=
-        ` Разброс этого приёма: ${data.impulse.neutralErrorDegrees.toFixed(1)}° (предел ±${data.impulse.neutralErrorLimit.toFixed(1)}°).`;
+        ` Наклон рук: ${data.impulse.contactTiltDegrees.toFixed(1)}°. Случайного разброса нет.`;
     $('time').max = (data.launchTime ?? 0.65) + (data.points.length - 1) * FIXED_DT;
     const end = data.points.at(-1),
       landed = end.y <= COURT.ballRadius;

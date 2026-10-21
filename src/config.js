@@ -29,8 +29,8 @@ export const DEFAULTS = Object.freeze({
   floorBounce: false,
   transferShotOnSwitch: true,
   passDirectionPreview: false,
-  neutralPassError: 0.15,
-  neutralPassSpeedError: 0.75,
+  neutralPassError: 0,
+  neutralPassSpeedError: 0,
   approachAssist: true,
   feintMode: 'manual',
   setsToWin: 1,
@@ -391,6 +391,8 @@ export function sanitizeConfig(value = {}) {
   if (!historical) {
     // Retired experiments cannot be reactivated by an old settings file.
     result.receiveMomentum = false;
+    result.neutralPassError = 0;
+    result.neutralPassSpeedError = 0;
     result.thirdTouchSlowdown = 0;
     result.variableJump = false;
     result.jumpHoldHang = 0;

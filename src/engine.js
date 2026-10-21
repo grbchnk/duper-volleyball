@@ -28,7 +28,6 @@ import {
   updateAim,
 } from './controllers.js';
 import { Replay } from './replay.js';
-import { receptionErrorSeed } from './neutral-reception.js';
 import { advanceChallenge, resolveChallenge } from './challenges.js';
 import { createSkillStats, beginRally, summarizeRally } from './skill-feedback.js';
 import { ATTACKS, blockImpulse } from './tactics.js';
@@ -257,11 +256,6 @@ export class Match {
       action.aim.previousPlayerId = this.lastTouch === player?.team ? this.lastPlayer : null;
       action.aim.touchesBefore = this.lastTouch === player?.team ? this.touches[player.team] : 0;
       action.aim.tutorialAutoPass = !!this.training;
-      action.aim.neutralErrorSeed = receptionErrorSeed(
-        this.visualSeed,
-        this.shotSerial,
-        player?.id || 0,
-      );
       action.aim.controlledIds = this.players
         .filter((p) => p.team === player?.team && this.humanSlot(p) !== null)
         .map((p) => p.id);

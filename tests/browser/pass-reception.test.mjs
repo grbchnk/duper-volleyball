@@ -18,7 +18,7 @@ test(
     await page.locator('#shot-touch').selectOption('2');
     await page.locator('#shot-power').fill('100');
     await settleSettings(page);
-    assert.match(await page.locator('#shot-stats').innerText(), /Приём по встречному направлению/);
+    assert.match(await page.locator('#shot-stats').innerText(), /Подъём над собой/);
     await page.locator('#shot-kind').selectOption('loft');
     await settleSettings(page);
     assert.equal(await page.locator('#shot-assistance').isVisible(), true);
