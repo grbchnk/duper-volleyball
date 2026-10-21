@@ -106,6 +106,13 @@ test(
     await pad(page, [0, 0], [1]);
     await page.locator('#tutorial-menu').waitFor({ state: 'hidden' });
     await pad(page);
+    // Options also resumes the ordinary focus-loss pause during training.
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.locator('#pause-overlay').waitFor({ state: 'visible' });
+    await pad(page, [0, 0], [9]);
+    await page.locator('#pause-overlay').waitFor({ state: 'hidden' });
+    await pad(page);
+    assert.equal(await panel.isVisible(), true);
     assert.deepEqual(errors, []);
   },
 );

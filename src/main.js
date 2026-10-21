@@ -455,7 +455,7 @@ function frame(time) {
       (['versus', 'coop'].includes(match.mode) && secondControllerInput.pausePressed)) &&
     started
   ) {
-    if (tutorial?.active) tutorial.toggleMenu();
+    if (tutorial?.active && !paused) tutorial.toggleMenu();
     else togglePause();
     controllerAction = true;
   }
