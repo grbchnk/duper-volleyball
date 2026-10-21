@@ -1,3 +1,4 @@
+import { BALL_DESIGNS, ballPattern } from './ball-designs.js';
 // A shared raster grid for bodies, limbs, ball, effects and canvas lettering.
 export function pixelPresent(canvas, enabled, scale = 2) {
   // Keep the original canvas pixels crisp at CSS sizes in both modes.
@@ -23,14 +24,9 @@ export function pixelPresent(canvas, enabled, scale = 2) {
 }
 const ballSprites = new Map();
 export function drawBallDesign(c, skin = 'classic', pixel = false) {
-  const palette = {
-    classic: ['#fff6df', '#e5ae43'],
-    ocean: ['#ecf9ff', '#2987be'],
-    neon: ['#dcfa83', '#7445ac'],
-    mono: ['#ffffff', '#293f4c'],
-    plain: ['#fff3d1', '#fff3d1'],
-  };
-  const [base, ink] = palette[skin] || palette.classic;
+  const colors = (BALL_DESIGNS[skin] || BALL_DESIGNS.classic).colors;
+  const [base, ink] = colors;
+  const patterned = colors.length === 3;
   if (pixel) {
     let sprite = ballSprites.get(skin);
     if (!sprite) {
@@ -50,7 +46,15 @@ export function drawBallDesign(c, skin = 'classic', pixel = false) {
           else if (skin !== 'plain') mark = Math.sin(angle * 3 + radius * 0.16) > 0.35;
           const oceanInk = angle > -0.8 && angle < 1.3 ? '#319f87' : ink;
           p.fillStyle =
-            radius > 8.8 ? '#304b50' : mark ? (skin === 'ocean' ? oceanInk : ink) : base;
+            radius > 8.8
+              ? '#304b50'
+              : patterned
+                ? colors[ballPattern(skin, x, y)]
+                : mark
+                  ? skin === 'ocean'
+                    ? oceanInk
+                    : ink
+                  : base;
           p.fillRect(x + 11, y + 11, 1, 1);
         }
       ballSprites.set(skin, sprite);
@@ -73,7 +77,13 @@ export function drawBallDesign(c, skin = 'classic', pixel = false) {
   c.fillRect(-10, -10, 20, 20);
   c.strokeStyle = ink;
   c.lineWidth = 2;
-  if (skin === 'ocean') {
+  if (patterned) {
+    for (let y = -10; y < 10; y++)
+      for (let x = -10; x < 10; x++) {
+        c.fillStyle = colors[ballPattern(skin, x, y)];
+        c.fillRect(x, y, 1, 1);
+      }
+  } else if (skin === 'ocean') {
     for (let i = 0; i < 3; i++) {
       c.save();
       c.rotate((i * Math.PI * 2) / 3 - 0.3);

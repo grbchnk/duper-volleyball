@@ -43,12 +43,22 @@ test(
     assert.equal(await page.locator('.keyboard-guide').count(), 1);
     await page.locator('#tutorial-start').click();
     await settleSettings(page);
+    assert.equal(await page.locator('#tutorial-next').isVisible(), false);
+    await page.locator('#tutorial-begin').click();
+    await page.waitForFunction(
+      () => document.querySelector('#tutorial-stage').textContent === 'Твоя очередь',
+    );
     await page.keyboard.down('ArrowRight');
-    await page.waitForFunction(() => !document.querySelector('#tutorial-next').disabled);
+    await page.waitForFunction(
+      () => document.querySelectorAll('#tutorial-goals .done').length === 1,
+    );
     await page.keyboard.up('ArrowRight');
+    await page.keyboard.down('Space');
+    await page.waitForFunction(() => !document.querySelector('#tutorial-next').hidden);
+    await page.keyboard.up('Space');
     await page.locator('#tutorial-next').click();
     await settleSettings(page);
-    assert.match(await page.locator('#tutorial-title').innerText(), /Подготовка/);
+    assert.match(await page.locator('#tutorial-title').innerText(), /Приём/);
     await page.locator('#tutorial-exit').click();
     await settleSettings(page);
     await page.waitForFunction(() => document.querySelector('#start-overlay').hidden);

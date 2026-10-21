@@ -300,21 +300,33 @@
         "head": "mohawk",
         "body": "stripes",
         "tone": "#f4cfac",
-        "hair": "#302b32"
+        "hair": "#302b32",
+        "shoes": "classic",
+        "shoeColor": "#fff6e1",
+        "jerseyPrint": "none",
+        "printColor": "#fff6e1"
       },
       {
         "headShape": "square",
         "head": "visor",
         "body": "chevron",
         "tone": "#edba91",
-        "hair": "#302b32"
+        "hair": "#302b32",
+        "shoes": "classic",
+        "shoeColor": "#fff6e1",
+        "jerseyPrint": "none",
+        "printColor": "#fff6e1"
       },
       {
         "headShape": "square",
         "head": "straw",
         "body": "sleeveless",
         "tone": "#d79b70",
-        "hair": "#302b32"
+        "hair": "#302b32",
+        "shoes": "classic",
+        "shoeColor": "#fff6e1",
+        "jerseyPrint": "none",
+        "printColor": "#fff6e1"
       }
     ],
     "awayTeam": "mint",

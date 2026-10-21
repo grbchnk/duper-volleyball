@@ -1,6 +1,7 @@
 import { launchTo } from './physics.js';
 const TEAM_SIZE = 3;
 export function startDrill(match, drill = 'receive') {
+  match.tutorialNoBall = drill === 'footwork';
   match.drill = drill;
   match.teamRuns = [null, null];
   match.server = 0;
@@ -12,6 +13,12 @@ export function startDrill(match, drill = 'receive') {
   match.lastPlayer = TEAM_SIZE;
   match.teamPhases = ['defense', 'defense'];
   match.players[0].x = -7;
+  if (drill === 'footwork') {
+    Object.assign(match.ball, { x: 0, y: 10, vx: 0, vy: 0, vz: 0 });
+    match.trail = [];
+    match.label('ДВИЖЕНИЕ · ПРЫЖОК', 3);
+    return;
+  }
   if (['choice', 'delay', 'rescue'].includes(drill)) {
     match.selected[0] = 2;
     match.lastTouch = 0;

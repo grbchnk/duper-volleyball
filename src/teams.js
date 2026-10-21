@@ -23,6 +23,59 @@ export const HAIR_COLORS = [
 export const FEMALE_HEADS = ['ponytail', 'bun', 'bob', 'longhair', 'braids', 'doublebun'];
 const player = (head, body = 'classic', tone = '#f4cfac', hair = '#302b32') =>
   Object.freeze({ headShape: 'square', head, body, tone, hair });
+// Hand-picked footwear complements each club, including CPU opponents.
+const CLUB_SHOES = {
+  peach: [
+    ['classic', '#ee967d'],
+    ['high', '#fff6e1'],
+    ['sport', '#364755'],
+  ],
+  mint: [
+    ['sandals', '#80bda8'],
+    ['sandals', '#fff6e1'],
+    ['sport', '#8bb6cd'],
+  ],
+  lemon: [
+    ['runner', '#e5bd62'],
+    ['sport', '#fff6e1'],
+    ['runner', '#ee967d'],
+  ],
+  lilac: [
+    ['high', '#b0a2cb'],
+    ['neon', '#b0a2cb'],
+    ['high', '#364755'],
+  ],
+  sakura: [
+    ['sport', '#dba6bd'],
+    ['runner', '#fff6e1'],
+    ['high', '#b0a2cb'],
+  ],
+  nigeria: [
+    ['runner', '#80bda8'],
+    ['sport', '#364755'],
+    ['runner', '#e5bd62'],
+  ],
+  bears: [
+    ['boots', '#e5bd62'],
+    ['boots', '#364755'],
+    ['high', '#ee967d'],
+  ],
+  pumpkins: [
+    ['boots', '#364755'],
+    ['high', '#ee967d'],
+    ['neon', '#e5bd62'],
+  ],
+  rabbits: [
+    ['runner', '#fff6e1'],
+    ['sport', '#8bb6cd'],
+    ['high', '#fff6e1'],
+  ],
+  robots: [
+    ['neon', '#8bb6cd'],
+    ['neon', '#b0a2cb'],
+    ['boots', '#364755'],
+  ],
+};
 const club = (id, name, short, color, description, roster, extra = {}) =>
   Object.freeze({
     id,
@@ -30,7 +83,12 @@ const club = (id, name, short, color, description, roster, extra = {}) =>
     short,
     color,
     description,
-    roster: Object.freeze(roster),
+    roster: Object.freeze(
+      roster.map((p, i) => {
+        const [shoes, shoeColor] = CLUB_SHOES[id][i];
+        return Object.freeze({ ...p, shoes, shoeColor });
+      }),
+    ),
     ...uniformPalette(color),
     ...extra,
   });

@@ -1,4 +1,5 @@
 import { TEAMS } from './teams.js';
+import { BALL_DESIGNS } from './ball-designs.js';
 import { CPU_STYLES } from './cpu-styles.js';
 import { sanitizeAppearance } from './appearance.js';
 export { TEAMS } from './teams.js';
@@ -190,7 +191,7 @@ export const DEFAULTS = Object.freeze({
         tone: '#d79b70',
         hair: '#302b32',
       },
-    ],
+    ].map(sanitizeAppearance),
     loftReceiveHoldTime: 0.1,
     chargeSeconds: 0.25,
     maxHold: 0.3,
@@ -373,8 +374,7 @@ export function sanitizeConfig(value = {}) {
   result.cpuSkill = Math.round(result.cpuSkill);
   if (Object.hasOwn(SKINS, value.skin)) result.skin = value.skin;
   if (Object.hasOwn(SKINS, value.awaySkin)) result.awaySkin = value.awaySkin;
-  if (['classic', 'ocean', 'neon', 'mono', 'plain'].includes(value.ballSkin))
-    result.ballSkin = value.ballSkin;
+  if (Object.hasOwn(BALL_DESIGNS, value.ballSkin)) result.ballSkin = value.ballSkin;
   for (const key of ['homeColor', 'awayColor'])
     if (/^#[0-9a-f]{6}$/i.test(value[key])) result[key] = value[key];
   for (const key of ['homeTeam', 'awayTeam'])

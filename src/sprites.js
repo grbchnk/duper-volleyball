@@ -2,6 +2,7 @@ import { paintSpecialHead } from './special-heads.js';
 import { activeEmotion } from './emotions.js';
 import { skinPalette } from './appearance.js';
 import { paintExtraHead } from './head-styles.js';
+import { paintShoe, paintJerseyPrint } from './player-accessories.js';
 // Editable, hand-authored pixel frames. Body frames are cached as 64×64 sprites;
 // the existing spring-driven arms are drawn above them without changing their rig.
 export const SKINS = {
@@ -314,8 +315,7 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
     ]) {
       r(x, -8 + y, 3, 7, flesh);
       r(x, -4 + y, 3, 3, '#f8eed6');
-      r(x - 1, -2 + y, 6, 3, ink);
-      r(x - 1, -2 + y, 5, 2, '#fff6e1');
+      paintShoe(r, x, y, appearance, ink, team);
     }
   const y = pose.y;
   if (layer === 'feet') return;
@@ -368,6 +368,7 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
       r(-7, -22 + y + pose.shoulders, 4, 5, team.color);
       r(4, -22 + y + pose.shoulders, 4, 5, team.light);
     }
+    paintJerseyPrint(r, appearance?.jerseyPrint, appearance?.printColor, y);
   }
   if (layer === 'torso') return;
   const h = pose.h;
@@ -380,8 +381,9 @@ export function paintBody(c, frame, skinId, team, playerId = 0, layer = 'all', a
       ink,
       pose.eye,
     )
-  )
+  ) {
     return;
+  }
   // Square for new matches, previews and old replay appearances alike.
   r(-7 + h, -36 + y, 15, 15, ink);
   r(-6 + h, -35 + y, 13, 13, flesh);

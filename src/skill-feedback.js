@@ -45,6 +45,12 @@ export function observeContact(m, p, kind, power, serve = false) {
             : 'Приём';
   const contact = {
     time: m.time,
+    playerId: p.id,
+    airborne: p.y > 0.35,
+    x: m.ball.x,
+    vx: m.ball.vx,
+    vy: m.ball.vy,
+    modifier: p.armSwing?.aim?.soft ? 'soft' : p.armSwing?.aim?.fast ? 'fast' : 'normal',
     team: p.team,
     kind,
     power,

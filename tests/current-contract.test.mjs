@@ -187,22 +187,28 @@ test('tutorial uses the existing exercise and only advances after a real action'
   match.reset('practice');
   const tutorial = new Tutorial(match);
   tutorial.start();
-  assert.equal(match.drill, 'receive');
+  assert.equal(match.drill, 'footwork');
+  assert.equal(match.tutorialNoBall, true);
+  assert.equal(tutorial.phase, 'explain');
   assert.equal(tutorial.next(), false);
-  for (let n = 0; n < 30; n++) {
+  tutorial.begin();
+  tutorial.advance(2.99);
+  assert.equal(tutorial.frozen, true);
+  tutorial.advance(0.02);
+  for (let n = 0; n < 60; n++) {
     match.tick(1 / 120, { axis: 1 });
     tutorial.observe({ axis: 1 });
   }
+  assert.equal(tutorial.ready, false);
+  assert.equal(tutorial.completed, 1);
+  for (let n = 0; n < 80 && !tutorial.ready; n++) {
+    match.tick(1 / 120, { jump: true, jumpHeld: true });
+    tutorial.observe({ jump: true });
+  }
   assert.equal(tutorial.ready, true);
   assert.equal(tutorial.next(), true);
-  assert.equal(tutorial.lesson.id, 'charge');
-  for (let n = 0; n < 12; n++) {
-    match.tick(1 / 120, { low: true });
-    tutorial.observe({ low: true });
-  }
-  match.tick(1 / 120, {});
-  tutorial.observe({});
-  assert.equal(tutorial.ready, true);
+  assert.equal(tutorial.lesson.id, 'receive');
+  assert.equal(match.tutorialNoBall, false);
   tutorial.leave();
   assert.equal(tutorial.active, false);
 });

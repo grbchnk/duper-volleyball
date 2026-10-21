@@ -1,7 +1,8 @@
 import { paintBody, frameOf } from './sprites.js';
 import { TEAMS, UNIFORM_COLORS, HAIR_COLORS, uniformPalette } from './teams.js';
-import { HEAD_STYLES, BODY_STYLES, SKIN_TONES, teamAppearance } from './appearance.js';
+import { HEAD_GROUPS, BODY_STYLES, SKIN_TONES, teamAppearance } from './appearance.js';
 import { EXTRA_HEAD_STYLES } from './head-styles.js';
+import { SHOE_STYLES, JERSEY_PRINTS, ACCESSORY_COLORS } from './player-accessories.js';
 import { SPECIAL_HEADS } from './special-heads.js';
 import { Match } from './engine.js';
 import { Renderer } from './renderer.js';
@@ -69,13 +70,18 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
   <div class="team-editor-layout"><details class="team-presets"><summary>Выбрать готовый клуб · 10 составов</summary><p class="hint">10 составов со своей внешностью. Можно взять готовый и настроить под себя.</p><div id="team-preset-grid"></div></details>
   <section class="team-custom"><div class="team-preview"><h3 id="team-current-name"></h3><canvas id="team-roster-preview" width="630" height="250" aria-label="Предпросмотр трёх игроков моей команды"></canvas><p id="team-current-description" class="hint"></p></div>
   <h3>Цвет формы</h3><div id="team-uniform-colors" class="color-swatches" role="group" aria-label="Цвет формы"></div>
-  <label class="team-random"><input id="team-random-appearance" type="checkbox"> Случайная внешность</label><p class="hint">Меняются головы, причёски и форма игроков. Выбранный цвет команды сохраняется.</p><button id="team-reroll" class="secondary">Подобрать другую внешность ↻</button>
+  <label class="team-random"><input id="team-random-appearance" type="checkbox"> Случайная внешность</label><p class="hint">Меняются головы, причёски, форма, обувь и рисунки. Выбранный цвет команды сохраняется.</p><button id="team-reroll" class="secondary">Подобрать другую внешность ↻</button>
   <h3>Настроить игрока</h3><div id="team-player-tabs" class="team-player-tabs" role="group" aria-label="Игрок для настройки">${['1 · Задний', '2 · Связующий', '3 · Передний'].map((name, i) => `<button class="secondary" data-player="${i}">${name}</button>`).join('')}</div>
   <p id="team-edit-hint" class="hint" role="status"></p>
   <fieldset id="team-player-fields"><h3>Голова / причёска</h3><div id="team-head-gallery" class="head-gallery" role="group" aria-label="Голова или причёска"></div>
   <label>Цвет волос / шерсти</label><div id="team-hair-colors" class="color-swatches" role="group" aria-label="Цвет волос или шерсти"></div>
   <label>Тон кожи</label><div id="team-skin-colors" class="color-swatches" role="group" aria-label="Тон кожи"></div>
-  <label for="team-body">Форма игрока</label><select id="team-body">${BODY_STYLES.map((id) => `<option value="${id}">${BODY_NAMES[id]}</option>`).join('')}</select></fieldset>
+  <label for="team-body">Форма игрока</label><select id="team-body">${BODY_STYLES.map((id) => `<option value="${id}">${BODY_NAMES[id]}</option>`).join('')}</select>
+  <h3>Рисунок на форме</h3><p class="hint">Номер или рисунок выбирается отдельно от фасона формы.</p><div id="team-print-gallery" class="accessory-gallery" role="group" aria-label="Рисунок на форме"></div>
+  <label>Цвет рисунка</label><div id="team-print-colors" class="color-swatches" role="group" aria-label="Цвет рисунка на форме"></div>
+  <h3>Обувь</h3><div id="team-shoe-gallery" class="accessory-gallery" role="group" aria-label="Обувь игрока"></div>
+  <label>Цвет обуви</label><div id="team-shoe-colors" class="color-swatches" role="group" aria-label="Цвет обуви"></div>
+  </fieldset>
   <button id="team-restore-roster" class="secondary">Вернуть исходный состав клуба</button><p class="hint">Изменения применяются сразу и сохраняются в браузере и общем JSON.</p></section></div>`;
   const $ = (id) => dialog.querySelector('#team-' + id);
   let slot = 0;
@@ -108,6 +114,8 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
     applyConfig({ ...getConfig(), homeColor: color }),
   );
   swatches('hair-colors', HAIR_COLORS, (hair) => changePlayer({ hair }));
+  swatches('print-colors', ACCESSORY_COLORS, (printColor) => changePlayer({ printColor }));
+  swatches('shoe-colors', ACCESSORY_COLORS, (shoeColor) => changePlayer({ shoeColor }));
   swatches(
     'skin-colors',
     SKIN_TONES.map((c, i) => [c, 'Тон кожи ' + (i + 1)]),
@@ -158,21 +166,7 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
       sync();
     };
   const headCards = [];
-  const headwear = new Set([
-    'cap',
-    'fox',
-    'band',
-    'beanie',
-    'headphones',
-    'visor',
-    'helmet',
-    'crown',
-  ]);
-  for (const [title, heads] of [
-    ['Причёски', HEAD_STYLES.filter((h) => !headwear.has(h) && !Object.hasOwn(SPECIAL_HEADS, h))],
-    ['Головные уборы', HEAD_STYLES.filter((h) => headwear.has(h))],
-    ['Персонажи', HEAD_STYLES.filter((h) => Object.hasOwn(SPECIAL_HEADS, h))],
-  ]) {
+  for (const { id: category, name: title, heads } of HEAD_GROUPS) {
     const heading = document.createElement('h4');
     heading.textContent = title;
     $('head-gallery').append(heading);
@@ -181,6 +175,7 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
       button.type = 'button';
       button.className = 'head-choice';
       button.dataset.head = head;
+      button.dataset.category = category;
       button.setAttribute('aria-label', HEAD_NAMES[head]);
       const canvas = document.createElement('canvas');
       canvas.width = canvas.height = 96;
@@ -193,7 +188,31 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
       headCards.push({ button, canvas, head });
     }
   }
+  const accessoryCards = [];
+  for (const [gallery, property, catalogue, fallback, layer, scale, offsetY] of [
+    ['print', 'jerseyPrint', JERSEY_PRINTS, 'none', 'torso', 4, 108],
+    ['shoe', 'shoes', SHOE_STYLES, 'classic', 'feet', 4, 64],
+  ]) {
+    for (const [id, design] of Object.entries(catalogue)) {
+      const name = typeof design === 'string' ? design : design.name;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'accessory-choice';
+      button.dataset[property] = id;
+      button.setAttribute('aria-label', name);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 96;
+      canvas.setAttribute('aria-hidden', 'true');
+      const label = document.createElement('span');
+      label.textContent = name;
+      button.append(canvas, label);
+      button.onclick = () => changePlayer({ [property]: id });
+      $(gallery + '-gallery').append(button);
+      accessoryCards.push({ button, canvas, property, id, fallback, layer, scale, offsetY });
+    }
+  }
   let galleryStamp;
+  let accessoryStamp;
   let rosterStamp;
   $('body').onchange = () => changePlayer({ body: $('body').value });
   function sync() {
@@ -238,11 +257,39 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
       }
     }
     galleryStamp = nextGalleryStamp;
+    const nextAccessoryStamp = JSON.stringify([p, config.homeColor]);
+    for (const {
+      button,
+      canvas,
+      property,
+      id,
+      fallback,
+      layer,
+      scale,
+      offsetY,
+    } of accessoryCards) {
+      button.setAttribute('aria-pressed', String((p[property] || fallback) === id));
+      if (accessoryStamp !== nextAccessoryStamp) {
+        const c = canvas.getContext('2d');
+        c.clearRect(0, 0, 96, 96);
+        c.save();
+        c.translate(48, offsetY);
+        c.scale(scale, scale);
+        paintBody(c, frameOf('idle', 0), 'club', uniformPalette(config.homeColor), slot, layer, {
+          ...p,
+          [property]: id,
+        });
+        c.restore();
+      }
+    }
+    accessoryStamp = nextAccessoryStamp;
     $('body').value = p.body;
     for (const [id, color] of [
       ['uniform-colors', config.homeColor],
       ['hair-colors', p.hair],
       ['skin-colors', p.tone],
+      ['print-colors', p.printColor || '#fff6e1'],
+      ['shoe-colors', p.shoeColor || '#fff6e1'],
     ])
       for (const b of $(id).querySelectorAll('button'))
         b.setAttribute('aria-pressed', String(b.dataset.color === color));

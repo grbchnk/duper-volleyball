@@ -99,7 +99,10 @@ window.addEventListener('keydown', (e) => {
     !e.target?.closest('button,a')
   ) {
     e.preventDefault();
-    if (!e.repeat) repeatDrill();
+    if (!e.repeat) {
+      if (tutorial?.active) tutorial.retry();
+      else repeatDrill();
+    }
     return;
   }
   if (e.code === 'Enter' || e.code === 'Escape') {
@@ -111,6 +114,8 @@ window.addEventListener('keydown', (e) => {
           if (club) club.startSelected();
           else startGame();
         }
+      } else if (e.code === 'Enter' && tutorial?.canConfirm && !paused) {
+        tutorial.confirm();
       } else if (match.phase === 'finished' && e.code === 'Enter') {
         const next = $('club-next');
         if (next && !next.hidden) next.click();
@@ -432,7 +437,7 @@ function frame(time) {
     if (club) club.startSelected();
     else startGame();
     controllerAction = true;
-  } else if (!modalOpen() && controllerInput.confirmPressed && tutorial?.ready) {
+  } else if (!modalOpen() && controllerInput.confirmPressed && tutorial?.canConfirm && !paused) {
     tutorial.confirm();
     controllerAction = true;
   } else if (!modalOpen() && controllerInput.confirmPressed && match.phase === 'finished') {
@@ -459,10 +464,11 @@ function frame(time) {
     !dynamicUI?.playing &&
     !club?.drawerOpen
   ) {
+    tutorial?.advance(elapsed);
     accumulator += elapsed * config.gameSpeed;
     while (accumulator >= FIXED_DT) {
       const primary = input.read(match.phase);
-      match.tick(FIXED_DT, primary, secondInput.read(match.phase));
+      if (!tutorial?.frozen) match.tick(FIXED_DT, primary, secondInput.read(match.phase));
       tutorial?.observe(primary);
       input.consume();
       secondInput.consume();
@@ -488,6 +494,7 @@ function frame(time) {
   if (!document.hidden && (sceneDirty || activeScene)) {
     drawAmbient(match, teams);
     renderer.draw(shown, teams, activeScene ? elapsed : 0);
+    tutorial?.draw(renderer);
     sceneDirty = false;
   }
   if (!document.hidden) {

@@ -369,9 +369,15 @@ export class Renderer {
     this.drawChallenge(m);
     const previews = ballVisible ? (m.controls || [m]).filter((state) => state.aimPreview) : [];
     for (const state of previews) this.trajectory(state.aimPreview, m.config, true);
-    if (ballVisible && !previews.length && m.config.trajectory && m.phase === 'rally')
+    if (
+      ballVisible &&
+      !m.tutorialNoBall &&
+      !previews.length &&
+      m.config.trajectory &&
+      m.phase === 'rally'
+    )
       this.trajectory(m.ball, m.config, false);
-    if (ballVisible && m.config.trajectory && m.phase === 'rally')
+    if (ballVisible && !m.tutorialNoBall && m.config.trajectory && m.phase === 'rally')
       this.text(
         m.aimPreview ? 'ЦВЕТНОЙ ПУНКТИР: УДАР СЕЙЧАС' : 'СВЕТЛЫЙ ПУНКТИР: ТЕКУЩИЙ ПОЛЁТ',
         480,
@@ -380,7 +386,7 @@ export class Renderer {
         '#547260',
         'center',
       );
-    if (ballVisible && m.prediction && m.phase === 'rally' && m.ball.x < 0) {
+    if (ballVisible && !m.tutorialNoBall && m.prediction && m.phase === 'rally' && m.ball.x < 0) {
       const p = this.project(m.prediction.x);
       c.strokeStyle = '#698c8070';
       c.setLineDash([3, 3]);
@@ -932,7 +938,7 @@ export class Renderer {
     this.rect(x - 6, 462, 14, 2, '#d29d82');
   }
   drawBallShadow(m) {
-    if (ballAboveCeiling(m.ball)) return;
+    if (m.tutorialNoBall || ballAboveCeiling(m.ball)) return;
     const c = this.ctx,
       floor = this.project(m.ball.x, 0),
       height = Math.max(0, m.ball.y - COURT.ballRadius),
@@ -953,7 +959,7 @@ export class Renderer {
     c.restore();
   }
   drawBallSmoke(m) {
-    if (ballAboveCeiling(m.ball)) return;
+    if (m.tutorialNoBall || ballAboveCeiling(m.ball)) return;
     const opacity = m.config.smokeTrailOpacity;
     if (!opacity || !m.smokeTrail?.length) return;
     const c = this.ctx;
@@ -970,7 +976,7 @@ export class Renderer {
     c.restore();
   }
   drawBall(m) {
-    if (ballAboveCeiling(m.ball)) return;
+    if (m.tutorialNoBall || ballAboveCeiling(m.ball)) return;
     const c = this.ctx,
       p = this.project(m.ball.x, m.ball.y),
       y = p.y;

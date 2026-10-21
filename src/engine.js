@@ -367,6 +367,7 @@ export class Match {
       this.challenge.profileChanged = true;
   }
   reset(mode = this.mode) {
+    this.tutorialNoBall = false;
     this.coopManualSerial = [-1, -1, -1];
     this.cupStage = null;
     this.coopSelected = 2;
@@ -795,6 +796,11 @@ export class Match {
     for (const [team, slot] of this.humanControllers()) {
       this.handleControl(dt, this.inputs[slot], team, this.controls[slot]);
       if (slot === 0) this.coopPrimary = this.selected[0];
+    }
+    if (this.tutorialNoBall && this.mode === 'practice') {
+      for (const p of this.players) if (!p.benched) this.movePlayer(p, dt, input);
+      this.controls[0].previousInput = input;
+      return;
     }
     // Teammates and receivers can reposition; the server stays in the serve motion.
     if (this.phase === 'serve' || this.phase === 'serve-motion') {

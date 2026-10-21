@@ -1,7 +1,8 @@
 // Cosmetic randomness is independent of the match's physics random stream.
 import { SPECIAL_HEADS } from './special-heads.js';
 import { TEAMS, FEMALE_HEADS, HAIR_COLORS } from './teams.js';
-import { EXTRA_HEAD_STYLES } from './head-styles.js';
+import { EXTRA_HEAD_STYLES, HEADWEAR } from './head-styles.js';
+import { SHOE_STYLES, JERSEY_PRINTS, ACCESSORY_COLORS } from './player-accessories.js';
 export const HEAD_STYLES = [
   'cap',
   'fox',
@@ -10,6 +11,19 @@ export const HEAD_STYLES = [
   'bald',
   ...Object.keys(EXTRA_HEAD_STYLES),
   ...Object.keys(SPECIAL_HEADS),
+];
+export const HEAD_GROUPS = [
+  {
+    id: 'hair',
+    name: 'Причёски',
+    heads: HEAD_STYLES.filter((h) => !HEADWEAR.has(h) && !Object.hasOwn(SPECIAL_HEADS, h)),
+  },
+  { id: 'headwear', name: 'Головные уборы', heads: HEAD_STYLES.filter((h) => HEADWEAR.has(h)) },
+  {
+    id: 'characters',
+    name: 'Квадратные головы',
+    heads: HEAD_STYLES.filter((h) => Object.hasOwn(SPECIAL_HEADS, h)),
+  },
 ];
 export const BODY_STYLES = ['classic', 'stripes', 'sleeveless', 'chevron', 'longsleeve'];
 export const SKIN_TONES = ['#f4cfac', '#edba91', '#d79b70', '#b87950', '#925b3d', '#633f30'];
@@ -44,6 +58,10 @@ export function randomAppearance(random = Math.random) {
     body,
     tone,
     hair: pick(['#302b32', '#654537', '#a76a3e', '#d7b46a', '#843f38']),
+    shoes: pick(Object.keys(SHOE_STYLES)),
+    shoeColor: pick(ACCESSORY_COLORS)[0],
+    jerseyPrint: pick(Object.keys(JERSEY_PRINTS)),
+    printColor: pick(ACCESSORY_COLORS)[0],
   };
 }
 
@@ -55,6 +73,10 @@ export function sanitizeAppearance(value = {}) {
     body: BODY_STYLES.includes(p.body) ? p.body : 'classic',
     tone: SKIN_TONES.includes(p.tone) ? p.tone : SKIN_TONES[0],
     hair: HAIR_COLORS.some(([color]) => color === p.hair) ? p.hair : HAIR_COLORS[0][0],
+    shoes: Object.hasOwn(SHOE_STYLES, p.shoes) ? p.shoes : 'classic',
+    shoeColor: ACCESSORY_COLORS.some(([c]) => c === p.shoeColor) ? p.shoeColor : '#fff6e1',
+    jerseyPrint: Object.hasOwn(JERSEY_PRINTS, p.jerseyPrint) ? p.jerseyPrint : 'none',
+    printColor: ACCESSORY_COLORS.some(([c]) => c === p.printColor) ? p.printColor : '#fff6e1',
   };
 }
 export function appearanceKey(config) {
