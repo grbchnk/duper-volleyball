@@ -35,17 +35,17 @@ const shot = (m, p, kind, aim = {}, amount = 1) =>
 const angle = (s) => Math.atan2(s.vy, s.vx);
 const difference = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
-test('both passes prefer a setter on touch one, a net set on touch two and a legal return on touch three', () => {
+test('training autopass retains a setter, net set and legal third return', () => {
   for (const team of [0, 1])
     for (const kind of ['low', 'loft']) {
       const { m, p, forward } = setup(team);
-      const receive = shot(m, p, kind, { touchesBefore: 0 });
+      const receive = shot(m, p, kind, { touchesBefore: 0, tutorialAutoPass: true });
       assert.equal(receive.targetId, team * 3 + 1);
       assert.ok(receive.vx * forward > 0, 'an incoming attack does not push the receive backwards');
-      const set = shot(m, p, kind, { touchesBefore: 1 });
+      const set = shot(m, p, kind, { touchesBefore: 1, tutorialAutoPass: true });
       assert.equal(set.assistIntent, 'Навес у сетки');
       assert.equal(set.targetId, team * 3 + 2);
-      const returned = shot(m, p, kind, { touchesBefore: 2 });
+      const returned = shot(m, p, kind, { touchesBefore: 2, tutorialAutoPass: true });
       assert.equal(returned.assistIntent, 'Перевод через сетку');
       const end = traceBall(
         { ...m.ball, y: kind === 'low' ? 0.5 : 1.9, ...returned },
@@ -130,6 +130,7 @@ test('a low own-team ball near the net selects a reachable front receiver on bot
 
 test('the actual released third contact passes touch context into the shared assist', () => {
   const { m, p } = setup();
+  m.config = { ...m.config, neutralPassError: 0 };
   m.lastTouch = p.team;
   m.lastPlayer = 1;
   m.touches[0] = 2;

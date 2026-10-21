@@ -1,5 +1,6 @@
 import { clamp, predictAtHeight, driveOverNet, traceBall } from './physics.js';
 import { COURT } from './config.js';
+import { reflectedReception, applyReceptionError } from './neutral-reception.js';
 
 export const hasShotDirection = (aim) =>
   !!(Math.hypot(aim.vector?.x || 0, aim.vector?.y || 0) || aim.axis || aim.up || aim.down);
@@ -9,8 +10,31 @@ const turn = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 export function assistManualShot(ball, player, kind, result, aim, players, config) {
   // Both human passes use the same intent selection and angular assistance.
   if (aim.cpuControl) return result;
+  if (Math.hypot(result.vx, result.vy) < 0.1) return result;
 
   const directed = hasShotDirection(aim);
+  if (!directed && ['low', 'loft', 'back'].includes(kind) && !aim.tutorialAutoPass) {
+    const reflected = reflectedReception(ball, player, kind, result);
+    const corrected = assistManualShot(
+      ball,
+      player,
+      kind,
+      reflected,
+      {
+        ...aim,
+        vector: { x: reflected.vx, y: reflected.vy },
+        // Reuse the bounded directional correction, not the training target picker.
+      },
+      players,
+      config,
+    );
+    return {
+      ...applyReceptionError(ball, kind, corrected, aim, config),
+      requestedDirection: { vx: reflected.vx, vy: reflected.vy },
+      correctedDirection: { vx: corrected.vx, vy: corrected.vy },
+      assistIntent: 'Приём по встречному направлению',
+    };
+  }
   let amount = clamp(
     kind === 'drive'
       ? directed

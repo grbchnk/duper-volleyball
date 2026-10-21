@@ -28,10 +28,10 @@ test('neutral attack assistance rotates at fixed speed, respects explicit aim, a
     assert.equal(weak.impulse.assisted, false);
   }
 });
-test('neutral passes on either team retain speed while correcting towards nearby receivers', () => {
+test('training neutral passes on either team retain speed while finding nearby receivers', () => {
   for (const playerId of [0, 3]) {
     const c = { ...DEFAULTS, passAssist: 1 };
-    const options = { kind: 'loft', power: 0.8, playerId };
+    const options = { kind: 'loft', power: 0.8, playerId, tutorialAutoPass: true };
     const sample = simulateShot(c, options),
       base = simulateShot({ ...c, passAssist: 0 }, options);
     assert.ok(sample.impulse.assisted);

@@ -32,6 +32,7 @@ const sceneKeys = [
   'outMarker',
   'combinations',
   'visualCombo',
+  'passDirections',
 ];
 // Retry stores simulation state once; playback stores only what the scene consumes.
 export function capture(match) {

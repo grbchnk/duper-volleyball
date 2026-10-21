@@ -1,5 +1,6 @@
 // Shared by simulation, records and UI: cosmetic changes never invalidate AI.
 export const COSMETIC_KEYS = new Set([
+  'passDirectionPreview',
   'armScale',
   'armLength',
   'elbowHeight',

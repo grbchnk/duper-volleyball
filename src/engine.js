@@ -28,6 +28,7 @@ import {
   updateAim,
 } from './controllers.js';
 import { Replay } from './replay.js';
+import { receptionErrorSeed } from './neutral-reception.js';
 import { advanceChallenge, resolveChallenge } from './challenges.js';
 import { createSkillStats, beginRally, summarizeRally } from './skill-feedback.js';
 import { ATTACKS, blockImpulse } from './tactics.js';
@@ -150,16 +151,6 @@ export class Match {
     )
       return false;
     this.selectControlledPlayer(this.controls[slot], id);
-    for (const key of ['charge', 'pending']) {
-      const action = this.controls[slot][key];
-      if (action?.playerId === previous) {
-        action.playerId = id;
-        if (key === 'pending') {
-          player.releaseSlow = this.players[previous].releaseSlow;
-          player.releaseSlowTotal = this.players[previous].releaseSlowTotal;
-        }
-      }
-    }
     player.returnHome = false;
     player.clearLane = null;
     this.emit('receiver-switch', { slot, playerId: id });
@@ -265,6 +256,12 @@ export class Match {
       const player = this.players[action.playerId];
       action.aim.previousPlayerId = this.lastTouch === player?.team ? this.lastPlayer : null;
       action.aim.touchesBefore = this.lastTouch === player?.team ? this.touches[player.team] : 0;
+      action.aim.tutorialAutoPass = !!this.training;
+      action.aim.neutralErrorSeed = receptionErrorSeed(
+        this.visualSeed,
+        this.shotSerial,
+        player?.id || 0,
+      );
       action.aim.controlledIds = this.players
         .filter((p) => p.team === player?.team && this.humanSlot(p) !== null)
         .map((p) => p.id);
@@ -377,6 +374,7 @@ export class Match {
     this.clubLocked = false;
     this.skillStats = createSkillStats();
     this.lastContact = null;
+    this.passDirections = null;
     this.lastRally = null;
     this.outMarker = null;
     this.replay = new Replay();
@@ -970,18 +968,7 @@ export class Match {
           this.config.dynamic && this.lastTouch !== team && !!this.inputs?.[team]?.axis,
       });
       if (next === null || next === this.selected[team]) continue;
-      const previous = this.selected[team];
       this.selectControlledPlayer(this.controls[team], next);
-      for (const key of ['charge', 'pending']) {
-        const action = this.controls[team][key];
-        if (action?.playerId === previous) {
-          action.playerId = next;
-          if (key === 'pending') {
-            this.players[next].releaseSlow = this.players[previous].releaseSlow;
-            this.players[next].releaseSlowTotal = this.players[previous].releaseSlowTotal;
-          }
-        }
-      }
       this.players[next].returnHome = false;
       this.players[next].clearLane = null;
     }
@@ -1811,6 +1798,7 @@ export class Match {
     if (manual && !run?.feint && run?.playerId === p.id) run.cancelled = true;
     if (
       this.config.approachAssist &&
+      (!this.config.dynamic || !this.isHuman(p.team) || !!this.training) &&
       run &&
       !run.feint &&
       !run.cancelled &&

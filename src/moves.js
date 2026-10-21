@@ -24,20 +24,19 @@ export const SERVES = Object.freeze(SERVE_BASES);
 // Human direction and automatic/serve profiles are distinct models with an explicit dispatch.
 export function shotImpulse(ball, player, kind, power, aim, players, config, serving = false) {
   const source = { ...ball, attackGravity: 0, flightTempo: 1 };
-  const impulse =
+  const manual =
     !serving && config.dynamic && aim.manualControl
-      ? assistManualShot(
-          source,
-          player,
-          kind,
-          manualImpulse(source, player, kind, power, aim, config),
-          aim,
-          players,
-          config,
-        )
-      : profileImpulse(source, player, kind, power, aim, players, config, serving);
+      ? manualImpulse(source, player, kind, power, aim, config)
+      : null;
+  const impulse = manual
+    ? assistManualShot(source, player, kind, manual, aim, players, config)
+    : profileImpulse(source, player, kind, power, aim, players, config, serving);
   return {
     attackGravity: 0,
+    requestedDirection: impulse.requestedDirection || {
+      vx: manual?.vx ?? impulse.vx,
+      vy: manual?.vy ?? impulse.vy,
+    },
     ...impulse,
     flightTempo: impulse.flightTempo ?? 1,
   };

@@ -157,6 +157,15 @@ export function makeContact(match, p, kind, power, impulse) {
   // Capture the incoming flight before ownership and velocity change.
   const incomingOpponent = match.lastTouch != null && match.lastTouch !== team;
   const incomingVelocity = { x: match.ball.vx, y: match.ball.vy };
+  if (match.isHuman(p.team) && ['low', 'loft', 'back'].includes(kind)) {
+    match.passDirections = {
+      x: match.ball.x,
+      y: match.ball.y,
+      requested: impulse.requestedDirection || { vx: impulse.vx, vy: impulse.vy },
+      corrected: { vx: impulse.vx, vy: impulse.vy },
+      neutral: !!impulse.neutralReception,
+    };
+  }
   const incomingBurning =
     !!match.config.ballFire && Math.hypot(match.ball.vx, match.ball.vy) >= match.config.fireSpeed;
   if (match.lastTouch !== team) match.touches[team] = 0;

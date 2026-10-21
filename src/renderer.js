@@ -367,6 +367,8 @@ export class Renderer {
       this.rect(479, 422, 2, 60, '#fff8df');
     }
     this.drawChallenge(m);
+    if (m.config.passDirectionPreview && m.passDirections)
+      this.drawPassDirections(m.passDirections);
     const previews = ballVisible ? (m.controls || [m]).filter((state) => state.aimPreview) : [];
     for (const state of previews) this.trajectory(state.aimPreview, m.config, true);
     if (
@@ -1078,6 +1080,49 @@ export class Renderer {
       const p = this.project(end.x);
       this.rect(p.x - 6, 456, 12, 3, color);
     }
+  }
+  drawPassDirections(record) {
+    const c = this.ctx,
+      origin = this.project(record.x, record.y);
+    c.save();
+    const arrow = (vector, color, dashed) => {
+      const speed = Math.hypot(vector.vx, vector.vy) || 1;
+      const end = this.project(
+        record.x + (vector.vx / speed) * 3,
+        record.y + (vector.vy / speed) * 3,
+      );
+      const angle = Math.atan2(end.y - origin.y, end.x - origin.x);
+      c.strokeStyle = color;
+      c.fillStyle = color;
+      c.lineWidth = 3;
+      c.setLineDash(dashed ? [6, 5] : []);
+      c.beginPath();
+      c.moveTo(origin.x, origin.y);
+      c.lineTo(end.x, end.y);
+      c.stroke();
+      c.setLineDash([]);
+      c.beginPath();
+      c.moveTo(end.x, end.y);
+      c.lineTo(end.x - 9 * Math.cos(angle - 0.45), end.y - 9 * Math.sin(angle - 0.45));
+      c.lineTo(end.x - 9 * Math.cos(angle + 0.45), end.y - 9 * Math.sin(angle + 0.45));
+      c.closePath();
+      c.fill();
+    };
+    arrow(record.requested, '#3478c9', true);
+    arrow(record.corrected, '#239660', false);
+    c.fillStyle = '#fffaf0e8';
+    c.fillRect(250, 131, 460, 22);
+    this.text(
+      record.neutral
+        ? 'СИНИЙ: ВСТРЕЧНОЕ · ЗЕЛЁНЫЙ: ПОМОЩЬ + ОШИБКА'
+        : 'СИНИЙ: ЗАДАННОЕ · ЗЕЛЁНЫЙ: ПОСЛЕ ПОМОЩИ',
+      480,
+      146,
+      10,
+      '#315b67',
+      'center',
+    );
+    c.restore();
   }
   drawHUD(m, teams) {
     this.rect(0, 0, 960, 58, '#fff5e4');

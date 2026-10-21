@@ -250,6 +250,8 @@ function syncSettings() {
   $('speed-value').textContent = config.gameSpeed.toFixed(2) + '×';
   $('assist').checked = config.assist;
   $('trajectory').checked = config.trajectory;
+  $('transferShotOnSwitch').checked = config.transferShotOnSwitch;
+  $('passDirectionPreview').checked = config.passDirectionPreview;
   $('difficulty').value = config.cpuSkill;
   $('difficulty-value').textContent = config.cpuSkill + ' / 100';
   $('scoring').value = config.scoring;
@@ -647,7 +649,7 @@ ambienceUI = createAmbienceUI({
   open: openDialog,
 });
 $('speed').oninput = (e) => applyConfig({ ...config, gameSpeed: Number(e.target.value) });
-for (const key of ['assist', 'trajectory'])
+for (const key of ['assist', 'trajectory', 'transferShotOnSwitch', 'passDirectionPreview'])
   $(key).onchange = (e) => applyConfig({ ...config, [key]: e.target.checked });
 $('difficulty').oninput = (e) => {
   const cpuSkill = Number(e.target.value);
@@ -737,6 +739,7 @@ $('reset-graphics').onclick = () =>
     'pixelGraphics',
     'livelyBackground',
     'trajectory',
+    'passDirectionPreview',
   ]);
 $('reset-all').onclick = () => resetSettings();
 $('undo-settings').onclick = () => {

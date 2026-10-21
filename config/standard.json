@@ -363,6 +363,10 @@
     "smokeTrailOpacity": 0.35,
     "smokeTrailLife": 1,
     "armPowerMotion": 1,
-    "armJumpMotion": 1
+    "armJumpMotion": 1,
+    "transferShotOnSwitch": true,
+    "passDirectionPreview": false,
+    "neutralPassError": 0.15,
+    "neutralPassSpeedError": 0.75
   }
 }

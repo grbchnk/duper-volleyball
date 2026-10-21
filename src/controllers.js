@@ -39,6 +39,29 @@ export function selectControlledPlayer(match, control, id) {
   )
     return false;
   if (id === previousId) return false;
+  // Ownership of an in-progress shot changes in one place for manual, automatic
+  // and co-op selection. A disabled transfer consumes this physical press.
+  for (const key of ['charge', 'pending']) {
+    const action = control[key];
+    if (action?.playerId !== previousId) continue;
+    if (match.config.transferShotOnSwitch !== false) {
+      action.playerId = id;
+      if (key === 'pending') {
+        player.releaseSlow = match.players[previousId].releaseSlow;
+        player.releaseSlowTotal = match.players[previousId].releaseSlowTotal;
+      }
+    } else {
+      control[key] = null;
+      control.chargeLock = true;
+      control.aimPreview = null;
+      const previous = match.players[previousId];
+      if (previous?.armSwing && !previous.armSwing.hit) previous.armSwing = null;
+      if (previous?.pose?.startsWith('ready-')) {
+        previous.pose = 'idle';
+        previous.animation = 0;
+      }
+    }
+  }
   const run = match.teamRuns?.[control.team];
   if (run?.feint && run.serial === match.shotSerial && run.decoyId === id)
     run.decoyCancelled = true;

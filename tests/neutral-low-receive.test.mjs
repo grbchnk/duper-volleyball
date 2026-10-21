@@ -4,19 +4,24 @@ import { DEFAULTS } from '../src/config.js';
 import { shotImpulse, manualImpulse } from '../src/moves.js';
 import { Match } from '../src/engine.js';
 import { simulateShot } from '../src/shot-lab.js';
+import { receptionErrorSeed } from '../src/neutral-reception.js';
 
 const player = { id: 1, team: 0, x: -4, y: 0, vx: 0, vy: 0, facing: 1 };
 const ball = { x: -4, y: 0.5, z: 4.5, vx: -8, vy: -6 };
 const receive = (incoming = ball, aim = {}, p = player, config = DEFAULTS) =>
   shotImpulse(incoming, p, 'low', 0.6, { manualControl: true, ...aim }, [p], config);
 
-test('neutral low starts with the authored upward profile instead of inheriting incoming lateral momentum', () => {
+test('neutral low reverses the incoming side while retaining a safe upward angle', () => {
   for (const team of [0, 1])
     for (const vx of [-12, 0, 12]) {
       const p = { ...player, team, x: team === 0 ? -4 : 4 };
-      const shot = receive({ ...ball, x: p.x, vx }, {}, p);
-      assert.equal(Math.sign(shot.vx), team === 0 ? 1 : -1);
-      assert.ok(shot.vy > Math.abs(shot.vx));
+      const shot = receive({ ...ball, x: p.x, vx }, {}, p, {
+        ...DEFAULTS,
+        passAssist: 0,
+        neutralPassError: 0,
+      });
+      assert.equal(Math.sign(shot.vx), -Math.sign(vx) || (team === 0 ? 1 : -1));
+      assert.ok((Math.atan2(shot.vy, Math.abs(shot.vx)) * 180) / Math.PI >= 38 - 1e-9);
       assert.equal(shot.targetId, null);
       assert.equal(shot.assisted, false);
       assert.equal(shot.neutralReceive, true);
@@ -82,7 +87,10 @@ test('actual released lower contact uses the same shared pass model as the lab c
       p,
       'low',
       0.6,
-      { manualControl: true },
+      {
+        manualControl: true,
+        neutralErrorSeed: receptionErrorSeed(m.visualSeed, m.shotSerial, p.id),
+      },
       m.players,
       m.config,
     );
