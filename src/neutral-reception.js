@@ -25,14 +25,28 @@ export function neutralLift(ball, player, kind, result, aim, config) {
   const reach = Math.max(0.35, shotSettings(config, kind).Reach);
   const extension = clamp((centre - player.x) / reach, -1, 1);
   const edge = clamp((ball.x - centre) / 0.4, -1, 1);
-  const tilt = ((extension * 12 + edge * 8) * Math.PI) / 180;
+  // Reaching hands track the ball visually, so palm-centering alone used to
+  // make a stretched, glancing receive look almost as good as a central one.
+  // Keep central contacts forgiving, then smoothly expose the stretched arm
+  // angle and the edge of the platform near the limits of actual reach.
+  const reachUse = clamp(Math.abs(ball.x - player.x) / reach, 0, 1);
+  const stretchProgress = clamp((reachUse - 0.35) / 0.6, 0, 1);
+  const stretch = stretchProgress * stretchProgress * (3 - 2 * stretchProgress);
+  const strain = 1 - (1 - stretch) * (1 - Math.abs(edge) * 0.65);
+  const tilt = ((extension * (12 + 8 * stretch) + edge * (8 + 12 * strain)) * Math.PI) / 180;
   const soft = aim.soft || kind === 'back';
-  const carry = (kind === 'loft' ? 0.06 : 0.1) * (soft ? 0.5 : 1);
   const incomingX = Number.isFinite(ball.vx) ? ball.vx : 0;
   const downward = Math.max(0, -(ball.vy || 0));
-  const limit = speed * Math.sin(((soft ? 20 : 28) * Math.PI) / 180);
+  const grazing = Math.abs(incomingX) / Math.max(1, Math.hypot(incomingX, ball.vy || 0));
+  const carry =
+    ((kind === 'loft' ? 0.08 : 0.12) + 0.1 * strain + 0.025 * grazing) * (soft ? 0.5 : 1);
+  // A difficult contact may fly much flatter, but still attempts an upward
+  // lift. L2 damps carry; it cannot turn a fully stretched arm into a flat,
+  // perfectly aligned receiving platform.
+  const limitDegrees = (soft ? 20 : 28) + (soft ? 25 : 20) * strain;
+  const limit = speed * Math.sin((limitDegrees * Math.PI) / 180);
   const lateral = clamp(
-    (speed + Math.min(downward, 30) * 0.06) * Math.sin(tilt) + incomingX * carry,
+    (speed + Math.min(downward, 30) * (0.06 + 0.1 * strain)) * Math.sin(tilt) + incomingX * carry,
     -limit,
     limit,
   );
@@ -41,7 +55,8 @@ export function neutralLift(ball, player, kind, result, aim, config) {
   // Pass assistance only steadies the lift (at most 6 degrees). Teammates
   // never change its direction, and incoming energy cannot add shot power.
   const amount = clamp(config.passAssist ?? 0, 0, 1);
-  const correction = clamp(Math.PI / 2 - physicalAngle, -Math.PI / 30, Math.PI / 30) * amount;
+  const correction =
+    clamp(Math.PI / 2 - physicalAngle, -Math.PI / 30, Math.PI / 30) * amount * (1 - 0.7 * strain);
   const angle = physicalAngle + correction;
   return {
     ...result,
