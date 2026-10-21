@@ -93,6 +93,12 @@ test(
     await page.locator('#tutorial-menu').waitFor({ state: 'visible' });
     await pad(page);
     const time = await page.evaluate(async () => (await import('/src/main.js')).match.time);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    assert.equal(
+      await page.locator('#pause-overlay').isVisible(),
+      false,
+      'The course menu is already paused; focus loss must not cover it with another pause',
+    );
     await page.waitForTimeout(200);
     assert.equal(await page.evaluate(async () => (await import('/src/main.js')).match.time), time);
     await pad(page, [0, 1]);
@@ -163,7 +169,7 @@ test(
       });
       assert.ok(
         card.y + card.height <= bounds.y + bounds.height + 2,
-        'Responsive coach must stay inside game',
+        `Responsive coach must stay inside game at ${viewport.width}x${viewport.height}: card ${card.height}, viewport ${bounds.height}`,
       );
       assert.ok(await page.locator('#arena').evaluate((e) => e.scrollHeight <= e.clientHeight + 2));
     }

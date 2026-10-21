@@ -773,6 +773,9 @@ export function createTutorial(match, hooks) {
     get active() {
       return session.active;
     },
+    get menuOpen() {
+      return session.active && !!session.menuOpen;
+    },
     get ready() {
       return session.active && session.ready;
     },

@@ -140,14 +140,14 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => input.up(e.code));
 window.addEventListener('blur', () => {
   clearActions();
-  if (started && !paused && !modalOpen()) setPaused(true);
+  if (started && !paused && !modalOpen() && !tutorial?.menuOpen) setPaused(true);
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     sound.updateMusic(config, false);
     flushSettings();
     clearActions();
-    if (started) setPaused(true);
+    if (started && !tutorial?.menuOpen) setPaused(true);
   }
 });
 function toast(message) {

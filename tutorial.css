@@ -96,6 +96,10 @@
   border-radius: 2cqw;
   background: #fffdf3f7;
   box-shadow: 0 10px 40px #153d3326;
+  max-height: 78%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 .tutorial-coach-heading {
   display: flex;
@@ -744,5 +748,28 @@
   .tutorial-overlay animateMotion,
   .tutorial-overlay animate {
     display: none;
+  }
+}
+@container (max-height: 350px) {
+  .tutorial-coach {
+    padding: 1.1cqw 1.5cqw;
+  }
+  .tutorial-demonstration svg {
+    height: clamp(36px, 22cqh, 72px);
+  }
+  .tutorial-coach h2 {
+    font-size: clamp(12px, 2.3cqw, 18px);
+    margin: 0.3cqw 0;
+  }
+  .tutorial-coach p {
+    font-size: clamp(10px, 1.4cqw, 12px);
+    margin: 0.4cqw 0;
+  }
+  .tutorial-overlay[data-phase='explain'] .tutorial-power,
+  .tutorial-overlay[data-phase='explain'] .tutorial-goals {
+    display: none;
+  }
+  .tutorial-coach-actions {
+    font-size: clamp(9px, 1.35cqw, 12px);
   }
 }
