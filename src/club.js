@@ -325,7 +325,7 @@ export function createClub(match, hooks) {
       document.getElementById('action-title').textContent = CHALLENGES[c.id].name;
       document.getElementById('action-hint').textContent = CHALLENGES[c.id].hint;
       document.getElementById('action-key').textContent =
-        c.id === 'rescue' ? 'Q / E' : c.id === 'serve' ? 'S' : 'D';
+        c.id === 'rescue' ? 'Стик ×3' : c.id === 'serve' ? '□' : '○';
       document
         .getElementById('game')
         .setAttribute(
@@ -368,7 +368,7 @@ export function createClub(match, hooks) {
     } else {
       $('feedback-title').textContent = 'Точность решает.';
       $('feedback-detail').textContent =
-        'Z / L2 — мягко · C / R2 — мощно · удержание — сила · направление — стрелки / левый стик';
+        'L2 — мягко · R2 — мощно · удержание — сила · левый стик — направление';
     }
     if (match.phase !== 'finished') return null;
     if (!activity) {

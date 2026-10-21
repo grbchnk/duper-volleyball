@@ -421,13 +421,13 @@ export class Renderer {
     compositePixels(c, this.foreground, this.pixelGraphics, 960, 540);
     if (street) c.drawImage(this.frontLayer, -10, -5);
     this.canvas.style.imageRendering = 'pixelated';
-    this.drawHUD(m, teams);
+    if (!this.learning) this.drawHUD(m, teams);
     const combination = m.combinations?.[0];
     const complete = m.visualCombo && m.time - m.visualCombo.at < 1.8;
-    if (complete) {
+    if (complete && !this.learning) {
       this.rect(310, 116, 340, 34, '#fff2c9ee');
       this.text('★ ПРИЁМ · НАВЕС · УДАР ★', 480, 138, 15, '#a3762e', 'center');
-    } else if (combination && m.time - combination.at < 4)
+    } else if (combination && m.time - combination.at < 4 && !this.learning)
       this.text(
         combination.stage === 1 ? '◆ ПРИЁМ → ◇ НАВЕС → ◇ УДАР' : '◆ ПРИЁМ → ◆ НАВЕС → ◇ УДАР',
         480,
@@ -454,12 +454,12 @@ export class Renderer {
         'center',
       );
     }
-    if (m.noticeTime > 0 && m.phase === 'rally') {
+    if (!this.learning && m.noticeTime > 0 && m.phase === 'rally') {
       const width = Math.min(510, m.notice.length * 7.2 + 25);
       this.rect(480 - width / 2, 83, width, 25, '#fff8e9e8');
       this.text(m.notice, 480, 100, 12, '#62796a', 'center');
     }
-    if (['point', 'set-end'].includes(m.phase)) {
+    if (!this.learning && ['point', 'set-end'].includes(m.phase)) {
       this.rect(290, 176, 380, 126, '#fff9eaf2');
       this.rect(300, 186, 360, 3, teams[m.pointWinner].color);
       this.text(m.notice, 480, 216, 24, '#476756', 'center');

@@ -191,10 +191,10 @@ test('tutorial uses the existing exercise and only advances after a real action'
   assert.equal(match.tutorialNoBall, true);
   assert.equal(tutorial.phase, 'explain');
   assert.equal(tutorial.next(), false);
-  tutorial.begin();
   tutorial.advance(2.99);
   assert.equal(tutorial.frozen, true);
   tutorial.advance(0.02);
+  assert.equal(tutorial.phase, 'practice');
   for (let n = 0; n < 60; n++) {
     match.tick(1 / 120, { axis: 1 });
     tutorial.observe({ axis: 1 });

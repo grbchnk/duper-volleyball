@@ -1,17 +1,22 @@
 import { traceBall, launchTo } from './physics.js';
+import { coachFor, controllerGraphic, resultGraphic } from './tutorial-visuals.js';
 
-const goal = (id, label, keys, extra = {}) => ({ id, label, keys, ...extra });
-// Each stage has an explanation/demo, a countdown, and verified practice goals.
+// Short, controller-first chapters; keyboard testing uses the unchanged input bindings.
 export const LESSONS = [
   {
     id: 'move',
     title: 'Движение и прыжок',
     drill: 'footwork',
     demo: 'move',
-    hint: 'Здесь пока нет мяча. ← / → или левый стик двигают игрока. Space / ✕ (Xbox A) — прыжок. Высота прыжка не зависит от длительности удержания. Сначала походи, затем попрыгай.',
     goals: [
-      goal('walk', 'Пройти 1 метр', ['← →', 'Левый стик']),
-      goal('jump', 'Прыгнуть', ['Space / ↑', '✕ / A']),
+      {
+        id: 'walk',
+        label: 'Пройти 1 метр',
+      },
+      {
+        id: 'jump',
+        label: 'Прыгнуть',
+      },
     ],
   },
   {
@@ -19,18 +24,21 @@ export const LESSONS = [
     title: 'Приём: слабый пас и высокий навес',
     drill: 'receive',
     demo: 'pass',
-    hint: 'S / □ (X) готовит нижний приём, W / △ (Y) — верхнюю передачу над головой. Удержание накапливает силу. Отпускание задаёт момент контакта; подготовленные руки тоже могут коснуться мяча. Сначала сделай мягкий нижний пас с Z / L2, затем высокий верхний навес с большим зарядом W. Перед каждой попыткой будет отсчёт.',
     goals: [
-      goal('weak', 'Слабый нижний пас · до 60%', ['Z + S', 'L2 + □ / LT + X'], {
+      {
+        id: 'weak',
+        label: 'Слабый нижний пас · до 60%',
         kind: 'low',
         soft: true,
         maxPower: 0.6,
-      }),
-      goal('high', 'Сильный верхний навес · от 65%', ['Зажать W', 'Зажать △ / Y'], {
+      },
+      {
+        id: 'high',
+        label: 'Сильный верхний навес · от 65%',
         kind: 'loft',
         minPower: 0.65,
         high: true,
-      }),
+      },
     ],
   },
   {
@@ -38,13 +46,14 @@ export const LESSONS = [
     title: 'Слабая передача верхом',
     drill: 'set',
     demo: 'pass',
-    hint: 'Z / L2 выбирает мягкий профиль приёма. Удерживай модификатор и коротко нажми W / △ у мяча над головой. Короткое удержание даёт небольшой заряд. Направление задают стрелки или стик; Shift + ↑ позволяет целиться вверх без прыжка.',
     goals: [
-      goal('soft-set', 'Мягкий верхний пас · до 60%', ['Z + W', 'L2 + △ / LT + Y'], {
+      {
+        id: 'soft-set',
+        label: 'Мягкий верхний пас · до 60%',
         kind: 'loft',
         soft: true,
         maxPower: 0.6,
-      }),
+      },
     ],
   },
   {
@@ -52,28 +61,58 @@ export const LESSONS = [
     title: 'Пять передач друг другу',
     drill: 'set',
     demo: 'rally',
-    hint: 'Сделай пять верхних передач подряд между партнёрами. После касания управление переходит принимающему; Tab / L1 или 1 / 2 / 3 помогут выбрать его вручную. Направляй W / △ к партнёру. Вверх без прыжка: Shift + ↑; на геймпаде — стик. Каждый кружок — передача, принятая другим игроком. Падение мяча или неверный приём обнуляет всю серию.',
-    goals: Array.from({ length: 5 }, (_, i) =>
-      goal('pass-' + i, 'Передача ' + (i + 1), ['W + направление', '△ / Y + стик'], {
+    goals: [
+      {
+        id: 'pass-0',
+        label: 'Передача 1',
         kind: 'loft',
         exchange: true,
-      }),
-    ),
+      },
+      {
+        id: 'pass-1',
+        label: 'Передача 2',
+        kind: 'loft',
+        exchange: true,
+      },
+      {
+        id: 'pass-2',
+        label: 'Передача 3',
+        kind: 'loft',
+        exchange: true,
+      },
+      {
+        id: 'pass-3',
+        label: 'Передача 4',
+        kind: 'loft',
+        exchange: true,
+      },
+      {
+        id: 'pass-4',
+        label: 'Передача 5',
+        kind: 'loft',
+        exchange: true,
+      },
+    ],
   },
   {
     id: 'attack',
     title: 'Навес и сильный удар',
     drill: 'combination',
     demo: 'attack',
-    hint: 'Сначала W / △ подними мяч партнёру у сетки. Затем выбранным принимающим прыгни Space / ✕, зажми D / ○ и отпусти у мяча над сеткой. Цель — отправить мяч на другую сторону. Противников в этом упражнении нет.',
     goals: [
-      goal('set', 'Навес партнёру', ['W', '△ / Y'], { kind: 'loft' }),
-      goal('spike', 'Сильный удар в прыжке · от 65%', ['Space → D', '✕ → ○ / A → B'], {
+      {
+        id: 'set',
+        label: 'Навес партнёру',
+        kind: 'loft',
+      },
+      {
+        id: 'spike',
+        label: 'Сильный удар в прыжке · от 65%',
         kind: 'drive',
         minPower: 0.65,
         airborne: true,
         across: true,
-      }),
+      },
     ],
   },
   {
@@ -81,18 +120,21 @@ export const LESSONS = [
     title: 'Скидка и быстрый удар',
     drill: 'spike',
     demo: 'attack',
-    hint: 'Z / L2 — мягкий профиль: короткая скидка у сетки. C / R2 — быстрый профиль. Модификатор должен оставаться нажатым при контакте. Для скидки коснись мяча выше сетки; она не перелетает сетку автоматически из любой позиции.',
     goals: [
-      goal('tip', 'Мягкая скидка через сетку', ['Space → Z + D', '✕ → L2 + ○'], {
+      {
+        id: 'tip',
+        label: 'Мягкая скидка через сетку',
         kind: 'drive',
         soft: true,
         across: true,
-      }),
-      goal('fast', 'Быстрый удар через сетку', ['Space → C + D', '✕ → R2 + ○'], {
+      },
+      {
+        id: 'fast',
+        label: 'Быстрый удар через сетку',
         kind: 'drive',
         fast: true,
         across: true,
-      }),
+      },
     ],
   },
   {
@@ -100,24 +142,31 @@ export const LESSONS = [
     title: 'Четыре вида подачи',
     drill: 'serve',
     demo: 'serve',
-    hint: 'Подача выполняется в два нажатия: зажми кнопку, отпусти для подброса, затем нажми ещё раз, когда круг сойдётся к мячу и станет зелёным. S / □ — нижняя, W / △ — верхняя, D / ○ — силовая; Z + S / L2 + □ — мягкая нижняя. Сначала посмотри подброс и второе нажатие на схеме. В каждой попытке используй кнопку текущего задания.',
     goals: [
-      goal('serve-low', 'Нижняя подача', ['S → отпустить → S', '□ → отпустить → □'], {
+      {
+        id: 'serve-low',
+        label: 'Нижняя подача',
         kind: 'low',
         serve: true,
-      }),
-      goal('serve-loft', 'Верхняя подача', ['W → отпустить → W', '△ → отпустить → △'], {
+      },
+      {
+        id: 'serve-loft',
+        label: 'Верхняя подача',
         kind: 'loft',
         serve: true,
-      }),
-      goal('serve-drive', 'Силовая подача', ['D → отпустить → D', '○ → отпустить → ○'], {
+      },
+      {
+        id: 'serve-drive',
+        label: 'Силовая подача',
         kind: 'drive',
         serve: true,
-      }),
-      goal('serve-back', 'Мягкая нижняя подача', ['Z + S · два нажатия', 'L2 + □ · два нажатия'], {
+      },
+      {
+        id: 'serve-back',
+        label: 'Мягкая нижняя подача',
         kind: 'back',
         serve: true,
-      }),
+      },
     ],
   },
   {
@@ -125,20 +174,25 @@ export const LESSONS = [
     title: 'Блок у сетки',
     drill: 'block',
     demo: 'block',
-    hint: 'F / R1 (RB) запускает блок в защите. Встань у сетки и нажми чуть до прилёта мяча: руки должны встретить его над сеткой. Обычный прыжок сам по себе не считается блоком. Учебный мяч летит с другой стороны; соперник не нужен.',
-    goals: [goal('block', 'Заблокировать учебный мяч', ['F', 'R1 / RB'])],
+    goals: [
+      {
+        id: 'block',
+        label: 'Заблокировать учебный мяч',
+      },
+    ],
   },
   {
     id: 'one-hand',
     title: 'Приём одной рукой',
     drill: 'receive',
     demo: 'one-hand',
-    hint: 'В мягком нижнем приёме Z + S / L2 + □ работает одна рука. Подготовь её перед низким мячом и направь пас партнёру. Это помогает смягчить приём; рука должна действительно встретить мяч.',
     goals: [
-      goal('one-hand', 'Поднять мяч одной рукой', ['Z + S', 'L2 + □ / LT + X'], {
+      {
+        id: 'one-hand',
+        label: 'Поднять мяч одной рукой',
         kind: 'low',
         soft: true,
-      }),
+      },
     ],
   },
   {
@@ -146,10 +200,17 @@ export const LESSONS = [
     title: 'Спасение в броске',
     drill: 'dive-forward',
     demo: 'dive',
-    hint: 'E — бросок вправо, Q — влево. На геймпаде три быстрых нажатия направления с возвратом в нейтраль. Руки в броске принимают автоматически: отдельная кнопка паса не нужна. Нужно спасти мяч, а не просто упасть.',
     goals: [
-      goal('dive-right', 'Спасти мяч справа', ['E', '→ · → · →'], { save: true }),
-      goal('dive-left', 'Спасти мяч слева', ['Q', '← · ← · ←'], { save: true }),
+      {
+        id: 'dive-right',
+        label: 'Спасти мяч справа',
+        save: true,
+      },
+      {
+        id: 'dive-left',
+        label: 'Спасти мяч слева',
+        save: true,
+      },
     ],
   },
   {
@@ -157,10 +218,15 @@ export const LESSONS = [
     title: 'Выбор игрока и низкая стойка',
     drill: 'footwork',
     demo: 'move',
-    hint: 'Tab / L1 выбирает следующего игрока; 1 / 2 / 3 — конкретного. Пока заряжаешь приём, переключиться нельзя. ↓ или стик вниз — низкая стойка: игрок приседает, оставаясь готовым к низкому мячу.',
     goals: [
-      goal('switch', 'Сменить выбранного игрока', ['Tab / 1 / 2 / 3', 'L1 / LB']),
-      goal('crouch', 'Принять низкую стойку', ['↓', 'Стик ↓']),
+      {
+        id: 'switch',
+        label: 'Сменить выбранного игрока',
+      },
+      {
+        id: 'crouch',
+        label: 'Принять низкую стойку',
+      },
     ],
   },
 ];
@@ -180,7 +246,7 @@ export class Tutorial {
     return this.lesson?.goals[this.completed];
   }
   get frozen() {
-    return this.active && this.phase !== 'practice';
+    return this.active && (this.menuOpen || this.phase !== 'practice');
   }
   start() {
     this.index = 0;
@@ -193,12 +259,15 @@ export class Tutorial {
       });
     this.savedBenched = null;
     this.index = -1;
+    this.menuOpen = false;
     this.match.tutorialNoBall = false;
   }
   enter() {
     this.completed = 0;
     this.ready = false;
     this.phase = 'explain';
+    this.phaseAge = 0;
+    this.menuOpen = false;
     this.previousPasser = null;
     this.savedBenched ??= this.match.players.map((p) => p.benched);
     this.setup();
@@ -254,7 +323,7 @@ export class Tutorial {
       // This is an illustration; the live ball still obeys configured physics.
       this.origin = { x: m.ball.x, y: upper ? 2 : 1 };
       const partner = m.players
-        .filter((q) => q.team === 0 && q.id !== p.id)
+        .filter((q) => q.team === 0 && !q.benched && q.id !== p.id)
         .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
       this.target = { x: partner.x, y: upper ? 3 : 2 };
     } else if (g.across || g.serve) {
@@ -264,7 +333,7 @@ export class Tutorial {
       this.origin = this.target = null;
     }
   }
-  begin() {
+  begin(retry = false) {
     if (!this.active || this.ready) return;
     if (this.lesson.id === 'rally') {
       this.previousPasser = null;
@@ -272,15 +341,26 @@ export class Tutorial {
     }
     this.setup();
     this.phase = 'countdown';
-    this.countdown = 3;
+    this.countdown = retry ? 1.2 : this.lesson.drill === 'footwork' ? 0 : 3;
+    this.phaseAge = 0;
+    if (!this.countdown) this.phase = 'practice';
     this.input = {};
   }
   advance(dt) {
-    if (!this.active || this.phase !== 'countdown') return;
-    this.countdown = Math.max(0, this.countdown - dt);
-    if (!this.countdown) {
-      this.phase = 'practice';
-      this.match.clearControls();
+    if (!this.active || this.menuOpen) return;
+    this.phaseAge = (this.phaseAge || 0) + dt;
+    if (this.phase === 'explain') {
+      const duration = this.lesson.id === 'move' ? 3 : this.lesson.id === 'serve' ? 5.5 : 4.2;
+      if (this.phaseAge >= duration) this.begin();
+    } else if (this.phase === 'success') {
+      if (this.index < LESSONS.length - 1 && this.phaseAge >= 1.4) this.next();
+    } else if (this.phase === 'countdown') {
+      this.countdown = Math.max(0, this.countdown - dt);
+      if (!this.countdown) {
+        this.phase = 'practice';
+        this.phaseAge = 0;
+        this.match.clearControls();
+      }
     }
   }
   complete() {
@@ -288,18 +368,28 @@ export class Tutorial {
     if (this.completed === this.lesson.goals.length) {
       this.ready = true;
       this.phase = 'success';
+      this.phaseAge = 0;
       this.feedback = 'Этап пройден!';
     } else {
       this.feedback = 'Получилось! Следующая задача: ' + this.objective.label;
       // Upper-pass exchanges and set→attack continue with the actual live ball.
-      if (['rally', 'attack', 'move', 'switch'].includes(this.lesson.id)) return;
-      this.begin();
+      if (['rally', 'attack'].includes(this.lesson.id)) {
+        this.origin = { x: this.match.ball.x, y: this.match.ball.y };
+        const receiver = this.match.players[this.match.selected[0]];
+        this.target = this.lesson.id === 'attack' ? { x: 4, y: 0.5 } : { x: receiver.x, y: 2.2 };
+        this.phaseAge = 0;
+        return;
+      }
+      if (['move', 'switch'].includes(this.lesson.id)) return;
+      this.setup();
+      this.phase = 'explain';
+      this.phaseAge = 0;
     }
   }
   observe(input) {
     if (!this.active) return;
     this.input = input;
-    if (this.phase !== 'practice') return;
+    if (this.frozen) return;
     const m = this.match,
       g = this.objective;
     if (g.id === 'walk' && Math.abs(m.players[this.startPlayer].x - this.startX) >= 1)
@@ -328,7 +418,7 @@ export class Tutorial {
       (this.retryAfter && m.time >= this.retryAfter)
     ) {
       const feedback = this.feedback;
-      this.begin();
+      this.begin(true);
       this.feedback =
         this.lesson.id === 'rally'
           ? 'Серия прервана · 0 / 5. Начни пять передач заново.'
@@ -345,9 +435,9 @@ export class Tutorial {
         : g.kind && c.kind !== g.kind
           ? 'Используй кнопку текущего задания.'
           : g.soft && c.modifier !== 'soft'
-            ? 'Удерживай Z / L2 при контакте.'
+            ? 'Удерживай L2 при контакте.'
             : g.fast && c.modifier !== 'fast'
-              ? 'Удерживай C / R2 при контакте.'
+              ? 'Удерживай R2 при контакте.'
               : g.maxPower && c.power > g.maxPower
                 ? 'Слишком сильно: нажми короче.'
                 : g.minPower && c.power < g.minPower
@@ -360,12 +450,12 @@ export class Tutorial {
                         ? 'Передачу должен выполнить другой игрок.'
                         : '';
     if (!error && g.high && Math.max(...traceBall(m.ball, m.config, 4).map((p) => p.y)) < 4.5)
-      error = 'Навес слишком низкий: направь пас выше (Shift + ↑ / стик вверх).';
+      error = 'Навес низкий. Отклони левый стик вверх.';
     if (!error && !g.serve && !g.across && !g.save && c.vy <= 0)
       error = 'Подними мяч вверх к партнёру.';
     if (error) {
       if (this.lesson.id === 'rally') {
-        this.begin();
+        this.begin(true);
         this.feedback = 'Серия прервана · 0 / 5. ' + error;
         return;
       }
@@ -405,230 +495,284 @@ export class Tutorial {
     return true;
   }
   draw(renderer) {
-    if (!this.active) return;
-    const c = renderer.ctx;
-    c.save();
-    c.fillStyle = '#fff5dfee';
-    c.fillRect(220, 68, 520, 63);
-    c.fillStyle = '#305a50';
-    c.textAlign = 'center';
-    c.font = 'bold 13px sans-serif';
-    c.fillText(
-      this.lesson.id === 'rally'
-        ? `${this.completed} / 5 ПЕРЕДАЧ ПОДРЯД`
-        : this.objective?.label || 'Все задачи выполнены',
-      480,
-      88,
-    );
-    const count = this.lesson.goals.length;
-    for (let i = 0; i < count; i++) {
-      const x = 480 + (i - (count - 1) / 2) * 35;
-      c.beginPath();
-      c.arc(x, 112, 11, 0, Math.PI * 2);
-      c.fillStyle = i < this.completed ? '#237b69' : '#e4ddc6';
-      c.fill();
-      c.fillStyle = i < this.completed ? '#ffffff' : '#546c60';
-      c.fillText(i < this.completed ? '✓' : i + 1, x, 117);
-    }
-    if (this.origin) {
-      const a = renderer.project(this.origin.x, this.origin.y),
-        b = renderer.project(this.target.x, this.target.y);
-      c.strokeStyle = '#237b69';
-      c.fillStyle = '#237b6925';
+    if (
+      this.active &&
+      this.objective?.id === 'walk' &&
+      this.phase === 'practice' &&
+      !this.menuOpen
+    ) {
+      const c = renderer.ctx;
+      c.save();
+      c.strokeStyle = '#3c9c7d';
       c.lineWidth = 2;
-      c.fillRect(b.x - 26, b.y - 25, 52, 50);
-      c.strokeRect(b.x - 26, b.y - 25, 52, 50);
-      c.setLineDash([6, 6]);
-      c.beginPath();
-      c.moveTo(a.x, a.y);
-      c.quadraticCurveTo((a.x + b.x) / 2, Math.min(a.y, b.y) - 65, b.x, b.y);
-      c.stroke();
-      c.setLineDash([]);
-      c.fillStyle = '#155b4b';
-      c.font = 'bold 12px sans-serif';
-      c.textAlign = 'center';
-      c.fillText('ОБРАЗЕЦ · ЦЕЛЬ', b.x, b.y - 34);
+      c.setLineDash([4, 4]);
+      for (const direction of [-1, 1]) {
+        const p = renderer.project(this.startX + direction * 1.2, 0);
+        c.beginPath();
+        c.ellipse(p.x, p.y, 16, 6, 0, 0, Math.PI * 2);
+        c.stroke();
+      }
+      c.restore();
     }
-    if (this.phase === 'countdown' || this.phase === 'explain' || this.ready) {
-      c.fillStyle = '#fff5dfed';
-      c.fillRect(290, 170, 380, 100);
-      c.textAlign = 'center';
-      c.fillStyle = '#305a50';
-      c.font = this.phase === 'explain' ? 'bold 23px sans-serif' : 'bold 36px sans-serif';
-      c.fillText(
-        this.phase === 'countdown'
-          ? Math.ceil(this.countdown)
-          : this.ready
-            ? '✓ Получилось!'
-            : 'Сначала посмотри пример',
-        480,
-        215,
-      );
-      c.font = '16px sans-serif';
-      c.fillText(
-        this.phase === 'countdown'
-          ? 'Приготовься…'
-          : this.ready
-            ? 'Можно перейти дальше'
-            : 'Объяснение и кнопки — под площадкой',
-        480,
-        249,
-      );
-    }
+    if (
+      !this.active ||
+      !this.origin ||
+      this.menuOpen ||
+      (this.phase === 'practice' && this.phaseAge > 3)
+    )
+      return;
+    const c = renderer.ctx,
+      a = renderer.project(this.origin.x, this.origin.y),
+      b = renderer.project(this.target.x, this.target.y);
+    c.save();
+    c.strokeStyle = '#237b69';
+    c.fillStyle = '#237b6925';
+    c.lineWidth = 2;
+    c.fillRect(b.x - 22, b.y - 25, 44, 50);
+    c.strokeRect(b.x - 22, b.y - 25, 44, 50);
+    c.setLineDash([6, 6]);
+    c.beginPath();
+    c.moveTo(a.x, a.y);
+    c.quadraticCurveTo((a.x + b.x) / 2, Math.min(a.y, b.y) - 65, b.x, b.y);
+    c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = '#155b4b';
+    c.font = 'bold 12px sans-serif';
+    c.textAlign = 'center';
+    c.fillText('ЦЕЛЬ', b.x, b.y - 34);
     c.restore();
   }
 }
 
-function diagram(lesson, objective = lesson.goals[0]) {
-  const type = lesson.demo;
-  const upper = objective?.kind === 'loft';
-  const arm = upper
-    ? 'M45 96 L37 62 M45 96 L56 62'
-    : type === 'one-hand'
-      ? 'M45 96 L65 102'
-      : 'M45 96 L60 80';
-  const path =
-    type === 'move'
-      ? 'M45 105 Q90 0 140 105'
-      : type === 'serve'
-        ? 'M45 95 Q45 0 65 55 Q130 5 230 100'
-        : type === 'block'
-          ? 'M225 55 Q150 10 125 45 Q155 65 205 105'
-          : type === 'dive'
-            ? 'M55 75 Q100 75 185 110'
-            : type === 'attack'
-              ? 'M45 95 Q85 0 125 40 L225 110'
-              : 'M45 95 Q125 -15 210 90';
-  const caption = {
-    move: 'Движение → прыжок',
-    pass: 'Слабый пас / высокий навес',
-    rally: 'Партнёр → партнёр',
-    serve: '1 · заряд → подброс → 2 · удар',
-    block: 'F / R1 → руки над сеткой',
-    attack: 'Навес → прыжок → удар',
-    dive: 'Бросок → касание низкого мяча',
-    'one-hand': 'Z / L2 → одна рука под мячом',
-  }[type];
-  const ball =
-    type === 'move'
-      ? ''
-      : `<circle r="6" fill="#edbe69" stroke="#635b62"><animateMotion dur="3s" repeatCount="indefinite" path="${path}"/></circle>`;
-  return `<svg viewBox="0 0 270 165" role="img" aria-label="${caption}">
-    <path d="M15 125 H255" stroke="#bacbbf" stroke-width="2"/>
-    ${['block', 'attack', 'serve'].includes(type) ? '<path d="M145 125 V45 M145 50 H160 M155 50 V125" stroke="#9b8d7d" fill="none"/>' : ''}
-    <g stroke="#635b62" stroke-width="3" fill="#e9aa89"><circle cx="45" cy="80" r="9"/><path d="M45 90 V110 ${arm} M45 110 L35 125 M45 110 L55 125" fill="none"/>
-    ${type === 'block' ? '<circle cx="130" cy="65" r="8"/><path d="M130 74 V100 M130 80 L123 42 M130 80 L138 42 M130 100 L120 115 M130 100 L140 115" fill="none"/>' : '<circle cx="215" cy="80" r="9"/><path d="M215 90 V110 M215 96 L200 80 M215 110 L205 125 M215 110 L225 125" fill="none"/>'}</g>
-    <path d="${path}" fill="none" stroke="#237b69" stroke-width="2" stroke-dasharray="5 5"/>${ball}
-    ${lesson.id === 'receive' ? '<path d="M45 99 Q125 65 210 100" fill="none" stroke="#c58a4a" stroke-width="2" stroke-dasharray="3 4"/><text x="125" y="100" text-anchor="middle" font-size="10" fill="#986a35">слабый</text><text x="125" y="35" text-anchor="middle" font-size="10" fill="#237b69">высокий</text>' : ''}
-    ${type === 'serve' ? '<circle cx="65" cy="55" r="20" fill="none" stroke="#237b69" stroke-width="2"><animate attributeName="r" values="24;24;7;24" keyTimes="0;0.3;0.6;1" dur="3s" repeatCount="indefinite"/></circle><text x="65" y="20" text-anchor="middle" font-size="10" fill="#237b69">2 · нажми у мяча</text>' : ''}
-    ${type === 'move' ? '<g fill="#80bda8"><rect x="90" y="65" width="14" height="25" rx="3"><animate attributeName="y" values="90;25;90" dur="2s" repeatCount="indefinite"/></rect></g>' : ''}
-    <text x="135" y="150" text-anchor="middle" fill="#466458" font-size="11">${caption}</text></svg>`;
-}
-
 export function createTutorial(match, hooks) {
   const session = new Tutorial(match),
-    panel = document.createElement('section');
+    arena = document.querySelector('#arena');
+  const panel = document.createElement('section');
   panel.id = 'tutorial-panel';
-  panel.className = 'panel tutorial-panel';
+  panel.className = 'tutorial-overlay';
   panel.hidden = true;
-  panel.innerHTML = `<div class="tutorial-heading"><strong id="tutorial-title"></strong><span id="tutorial-stage"></span></div>
-    <progress id="tutorial-progress" max="${LESSONS.length}" value="0" aria-label="Прогресс обучения"></progress>
-    <div class="tutorial-content"><div id="tutorial-demo"></div><div><p id="tutorial-hint"></p>
-    <ol id="tutorial-goals" class="tutorial-goals" aria-label="Задачи этапа"></ol>
-    <div id="tutorial-keys" class="tutorial-keys"></div><label class="tutorial-power">Сила <meter id="tutorial-power" min="0" max="1" value="0"></meter><output id="tutorial-power-value">0%</output></label>
-    <p id="tutorial-result" role="status" aria-live="polite"></p></div></div>
-    <button id="tutorial-begin" class="primary">Понятно · попробовать</button>
-    <button id="tutorial-next" class="primary" hidden>Дальше →</button>
-    <button id="tutorial-repeat" class="secondary">Посмотреть объяснение снова</button>
-    <button id="tutorial-exit" class="text-button">Закончить обучение</button>`;
-  document.querySelector('#arena').after(panel);
+  panel.setAttribute('aria-label', 'Обучение с геймпадом');
+  panel.innerHTML = `<header class="tutorial-topbar"><div><small>ШКОЛА ВОЛЕЙБОЛА</small><strong id="tutorial-title"></strong></div>
+    <progress id="tutorial-progress" max="${LESSONS.length}" value="0" aria-label="Прогресс курса"></progress>
+    <button id="tutorial-menu-toggle" aria-label="Меню обучения"><span class="pad-option">Options</span> Меню</button></header>
+    <article class="tutorial-coach"><div class="tutorial-coach-heading"><span id="tutorial-stage"></span><span id="tutorial-step-count"></span></div>
+    <h2 id="tutorial-objective"></h2><div class="tutorial-demonstration"><div id="tutorial-pad"></div><div id="tutorial-demo"></div></div>
+    <p id="tutorial-hint"></p><ol id="tutorial-goals" class="tutorial-goals" aria-label="Задачи этапа"></ol>
+    <div class="tutorial-power"><span>Сила</span><div class="tutorial-power-track"><span class="tutorial-power-target"></span><meter id="tutorial-power" min="0" max="1" value="0"></meter></div><output id="tutorial-power-value">0%</output></div>
+    <p id="tutorial-result" role="status" aria-live="polite"></p>
+    <footer class="tutorial-coach-actions"><button id="tutorial-begin"><span class="pad-key pad-cross">✕</span> Пропустить показ</button>
+    <button id="tutorial-next" hidden><span class="pad-key pad-cross">✕</span> Дальше</button><span id="tutorial-auto"></span></footer></article>
+    <div id="tutorial-countdown" class="tutorial-countdown" hidden><strong></strong><span>Приготовься</span></div>
+    <div id="tutorial-menu" class="tutorial-menu" hidden><div class="tutorial-menu-card"><h2>Твой темп, твой урок</h2><p>Левый стик — выбор · ✕ — открыть · ○ — вернуться</p>
+    <div id="tutorial-menu-items"><button id="tutorial-resume">Вернуться на площадку</button><button id="tutorial-repeat">Показать этот приём снова</button>
+    <div id="tutorial-chapters"></div><button id="tutorial-exit">Закончить обучение · играть матч</button></div></div></div>`;
+  arena.append(panel);
   const find = (id) => panel.querySelector('#tutorial-' + id);
-  let stamp;
+  LESSONS.forEach((lesson, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.lesson = index;
+    button.innerHTML = `<span>${String(index + 1).padStart(2, '0')}</span>${lesson.title}`;
+    button.onclick = () => {
+      session.index = index;
+      session.enter();
+      closeMenu();
+      sync();
+    };
+    find('chapters').append(button);
+  });
+  let stamp,
+    lastIndex = -1,
+    menuIndex = 0,
+    menuDirection = 0,
+    menuRepeat = 0,
+    previousCircle = false;
+  const menuButtons = () => [...find('menu-items').querySelectorAll('button')];
+  function focusGame() {
+    hooks.resetInput?.();
+    hooks.focus();
+  }
+  function fit() {
+    if (!session.active) return;
+    const canvas = document.querySelector('#game'),
+      rect = arena.getBoundingClientRect();
+    const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
+    const width = canvas.width * scale,
+      height = canvas.height * scale;
+    Object.assign(panel.style, {
+      width: width + 'px',
+      height: height + 'px',
+      left: (rect.width - width) / 2 + 'px',
+      top: (rect.height - height) / 2 + 'px',
+    });
+  }
+  new ResizeObserver(fit).observe(arena);
+  function closeMenu() {
+    session.menuOpen = false;
+    session.match.clearControls();
+    focusGame();
+  }
+  function toggleMenu() {
+    if (!session.active) return;
+    session.menuOpen = !session.menuOpen;
+    menuIndex = 0;
+    menuDirection = 0;
+    menuRepeat = 0;
+    previousCircle = false;
+    if (!session.menuOpen) focusGame();
+    sync();
+  }
   function sync() {
     panel.hidden = !session.active;
+    document.body.classList.toggle('learning-mode', session.active);
+    arena.classList.toggle('is-learning', session.active);
     if (!session.active) {
       stamp = null;
+      lastIndex = -1;
       return;
     }
+    if (lastIndex !== session.index) {
+      lastIndex = session.index;
+      fit();
+    }
     const lesson = session.lesson,
-      current = session.objective;
+      current = session.objective || lesson.goals.at(-1),
+      coach = coachFor(lesson, current);
+    if (lesson.id === 'attack' && current.id === 'set' && session.phase !== 'practice') {
+      coach.controls = ['triangle', 'cross', 'circle'];
+      coach.sequence = true;
+    }
+    panel.dataset.phase = session.phase;
+    panel.dataset.motion = coach.motion;
+    panel.dataset.menu = String(!!session.menuOpen);
     find('title').textContent = `${session.index + 1} / ${LESSONS.length} · ${lesson.title}`;
+    find('progress').value = session.index + Number(session.ready);
     find('stage').textContent = {
-      explain: 'Посмотри пример',
+      explain: 'Смотри и пробуй',
       countdown: 'Приготовься',
       practice: 'Твоя очередь',
-      success: 'Выполнено',
+      success: 'Получилось!',
     }[session.phase];
-    find('hint').textContent = lesson.hint;
-    find('progress').value = session.index + Number(session.ready);
-    const nextStamp = `${session.index}:${session.completed}`;
+    find('step-count').textContent =
+      lesson.id === 'rally'
+        ? `${session.completed} / 5 подряд`
+        : `${Math.min(session.completed + 1, lesson.goals.length)} / ${lesson.goals.length}`;
+    find('objective').textContent = session.ready
+      ? session.index === LESSONS.length - 1
+        ? 'Ты готов к матчу!'
+        : 'Отлично, идём дальше!'
+      : coach.title;
+    find('hint').textContent = session.ready
+      ? session.index === LESSONS.length - 1
+        ? 'Все приёмы освоены. Время выйти на площадку.'
+        : 'Следующий приём откроется сам.'
+      : coach.hint;
+    const nextStamp = `${session.index}:${session.completed}:${!!coach.sequence}`;
     if (stamp !== nextStamp) {
       stamp = nextStamp;
-      find('demo').innerHTML = diagram(lesson, current);
+      find('pad').innerHTML = controllerGraphic(coach);
+      find('demo').innerHTML = resultGraphic(coach);
       find('goals').innerHTML = lesson.goals
         .map(
           (g, i) =>
-            `<li class="${i < session.completed ? 'done' : i === session.completed ? 'current' : ''}" aria-label="${g.label}${i < session.completed ? ' — выполнено' : ''}"><span>${i < session.completed ? '✓' : i + 1}</span><small>${g.label}</small></li>`,
+            `<li class="${i < session.completed ? 'done' : i === session.completed ? 'current' : ''}" aria-label="${g.label}${i < session.completed ? ' — выполнено' : ''}"><span>${i < session.completed ? '✓' : i + 1}</span></li>`,
         )
         .join('');
-      const keys = current?.keys || lesson.goals.at(-1).keys;
-      find('keys').innerHTML =
-        `<span class="tutorial-key"><kbd>${keys[0]}</kbd><small>Клавиатура</small></span><span class="tutorial-key"><kbd>${keys[1]}</kbd><small>Геймпад</small></span>`;
     }
-    const input = session.input || {};
-    const action = current?.kind || (current?.save ? 'dive' : current?.id);
-    const held =
-      action === 'walk' ? !!input.axis : !!input[action] || (action === 'switch' && !!input.select);
-    for (const key of find('keys').children)
-      key.classList.toggle('pressed', session.phase === 'practice' && held);
+    const input = session.input || {},
+      vector = input.buttonVector || { x: input.axis || 0, y: input.crouch ? -1 : 0 };
+    const held = {
+      stick: Math.hypot(vector.x || 0, vector.y || 0) > 0.15,
+      cross: input.jump,
+      square: input.low || input.back,
+      triangle: input.loft,
+      circle: input.drive,
+      l1: input.switch,
+      r1: input.block,
+      l2: input.l2 || input.intent === 'soft',
+      r2: input.r2 || input.intent === 'fast',
+    };
+    for (const element of find('pad').querySelectorAll('[data-control]'))
+      element.classList.toggle(
+        'is-pressed',
+        session.phase === 'practice' && !!held[element.dataset.control],
+      );
+    find('pad').style.setProperty('--stick-x', `${(vector.x || 0) * 13}px`);
+    find('pad').style.setProperty('--stick-y', `${-(vector.y || 0) * 13}px`);
     const power = match.controls[0].charge?.power || match.controls[0].pending?.power || 0;
     find('power').value = power;
     find('power-value').textContent = `${Math.round(power * 100)}%`;
+    panel.style.setProperty('--power-min', `${(current.minPower || 0) * 100}%`);
+    panel.style.setProperty('--power-max', `${(current.maxPower || 1) * 100}%`);
     const message =
       session.phase === 'countdown'
-        ? `Начало через ${Math.ceil(session.countdown)}…`
+        ? 'Смотри на мяч и приготовь нужную кнопку.'
         : session.ready
-          ? '✓ Все задачи выполнены. Можно идти дальше.'
-          : session.feedback;
+          ? '✓ Все задачи выполнены.'
+          : session.phase === 'explain'
+            ? 'Сейчас покажем — затем твоя очередь.'
+            : session.feedback === current.label
+              ? ''
+              : session.feedback;
     if (find('result').textContent !== message) find('result').textContent = message;
-    find('result').classList.toggle('success', session.ready);
     find('begin').hidden = session.phase !== 'explain';
     find('next').hidden = !session.ready;
-    find('next').textContent =
-      session.index === LESSONS.length - 1 ? 'Готово · сыграть матч →' : 'Дальше →';
+    find('next').innerHTML =
+      `<span class="pad-key pad-cross">✕</span> ${session.index === LESSONS.length - 1 ? 'Играть матч' : 'Дальше'}`;
+    find('auto').textContent =
+      session.phase === 'explain'
+        ? 'Начнётся автоматически'
+        : session.ready && session.index < LESSONS.length - 1
+          ? 'Переходим дальше…'
+          : '';
+    find('countdown').hidden = session.phase !== 'countdown' || session.menuOpen;
+    find('countdown').querySelector('strong').textContent = Math.ceil(session.countdown) || '→';
+    find('menu').hidden = !session.menuOpen;
+    if (session.menuOpen) {
+      menuButtons().forEach((button, i) => {
+        button.classList.toggle('is-focused', i === menuIndex);
+        if (i === menuIndex) button.setAttribute('aria-current', 'true');
+        else button.removeAttribute('aria-current');
+      });
+    }
   }
-  document.getElementById('tutorial-start').onclick = () => {
-    hooks.start();
-    session.start();
+  find('menu-toggle').onclick = toggleMenu;
+  find('resume').onclick = () => {
+    closeMenu();
     sync();
-    hooks.focus();
-  };
-  find('begin').onclick = () => {
-    session.begin();
-    sync();
-    hooks.focus();
-  };
-  find('next').onclick = () => {
-    if (!session.next()) return;
-    if (!session.active) hooks.finish();
-    sync();
-    hooks.focus();
   };
   find('repeat').onclick = () => {
-    if (session.ready) session.enter();
-    else {
-      session.phase = 'explain';
-      session.setup();
-    }
+    session.enter();
+    closeMenu();
     sync();
-    hooks.focus();
   };
   find('exit').onclick = () => {
     session.leave();
     sync();
     hooks.finish();
   };
+  find('begin').onclick = () => {
+    session.begin();
+    sync();
+    focusGame();
+  };
+  find('next').onclick = () => {
+    if (!session.next()) return;
+    sync();
+    if (!session.active) hooks.finish();
+    focusGame();
+  };
+  document.querySelector('#tutorial-start').onclick = () => {
+    hooks.start();
+    session.start();
+    sync();
+    fit();
+    focusGame();
+  };
   return {
+    get active() {
+      return session.active;
+    },
     get ready() {
       return session.active && session.ready;
     },
@@ -636,18 +780,43 @@ export function createTutorial(match, hooks) {
       return session.frozen;
     },
     get canConfirm() {
-      return session.active && (session.ready || session.phase === 'explain');
+      return session.active && (session.menuOpen || session.ready || session.phase === 'explain');
     },
-    retry() {
-      if (!session.ready) session.begin();
-      else {
-        session.enter();
+    toggleMenu,
+    handleNavigation(input, dt) {
+      if (!session.active || !session.menuOpen) {
+        previousCircle = !!input.drive;
+        return false;
       }
-      sync();
+      if (input.drive && !previousCircle) {
+        previousCircle = true;
+        closeMenu();
+        sync();
+        return true;
+      }
+      previousCircle = !!input.drive;
+      const y = input.buttonVector?.y || (input.crouch ? -1 : 0),
+        direction = Math.abs(y) > 0.5 ? -Math.sign(y) : 0;
+      menuRepeat -= dt;
+      if (direction && (direction !== menuDirection || menuRepeat <= 0)) {
+        const buttons = menuButtons();
+        menuIndex = (menuIndex + direction + buttons.length) % buttons.length;
+        menuRepeat = direction === menuDirection ? 0.18 : 0.35;
+        sync();
+        buttons[menuIndex].scrollIntoView({ block: 'nearest' });
+      }
+      menuDirection = direction;
+      return false;
     },
     confirm() {
-      if (session.ready) find('next').click();
+      if (session.menuOpen) menuButtons()[menuIndex].click();
+      else if (session.ready) find('next').click();
       else if (session.phase === 'explain') find('begin').click();
+    },
+    retry() {
+      if (!session.active) return;
+      session.begin(true);
+      sync();
     },
     leave() {
       session.leave();
@@ -662,9 +831,6 @@ export function createTutorial(match, hooks) {
     },
     draw(renderer) {
       session.draw(renderer);
-    },
-    get active() {
-      return session.active;
     },
   };
 }

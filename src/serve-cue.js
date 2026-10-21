@@ -1,7 +1,6 @@
 import { FIXED_DT } from './config.js';
 
-export const serveButton = (kind) =>
-  ({ low: 'S / □', back: 'Z + S / L2 + □', loft: 'W / △', drive: 'D / ○' })[kind];
+export const serveButton = (kind) => ({ low: '□', back: 'L2 + □', loft: '△', drive: '○' })[kind];
 
 export function serveCue(match) {
   const action = match.serveAction;

@@ -53,12 +53,18 @@ test(
       () => document.querySelectorAll('#tutorial-goals .done').length === 1,
     );
     await page.keyboard.up('ArrowRight');
+    // Keep the jump held until it is registered, then let the course advance itself.
     await page.keyboard.down('Space');
-    await page.waitForFunction(() => !document.querySelector('#tutorial-next').hidden);
+    await page.waitForFunction(
+      () => document.querySelectorAll('#tutorial-goals .done').length === 2,
+    );
     await page.keyboard.up('Space');
-    await page.locator('#tutorial-next').click();
+    await page.waitForFunction(() =>
+      document.querySelector('#tutorial-title').textContent.includes('Приём'),
+    );
     await settleSettings(page);
     assert.match(await page.locator('#tutorial-title').innerText(), /Приём/);
+    await page.locator('#tutorial-menu-toggle').click();
     await page.locator('#tutorial-exit').click();
     await settleSettings(page);
     await page.waitForFunction(() => document.querySelector('#start-overlay').hidden);

@@ -114,13 +114,16 @@ window.addEventListener('keydown', (e) => {
           if (club) club.startSelected();
           else startGame();
         }
+      } else if (e.code === 'Escape' && tutorial?.active && !paused) {
+        tutorial.toggleMenu();
       } else if (e.code === 'Enter' && tutorial?.canConfirm && !paused) {
         tutorial.confirm();
       } else if (match.phase === 'finished' && e.code === 'Enter') {
         const next = $('club-next');
         if (next && !next.hidden) next.click();
         else startGame();
-      } else togglePause();
+      } else if (tutorial?.active && !paused) tutorial.toggleMenu();
+      else togglePause();
     }
     return;
   }
@@ -327,11 +330,11 @@ function updateUI() {
   let title = 'Выбери подачу',
     hint =
       '□ — снизу, △ — сверху, ○ — в прыжке. Зажми для силы, отпусти для подброса. Нажми ещё раз, когда зелёный круг сойдётся к мячу.',
-    key = 'S';
+    key = '□';
   if (match.mode === 'test') {
     title = 'ТЕСТ · непрерывные мячи';
     hint =
-      'Один принимающий. Мяч появляется в случайных местах с разной скоростью и высотой. После приёма или промаха прилетит новый. R — следующий мяч.';
+      'Один принимающий. Мяч появляется в случайных местах с разной скоростью и высотой. После приёма или промаха прилетит новый. Следующий мяч прилетит автоматически.';
     key = '∞';
   } else if (match.mode === 'demo') {
     title = 'Матч компьютеров';
@@ -351,39 +354,40 @@ function updateUI() {
     key = '◆';
   } else if (match.active(0).recovery > 0) {
     title = 'Поднимаемся';
-    hint = 'После нырка игроку нужно встать. Tab — выбрать другого свободного игрока.';
-    key = 'Tab';
+    hint = 'После нырка игроку нужно встать. L1 — выбрать другого свободного игрока.';
+    key = 'L1';
   } else if (match.active().diving) {
     title = match.active().diveArmed ? 'Руки готовы к приёму' : 'Приём выполнен';
     hint =
-      'Направление броска зафиксировано. Мяч должен попасть в предплечья; S нажимать не нужно.';
-    key = 'Q / E';
+      'Направление броска зафиксировано. Мяч должен попасть в предплечья; Кнопку приёма нажимать не нужно.';
+    key = 'Стик ×3';
   } else if (match.phase === 'serve' && hud.charge) {
     title = SERVES[hud.charge.kind].name;
     hint =
-      '←/→ — направление, Shift + ↑/↓ — высота. Отпусти кнопку для подброса. Затем нажми ещё раз, когда круг сойдётся к мячу.';
-    key = (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).key;
+      'Левый стик — направление и высота. Отпусти кнопку для подброса. Затем нажми ещё раз, когда круг сойдётся к мячу.';
+    key = { low: '□', back: 'L2 + □', loft: '△', drive: '○' }[hud.charge.kind];
   } else if (hud.charge) {
     title = hud.contactWindow
       ? 'Отпусти сейчас!'
       : (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).name;
-    hint = '←/→ — бег и направление, Shift + ↑/↓ — выше/ниже. Отпустите у мяча; руки уже готовы.';
-    key = (SHOTS[hud.charge.kind] || { name: SERVES[hud.charge.kind]?.name, key: 'Z + S' }).key;
+    hint = 'Левый стик — движение и угол мяча. Отпустите у мяча; руки уже готовы.';
+    key = { low: '□', back: 'L2 + □', loft: '△', drive: '○' }[hud.charge.kind];
   } else if (match.phase === 'rally' && phase === 'defense') {
     title = 'Сохрани мяч';
     hint =
-      'S — снизу, W — сверху, D — удар. Z / L2 — мягкий приём. F — блок. ↑ — прыжок, ↓ — присесть, Q / E — бросок.';
-    key = 'S';
+      '□ — снизу, △ — сверху, ○ — удар. L2 — мягче. R1 — блок, ✕ — прыжок; стик вниз — низкая стойка, три отклонения — бросок.';
+    key = '□';
   } else if (match.phase === 'rally') {
     title = 'Построй атаку';
     hint =
-      '3 выбирает нападающего у сетки. Затем ↑, короткий заряд D и отпускание у мяча. 1/2/3 — выбор игроков.';
-    key = '3';
+      'L1 — выбрать нападающего. ✕ — прыжок, ○ — зарядить и отпустить у мяча. Левый стик задаёт направление.';
+    key = '✕ → ○';
   } else if (match.phase === 'serve-motion') {
     const cue = serveCue(match);
     title = cue?.title || (match.isHuman(match.server) ? 'Мяч подброшен' : 'Подаёт соперник');
     hint = cue?.hint || 'Нажми кнопку подачи ещё раз в момент контакта.';
-    key = cue?.button || (SHOTS[match.serveAction.kind] || { key: 'Z + S' }).key;
+    key =
+      cue?.button || { low: '□', back: 'L2 + □', loft: '△', drive: '○' }[match.serveAction.kind];
   }
   if (
     match.mode === 'coop' &&
@@ -451,10 +455,13 @@ function frame(time) {
       (['versus', 'coop'].includes(match.mode) && secondControllerInput.pausePressed)) &&
     started
   ) {
-    togglePause();
+    if (tutorial?.active) tutorial.toggleMenu();
+    else togglePause();
     controllerAction = true;
   }
-  if (started && !controllerAction && !modalOpen() && !club?.drawerOpen)
+  if (!controllerAction && !paused && !modalOpen())
+    controllerAction = tutorial?.handleNavigation(controllerInput, elapsed) || false;
+  if (started && !controllerAction && !modalOpen() && !club?.drawerOpen && !tutorial?.active)
     dynamicUI?.input(controllerInput);
   if (
     started &&
@@ -493,6 +500,7 @@ function frame(time) {
     started && (!paused || dynamicUI?.playing) && !modalOpen() && !document.hidden;
   if (!document.hidden && (sceneDirty || activeScene)) {
     drawAmbient(match, teams);
+    renderer.learning = tutorial?.active || false;
     renderer.draw(shown, teams, activeScene ? elapsed : 0);
     tutorial?.draw(renderer);
     sceneDirty = false;
@@ -538,7 +546,8 @@ function repeatDrill() {
 }
 $('drill').onchange = $('repeat-drill').onclick = repeatDrill;
 $('pause').onclick = () => {
-  togglePause();
+  if (tutorial?.active && !paused) tutorial.toggleMenu();
+  else togglePause();
   $('game').focus({ preventScroll: true });
 };
 $('resume').onclick = () => {
@@ -815,6 +824,7 @@ tutorial = createTutorial(match, {
   start: () => startGame('practice', false, true),
   finish: () => startGame('match'),
   focus: () => $('game').focus({ preventScroll: true }),
+  resetInput: clearActions,
 });
 // A button held while loading must be released before it can start a game.
 input.poll();

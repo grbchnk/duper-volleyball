@@ -5,6 +5,39 @@ import { Tutorial, LESSONS } from '../src/tutorial.js';
 import { BALL_DESIGNS, ballPattern } from '../src/ball-designs.js';
 import { sanitizeConfig } from '../src/config.js';
 import { predictAtHeight } from '../src/physics.js';
+import { coachFor, controllerGraphic, resultGraphic } from '../src/tutorial-visuals.js';
+
+test('every goal has a short visual gamepad explanation and automatic phase transitions', () => {
+  const keyboard = /Space|Shift|Tab|Клавиатура|Xbox|Enter/;
+  for (const lesson of LESSONS)
+    for (const objective of lesson.goals) {
+      const coach = coachFor(lesson, objective);
+      assert.ok(coach.controls.length > 0);
+      assert.ok(coach.hint.length < 150);
+      assert.doesNotMatch(JSON.stringify(coach), keyboard);
+      assert.match(controllerGraphic(coach), /data-control=/);
+      assert.match(resultGraphic(coach), /Ожидаемый результат/);
+    }
+  const { m, t } = exercise('move');
+  t.enter();
+  t.advance(3.1);
+  assert.equal(t.phase, 'practice');
+  t.menuOpen = true;
+  t.advance(10);
+  assert.equal(t.phase, 'practice');
+  t.menuOpen = false;
+  t.completed = 1;
+  t.complete();
+  assert.equal(t.phase, 'success');
+  t.advance(1.5);
+  assert.equal(t.lesson.id, 'receive');
+  assert.equal(t.phase, 'explain');
+  t.advance(4.3);
+  assert.equal(t.phase, 'countdown');
+  t.advance(3.1);
+  assert.equal(t.phase, 'practice');
+  assert.equal(m.stats.passes[0], 0, 'Autoplay must not award a contact');
+});
 
 function exercise(id, completed = 0) {
   const m = new Match();
