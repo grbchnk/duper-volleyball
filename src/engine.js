@@ -38,6 +38,7 @@ import { assistedJump } from './jump-assist.js';
 
 import { cpuSkill, planReception, chooseCPUShot } from './cpu.js';
 import { nextReceiver } from './receiver-selection.js';
+import { serveReceiver } from './serve-reception.js';
 import {
   isFeintDecoy,
   stepFeintDecoy,
@@ -171,7 +172,8 @@ export class Match {
         !isFeintDecoy(this, p),
     );
     eligible.sort((a, b) => Math.abs(a.x - target.x) - Math.abs(b.x - target.x));
-    const receiver = eligible.find((p) => p.id === preferred) || eligible[0];
+    const receiverId = preferred ?? serveReceiver(this, 0, eligible);
+    const receiver = eligible.find((p) => p.id === receiverId) || eligible[0];
     if (!receiver) return;
     const owner = [0, 2].find((slot) => this.coopPlayer(slot) === receiver.id);
     if (owner !== undefined) return;
@@ -1225,6 +1227,12 @@ export class Match {
         (p) => !p.benched && p.team === team && p.recovery <= 0 && !p.diving,
       );
     if (!players.length) return;
+    const receiverId = serveReceiver(this, team, players);
+    if (receiverId !== null) {
+      this.selectControlledPlayer(this.controls[team], receiverId);
+      this.players[receiverId].returnHome = false;
+      return;
+    }
     players.sort(
       (a, b) =>
         Math.abs(a.x - target.x) +

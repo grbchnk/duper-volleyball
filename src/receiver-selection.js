@@ -2,6 +2,7 @@ import { traceBall } from './physics.js';
 import { shotSettings } from './shot-settings.js';
 import { sampleJump } from './motion.js';
 import { isFeintDecoy } from './feint-play.js';
+import { serveReceiver } from './serve-reception.js';
 
 // Keep manual control while interception is feasible; hand off only a lost ball.
 export function nextReceiver(
@@ -105,6 +106,16 @@ export function nextReceiver(
   }
   candidates.sort((a, b) => a.time - b.time || a.distance - b.distance);
   const currentOption = candidates.find((p) => p.id === currentId);
+  if (!rescueOnly && !(preferCurrent && currentOption)) {
+    const receiver = serveReceiver(
+      match,
+      team,
+      match.players.filter((player) => !exclude.includes(player.id)),
+      currentId,
+      path,
+    );
+    if (receiver !== null) return receiver;
+  }
   // Running to receive is a manual commitment. A nearer teammate must not
   // take control while this player still has a valid interception.
   if (preferCurrent && currentOption) return currentId;
