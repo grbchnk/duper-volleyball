@@ -106,6 +106,30 @@ export const SHOT_VARIANTS = {
   fast: 'R2 / C · силовой',
 };
 export const VARIANT_FIELDS = {
+  ReceiveHoldTime: [
+    'Ожидание отпускания',
+    0,
+    0.5,
+    0.01,
+    'с',
+    'От входа мяча в зону: отпускание, конец времени или выход из зоны завершают готовый удар. 0 — выключено.',
+  ],
+  ElevationMin: [
+    'Минимальный угол вылета',
+    -90,
+    90,
+    1,
+    '°',
+    'Ограничивает итоговый угол, включая помощь. 0° — горизонтально, 90° — вверх.',
+  ],
+  ElevationMax: [
+    'Максимальный угол вылета',
+    -90,
+    90,
+    1,
+    '°',
+    'Верхняя граница итогового угла. Направление влево/вправо сохраняется.',
+  ],
   SpeedMin: ['Скорость при 0% силы', 0, 40, 0.1, 'м/с', 'Скорость вылета при минимальном заряде.'],
   SpeedMax: ['Скорость при 100% силы', 0, 40, 0.1, 'м/с', 'Скорость вылета при полном заряде.'],
   PowerCurve: [
@@ -175,7 +199,7 @@ export const VARIANT_FIELDS = {
 };
 export const variantKey = (kind, variant, suffix) =>
   variant === 'normal' &&
-  ['SpeedMin', 'SpeedMax', 'PowerCurve', 'SpinMin', 'SpinMax'].includes(suffix)
+  ['SpeedMin', 'SpeedMax', 'PowerCurve', 'SpinMin', 'SpinMax', 'ReceiveHoldTime'].includes(suffix)
     ? kind + suffix
     : kind + variant[0].toUpperCase() + variant.slice(1) + suffix;
 export const VARIANT_DEFAULTS = {},
@@ -185,6 +209,9 @@ for (const kind of ['low', 'loft', 'drive'])
     const soft = variant === 'soft',
       fast = variant === 'fast';
     const values = {
+      ReceiveHoldTime: soft ? 0.12 : kind === 'loft' && !fast ? 0.08 : 0,
+      ElevationMin: kind === 'low' ? 38 : -90,
+      ElevationMax: 90,
       SpeedMin: soft ? 2.8 : SHOT_BASES[kind].speed[0] * (fast ? 1.28 : 1),
       SpeedMax: soft ? 6.3 : SHOT_BASES[kind].speed[1] * (fast ? 1.28 : 1),
       PowerCurve: 1,

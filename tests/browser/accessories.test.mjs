@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -10,6 +11,7 @@ test(
     const { page } = await openBrowserGame(t);
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
+    await revealSettingsControl(page, '#team-quick');
     await page.locator('#team-quick').click();
     await settleSettings(page);
     const stored = () =>
@@ -40,11 +42,16 @@ test(
         await page.locator(`[data-head="${head}"]`).getAttribute('data-category'),
         'characters',
       );
+    await revealSettingsControl(page, '[data-player="0"]');
     await page.locator('[data-player="0"]').click();
     const before = await page.locator('#team-roster-preview').evaluate((c) => c.toDataURL());
+    await revealSettingsControl(page, '#team-print-gallery [data-jersey-print="number3"]');
     await page.locator('#team-print-gallery [data-jersey-print="number3"]').click();
+    await revealSettingsControl(page, '#team-shoe-gallery [data-shoes="high"]');
     await page.locator('#team-shoe-gallery [data-shoes="high"]').click();
+    await revealSettingsControl(page, '#team-shoe-colors [data-color="#ee967d"]');
     await page.locator('#team-shoe-colors [data-color="#ee967d"]').click();
+    await revealSettingsControl(page, '[data-head="panda"]');
     await page.locator('[data-head="panda"]').click();
     await settleSettings(page);
     const config = await stored();
@@ -55,17 +62,24 @@ test(
       await page.locator('#team-roster-preview').evaluate((c) => c.toDataURL()),
       before,
     );
+    await revealSettingsControl(page, '[data-player="1"]');
     await page.locator('[data-player="1"]').click();
+    await revealSettingsControl(page, '#team-print-gallery [data-jersey-print="heart"]');
     await page.locator('#team-print-gallery [data-jersey-print="heart"]').click();
+    await revealSettingsControl(page, '#team-print-colors [data-color="#364755"]');
     await page.locator('#team-print-colors [data-color="#364755"]').click();
+    await revealSettingsControl(page, '#team-shoe-gallery [data-shoes="neon"]');
     await page.locator('#team-shoe-gallery [data-shoes="neon"]').click();
+    await revealSettingsControl(page, '#team-shoe-colors [data-color="#80bda8"]');
     await page.locator('#team-shoe-colors [data-color="#80bda8"]').click();
     const edited = await stored();
     assert.deepEqual(edited.teamPlayers[0], config.teamPlayers[0]);
     await page.reload();
+    await revealSettingsControl(page, '#team-quick');
     await page.locator('#team-quick').click();
     await settleSettings(page);
     assert.deepEqual((await stored()).teamPlayers, edited.teamPlayers);
+    await revealSettingsControl(page, '[data-player="0"]');
     await page.locator('[data-player="0"]').click();
     assert.equal(
       await page
@@ -132,11 +146,14 @@ test(
       return canvas.toDataURL().split(',')[1];
     });
     await writeFile('.cache/customization-qa/catalogue.png', Buffer.from(sheet, 'base64'));
-    for (const name of ['print', 'shoe'])
+    for (const name of ['print', 'shoe']) {
+      await revealSettingsControl(page, `#team-${name}-gallery`);
       await page
         .locator(`#team-${name}-gallery`)
         .screenshot({ path: `.cache/customization-qa/${name}-gallery.png` });
+    }
     await page.setViewportSize({ width: 390, height: 844 });
+    await revealSettingsControl(page, '#team-shoe-gallery');
     await page.locator('#team-shoe-gallery').scrollIntoViewIfNeeded();
     assert.ok(
       await page.locator('#team-dialog').evaluate((d) => d.scrollWidth <= d.clientWidth + 1),

@@ -24,7 +24,7 @@ function scenario(kind, delay = 0.08, extra = {}) {
 }
 
 test('lower reception hits immediately on palm contact even with an old saved delay', () => {
-  const { m, p, control } = scenario('low', 0.25);
+  const { m, p, control } = scenario('low', 0);
   const a = { kind: 'low', power: 0.5, age: 0.2, playerId: p.id, aim: { axis: 1 } };
   control.charge = a;
   for (let i = 0; i < 5; i++) Object.assign(m.ball, preparedHands(p, m, a)[0]);
@@ -47,7 +47,7 @@ for (const kind of ['loft']) {
   test(`${kind}: automatic release uses the configured release window, not an unlimited hold`, () => {
     for (const releaseWindow of [0.05, 0.2, 0.35])
       for (const arrivesInTime of [true, false]) {
-        const { m, p, input, control } = scenario(kind, 0.25, { releaseWindow });
+        const { m, p, input, control } = scenario(kind, 0, { releaseWindow });
         m.ball.y = 8;
         control.charge = { kind, power: 1, age: 0.3, playerId: p.id, aim: { axis: 1 } };
         m.updateCharge(FIXED_DT, input, () => false, control);
@@ -76,21 +76,18 @@ for (const kind of ['loft']) {
     assert.equal(m.contacts, 1);
   });
 
-  test(`${kind}: pressing inside the zone preserves preparation, then starts the delay`, () => {
-    const { m, input, control } = scenario(kind);
+  test(`${kind}: the waiting deadline starts at zone entry, with preparation still required`, () => {
+    const { m, input, control } = scenario(kind, 0.2);
     m.tick(FIXED_DT, input);
     const readyAt = control.charge.receiveReadyAt;
+    const enteredAt = control.charge.receiveZone.at;
     assert.equal(m.contacts, 0);
-    assert.ok(control.charge.receiveZone);
-    assert.equal(control.charge.receiveHold, undefined);
     while (m.time + FIXED_DT < readyAt - 1e-9) {
       m.tick(FIXED_DT, input);
       assert.equal(m.contacts, 0);
-      assert.equal(control.charge.receiveHold, undefined);
     }
     for (let i = 0; i < 3 && !control.charge?.receiveHold; i++) m.tick(FIXED_DT, input);
-    assert.ok(control.charge.receiveHold);
-    assert.ok(control.charge.receiveHold.at >= readyAt - 1e-9);
+    assert.equal(control.charge.receiveHold.at, enteredAt);
     for (let i = 0; i < 50 && !m.contacts; i++) m.tick(FIXED_DT, input);
     assert.equal(m.contacts, 1);
   });

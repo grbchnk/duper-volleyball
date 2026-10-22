@@ -47,13 +47,43 @@ const SERVE_HINTS = {
 // The single persistent profile editor is embedded beside its live preview.
 export function createContactSettings(dialog, getConfig, apply, selection, changed) {
   dialog.innerHTML = `<h3 id="contact-profile-title">Настройки выбранного действия</h3>
-    <p class="hint">Применяются в матче и сохраняются. Траектория рядом обновляется сразу.</p>
+    <p class="hint">Настройки матча · сохраняются автоматически</p>
     <label id="contact-targeted-row">Расчёт подачи<select id="contact-targeted"><option value="0">Скорость и угол</option><option value="1">Точка приземления и время</option></select></label>
-    <p id="contact-settings-hint" class="hint"></p><div id="contact-fields" class="settings-fields"></div>
+    <p id="contact-settings-hint" class="hint"></p><nav id="contact-tabs" class="settings-tabs" aria-label="Параметры удара"></nav>
+    <label id="contact-wait-row"><input id="contact-wait-enabled" type="checkbox"> Ждать отпускания в зоне контакта</label>
+    <div id="contact-fields" class="settings-fields"></div>
     <button id="contact-reset" class="secondary">Сбросить выбранное действие</button>`;
   const $ = (id) => dialog.querySelector('#contact-' + id);
   const serving = () => selection().mode === 'serve';
   const common = new Set(['ContactMin', 'ContactMax', 'Reach']);
+  const groups = {
+    power: 'Сила',
+    direction: 'Углы',
+    contact: 'Контакт',
+    flight: 'Полёт',
+    timing: 'Подача: момент',
+  };
+  const groupFor = (suffix) =>
+    /Contact|Reach|ReceiveHold/.test(suffix)
+      ? 'contact'
+      : /Angle|Aim|Elevation/.test(suffix)
+        ? 'direction'
+        : /Spin|Dip|Tempo|Target|Flight|NetAssist/.test(suffix)
+          ? 'flight'
+          : /Ideal|Window|Mistime|Toss|Runup/.test(suffix)
+            ? 'timing'
+            : 'power';
+  let activeGroup = 'power';
+  const rememberedWaits = new Map();
+  function showGroup() {
+    for (const node of $('fields').children)
+      node.hidden =
+        node.dataset.section !== activeGroup ||
+        (node.classList.contains('setting-note') && node.dataset.expanded !== 'true');
+    for (const button of $('tabs').children)
+      button.setAttribute('aria-pressed', String(button.dataset.section === activeGroup));
+    $('wait-row').hidden = serving() || activeGroup !== 'contact';
+  }
   const fields = () =>
     serving()
       ? Object.entries(SERVE_FIELDS).filter(
@@ -65,6 +95,8 @@ export function createContactSettings(dialog, getConfig, apply, selection, chang
           ...Object.entries(VARIANT_FIELDS)
             .filter(([key]) => key !== 'Dip' || selection().kind === 'drive')
             .map(([key, metadata]) => {
+              if (selection().kind === 'low' && ['ElevationMin', 'ElevationMax'].includes(key))
+                return [key, [metadata[0], 0, ...metadata.slice(2)]];
               if (selection().kind !== 'low' || !['GroundAngle', 'AirAngle'].includes(key))
                 return [key, metadata];
               return [
@@ -75,7 +107,7 @@ export function createContactSettings(dialog, getConfig, apply, selection, chang
                   88,
                   1,
                   '°',
-                  'Исходный угол нижнего приёма. Помощь направлению при пасе может скорректировать его к доступной цели.',
+                  'Угол нижнего приёма при направлении по горизонтали. Наклон стика изменяет угол; без стика мяч поднимается над игроком.',
                 ],
               ];
             }),
@@ -88,12 +120,57 @@ export function createContactSettings(dialog, getConfig, apply, selection, chang
         ? selection().kind + suffix
         : variantKey(selection().kind, shotVariant(selection()), suffix);
   function build() {
+    const available = new Set(fields().map(([suffix]) => groupFor(suffix)));
+    if (!available.has(activeGroup)) activeGroup = 'power';
+    $('tabs').replaceChildren(
+      ...Object.entries(groups)
+        .filter(([id]) => available.has(id))
+        .map(([id, name]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'secondary';
+          button.textContent = name;
+          button.dataset.section = id;
+          button.onclick = () => {
+            activeGroup = id;
+            showGroup();
+          };
+          return button;
+        }),
+    );
     $('fields').innerHTML = fields()
       .map(
         ([suffix, [label, min, max, step, unit, hint]]) =>
           `<label class="setting-label" for="contact-range-${suffix}">${label} <output id="contact-value-${suffix}"></output></label><input class="setting-range" id="contact-range-${suffix}" type="range" min="${min}" max="${max}" step="${step}" aria-describedby="contact-hint-${suffix}"><input class="setting-number" id="contact-number-${suffix}" type="number" min="${min}" max="${max}" step="${step}" aria-label="${label}, точное значение"><small class="setting-note" id="contact-hint-${suffix}">${unit} · ${serving() ? SERVE_HINTS[suffix] || label : common.has(suffix) ? (suffix === 'Reach' ? 'Горизонтальный допуск от игрока до мяча.' : 'Высота над стопами игрока.') + ' Общий для всех вариантов этого приёма.' : hint}</small>`,
       )
       .join('');
+    fields().forEach(([suffix], index) => {
+      for (const node of [...$('fields').children].slice(index * 4, index * 4 + 4))
+        node.dataset.section = groupFor(suffix);
+      const help = document.createElement('button');
+      help.type = 'button';
+      help.className = 'setting-help';
+      help.textContent = '?';
+      help.setAttribute('aria-label', 'Пояснение: ' + fields()[index][1][0]);
+      help.setAttribute('aria-expanded', 'false');
+      help.onclick = (event) => {
+        event.preventDefault();
+        const expanded = $('hint-' + suffix).dataset.expanded !== 'true';
+        $('hint-' + suffix).dataset.expanded = String(expanded);
+        help.setAttribute('aria-expanded', String(expanded));
+        showGroup();
+      };
+      $('value-' + suffix).before(help);
+      if (suffix === 'ReceiveHoldTime') {
+        for (const type of ['range', 'number']) {
+          $(type + '-' + suffix).max = 500;
+          $(type + '-' + suffix).step = 10;
+        }
+        $('hint-' + suffix).textContent =
+          'мс · Отсчёт с входа мяча в зону при зажатой кнопке. Удар — при отпускании, конце времени или перед выходом готового мяча из зоны. Мяч свободно летит; L2 имеет собственное значение.';
+      }
+    });
+    showGroup();
     for (const [suffix] of fields())
       for (const type of ['range', 'number']) {
         const input = $(type + '-' + suffix);
@@ -101,7 +178,9 @@ export function createContactSettings(dialog, getConfig, apply, selection, chang
           if (input.value === '' || !Number.isFinite(+input.value)) return;
           const next = {
             ...getConfig(),
-            [keyFor(suffix)]: Math.max(+input.min, Math.min(+input.max, +input.value)),
+            [keyFor(suffix)]:
+              Math.max(+input.min, Math.min(+input.max, +input.value)) /
+              (suffix === 'ReceiveHoldTime' ? 1000 : 1),
           };
           for (const [low, high] of [
             ['SpeedMin', 'SpeedMax'],
@@ -134,15 +213,21 @@ export function createContactSettings(dialog, getConfig, apply, selection, chang
           ...shotSettings(config, selection().kind),
           ...variantSettings(config, selection().kind, selection()),
         };
+    $('wait-enabled').checked = settings.ReceiveHoldTime > 0;
+    if (settings.ReceiveHoldTime > 0)
+      rememberedWaits.set(keyFor('ReceiveHoldTime'), settings.ReceiveHoldTime);
+    showGroup();
     $('profile-title').textContent = serving()
       ? 'Профиль подачи'
       : 'Профиль: ' + SHOT_VARIANTS[shotVariant(selection())];
     $('targeted-row').hidden = !serving();
     $('targeted').value = settings.Targeted || 0;
     $('settings-hint').textContent = serving()
-      ? 'Каждая подача имеет свой профиль. Набор силы длится вдвое дольше обычного удара; на 100% можно удерживать кнопку, подброс начинается после отпускания. Для подсечки снизу: L2 + нижняя подача.'
-      : 'Выберите L2 или R2 выше: редактируется только этот вариант данного приёма. L2 + R2 использует L2. Общие допуски контакта действуют на все три варианта. Значения сразу применяются к вашей игре.';
-    for (const [suffix, [, , , , , group]] of fields()) {
+      ? settings.Targeted && !selection().manual
+        ? 'Угол рассчитывается по цели. Для ручных границ выбери расчёт «Скорость и угол». ? — пояснение.'
+        : 'Профиль выбранной подачи. ? — пояснение параметра.'
+      : 'Для выбранного варианта. Зона контакта общая. ? — пояснение.';
+    for (const [suffix, [, , , , unit, group]] of fields()) {
       const disabled =
         serving() &&
         ((settings.Targeted && !selection().manual
@@ -151,12 +236,26 @@ export function createContactSettings(dialog, getConfig, apply, selection, chang
           (suffix === 'Runup' && selection().kind !== 'drive') ||
           (config.dynamic && suffix === 'ChargeSeconds'));
       for (const type of ['range', 'number']) {
-        $(type + '-' + suffix).value = settings[suffix];
+        $(type + '-' + suffix).value =
+          suffix === 'ReceiveHoldTime' ? Math.round(settings[suffix] * 1000) : settings[suffix];
         $(type + '-' + suffix).disabled = disabled;
       }
-      $('value-' + suffix).textContent = String(settings[suffix]);
+      $('value-' + suffix).textContent =
+        suffix === 'ReceiveHoldTime'
+          ? Math.round(settings[suffix] * 1000) + ' мс'
+          : String(settings[suffix]) + (unit ? ' ' + unit : '');
     }
   }
+  $('wait-enabled').onchange = () => {
+    apply({
+      ...getConfig(),
+      [keyFor('ReceiveHoldTime')]: $('wait-enabled').checked
+        ? rememberedWaits.get(keyFor('ReceiveHoldTime')) || 0.12
+        : 0,
+    });
+    sync();
+    changed();
+  };
   $('targeted').onchange = () => {
     apply({ ...getConfig(), [keyFor('Targeted')]: +$('targeted').value });
     sync();

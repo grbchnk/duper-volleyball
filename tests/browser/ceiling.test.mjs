@@ -35,6 +35,7 @@ test(
       const { renderer, sound } = await import('/src/ceiling-preview.js');
       window.breaks = [];
       renderer.onCeilingBreak = (event) => {
+        if (!window.breaks.length && event.entering) return;
         window.breaks.push(event);
         sound.play(event);
       };

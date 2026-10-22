@@ -1,3 +1,4 @@
+import { mountSettingGroups } from './settings-navigation.js';
 import { COSMETIC_KEYS } from './settings-scope.js';
 import { mountSettingsPanel } from './settings-panels.js';
 import { createTeamEditor, selectClub } from './team-editor.js';
@@ -212,7 +213,6 @@ function syncSettings() {
   $('pixel-graphics').checked = config.pixelGraphics;
   $('ball-fire').checked = config.ballFire;
   $('lively-background').checked = config.livelyBackground;
-  $('random-arms').checked = config.randomArms;
   $('away-team').value = config.awayTeam;
   teams = [
     TEAMS.find((t) => t.id === config.homeTeam),
@@ -636,7 +636,6 @@ for (const [id, key] of [
   ['pixel-graphics', 'pixelGraphics'],
   ['ball-fire', 'ballFire'],
   ['lively-background', 'livelyBackground'],
-  ['random-arms', 'randomArms'],
 ])
   $(id).onchange = (e) => applyConfig({ ...config, [key]: e.target.checked });
 for (const [id, key] of [['away-team', 'awayTeam']])
@@ -707,6 +706,14 @@ for (const [key, [label, step, , group, hint]] of Object.entries(physicsFields))
     note.className = 'setting-note';
     container.append(note);
   }
+}
+for (const parent of ['physics-controls', 'graphics-controls', 'graphics-effects-controls'].map(
+  $,
+)) {
+  mountSettingGroups(
+    parent,
+    [...parent.children].filter((node) => node.tagName === 'SECTION'),
+  );
 }
 let resetSnapshot;
 function resetSettings(keys) {

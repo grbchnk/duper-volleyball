@@ -145,7 +145,14 @@ test('partners fill free space and wait before the human instead of crossing the
 test('full charge releases each shot once and requires a fresh button press', () => {
   for (const kind of ['low', 'loft', 'drive'])
     for (const modifier of [{}, { l2: true }, { r2: true }]) {
-      const m = new Match({ ...DEFAULTS, lowReceiveHoldTime: 0, loftReceiveHoldTime: 0 });
+      const m = new Match({
+        ...DEFAULTS,
+        lowReceiveHoldTime: 0,
+        loftReceiveHoldTime: 0,
+        lowSoftReceiveHoldTime: 0,
+        loftSoftReceiveHoldTime: 0,
+        driveSoftReceiveHoldTime: 0,
+      });
       m.reset('versus');
       m.phase = 'rally';
       Object.assign(m.ball, { x: -4, y: 12, vx: 0, vy: 0 });

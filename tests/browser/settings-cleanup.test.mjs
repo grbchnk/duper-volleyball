@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -50,12 +51,14 @@ test(
     }
     for (const size of sizes) assert.deepEqual(size, sizes[0]);
     await openSettingsSection(page, 'Моя команда');
+    await revealSettingsControl(page, '[data-head="bear"]');
     await page.locator('[data-head="bear"]').click();
     await settleSettings(page);
     const head = await page.locator('.head-choice[aria-pressed="true"]').getAttribute('data-head');
     assert.equal(head, 'bear');
     await page.setViewportSize({ width: 390, height: 760 });
     const body = page.locator('#team-body');
+    await revealSettingsControl(page, '#team-body');
     await body.scrollIntoViewIfNeeded();
     assert.equal(
       await body.evaluate((e) => {
@@ -65,11 +68,14 @@ test(
       true,
     );
     await openSettingsSection(page, 'Руки и анимация');
+    await revealSettingsControl(page, '#physics-armLength');
     await page.locator('#physics-armLength').fill('1.3');
     await settleSettings(page);
     await openSettingsSection(page, 'Физика и помощь');
+    await revealSettingsControl(page, '#physics-gravity');
     await page.locator('#physics-gravity').fill('12');
     await settleSettings(page);
+    await revealSettingsControl(page, '#reset-physics');
     await page.locator('#reset-physics').click();
     await settleSettings(page);
     assert.equal(await page.locator('#physics-gravity').inputValue(), '10.1');
@@ -81,8 +87,10 @@ test(
       'bear',
     );
     await openSettingsSection(page, 'Сохранить / загрузить');
+    await revealSettingsControl(page, '#reset-all');
     await page.locator('#reset-all').click();
     await settleSettings(page);
+    await revealSettingsControl(page, '#undo-settings');
     await page.locator('#undo-settings').click();
     await settleSettings(page);
     await page.keyboard.press('Escape');

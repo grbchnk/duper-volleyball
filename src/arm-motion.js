@@ -211,7 +211,7 @@ export function expressivePose({
     activity = ease((charge.age ?? 0.1) / config.armWindup);
     wrists = pairMix(base, ready, activity);
     stage = 'Подготовка';
-    if (charge.receiveHold && receiveHoldPoint && ['low', 'loft'].includes(kind)) {
+    if (charge.receiveHold && receiveHoldPoint && ['low', 'loft', 'drive'].includes(kind)) {
       const spread = kind === 'low' ? 2 : gentleLoft ? 5.5 : 3.5;
       const below = kind === 'low' ? 3 : 2;
       const target = [-1, 1].map((side) => ({
@@ -219,7 +219,7 @@ export function expressivePose({
         y: receiveHoldPoint.y + below - shoulderLift,
       }));
       activity = 1;
-      wrists = pairMix(base, target, activity);
+      wrists = target.map((point, i) => (activeHands.includes(i) ? point : ready[i]));
       stage = 'Сопровождение мяча';
     }
   }

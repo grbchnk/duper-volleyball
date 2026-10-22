@@ -264,11 +264,6 @@
       </div>
       <section class="panel">
         <h3>Руки и анимация</h3>
-        <label><input id="random-arms" type="checkbox" /> Случайные руки у каждого игрока</label>
-        <p class="hint">
-          У каждого игрока свои изгиб и высота локтя. Размер, толщина и остальные параметры не
-          меняются. Набор сохраняется на весь матч.
-        </p>
         <div id="graphics-arm-preview" class="arm-live-preview">
           <label for="graphics-arm-pose">Движение в предпросмотре</label>
           <select id="graphics-arm-pose">
@@ -301,7 +296,10 @@
             <input id="graphics-arm-frame" type="range" min="0" max="2.2" step="0.01" value="0" />
             <button id="graphics-arm-replay" class="secondary">Повторить ↻</button>
           </details>
-          <small>Общие настройки рук. Случайные локти отдельных игроков здесь отключены.</small>
+          <small
+            >Внешний вид рук. Время подготовки контакта — в «Физика и помощь → Подготовка
+            удара».</small
+          >
         </div>
         <button id="reset-appearance" class="secondary">Сбросить внешний вид рук</button>
         <div id="graphics-controls"></div>
@@ -430,7 +428,8 @@
       </div>
       <p>
         Время — в игровых секундах: при снижении темпа реальные интервалы длиннее. Все ползунки
-        сохраняются и входят в JSON. В ручной игре полный заряд отпускает удар автоматически.
+        сохраняются и входят в JSON. Ожидание отпускания и границы углов — в «Приёмы и подачи», для
+        каждого действия и варианта L2/R2.
       </p>
       <button id="reset-physics" class="secondary">Сбросить физику</button>
 

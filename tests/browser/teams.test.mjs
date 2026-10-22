@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import { openSettingsSection, settleSettings } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,9 +29,11 @@ test(
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await page.goto(base);
+    await revealSettingsControl(page, '#team-quick');
     await page.locator('#team-quick').click();
     await settleSettings(page);
     assert.equal(await page.locator('.team-preset').count(), 10);
+    await revealSettingsControl(page, '.team-presets summary');
     await page.locator('.team-presets summary').click();
     await settleSettings(page);
     await mkdir('.cache/teams', { recursive: true });
@@ -58,6 +61,7 @@ test(
       page.evaluate(
         () => JSON.parse(localStorage.getItem('duper-volleyball.dynamic-v3.config')).config,
       );
+    await revealSettingsControl(page, '[data-team="sakura"]');
     await page.locator('[data-team="sakura"]').click();
     await settleSettings(page);
     for (const [slot, head] of [
@@ -65,6 +69,7 @@ test(
       ['1', 'bun'],
       ['2', 'doublebun'],
     ]) {
+      await revealSettingsControl(page, `[data-player="${slot}"]`);
       await page.locator(`[data-player="${slot}"]`).click();
       await settleSettings(page);
       assert.equal(
@@ -72,6 +77,7 @@ test(
         head,
       );
     }
+    await revealSettingsControl(page, '[data-team="nigeria"]');
     await page.locator('[data-team="nigeria"]').click();
     await settleSettings(page);
     assert.equal((await stored()).homeTeam, 'nigeria');
@@ -79,16 +85,22 @@ test(
       await page.locator('.head-choice[aria-pressed="true"]').getAttribute('data-head'),
       'dreads',
     );
+    await revealSettingsControl(page, '[data-team="pumpkins"]');
     await page.locator('[data-team="pumpkins"]').click();
     await settleSettings(page);
+    await revealSettingsControl(page, '#team-uniform-colors [data-color="#b0a2cb"]');
     await page.locator('#team-uniform-colors [data-color="#b0a2cb"]').click();
     await settleSettings(page);
+    await revealSettingsControl(page, '[data-player="0"]');
     await page.locator('[data-player="0"]').click();
     await settleSettings(page);
+    await revealSettingsControl(page, '[data-head="bear"]');
     await page.locator('[data-head="bear"]').click();
     await settleSettings(page);
+    await revealSettingsControl(page, '#team-body');
     await page.locator('#team-body').selectOption('longsleeve');
     await settleSettings(page);
+    await revealSettingsControl(page, '#team-hair-colors [data-color="#a76a3e"]');
     await page.locator('#team-hair-colors [data-color="#a76a3e"]').click();
     await settleSettings(page);
     let config = await stored();
@@ -96,13 +108,16 @@ test(
     assert.equal(config.teamPlayers[1].head, 'pumpkin');
     assert.equal(config.homeColor, '#b0a2cb');
     const before = await page.locator('#team-roster-preview').evaluate((c) => c.toDataURL());
+    await revealSettingsControl(page, '#team-random-appearance');
     await page.locator('#team-random-appearance').check();
     await settleSettings(page);
     assert.equal(await page.locator('.head-choice').first().isDisabled(), true);
     assert.equal((await stored()).homeColor, '#b0a2cb');
+    await revealSettingsControl(page, '#team-reroll');
     await page.locator('#team-reroll').click();
     await settleSettings(page);
     assert.equal((await stored()).homeColor, '#b0a2cb');
+    await revealSettingsControl(page, '#team-random-appearance');
     await page.locator('#team-random-appearance').uncheck();
     await settleSettings(page);
     assert.equal(
@@ -112,6 +127,7 @@ test(
     assert.equal(await page.locator('#team-roster-preview').evaluate((c) => c.toDataURL()), before);
     await page.keyboard.press('Escape');
     await page.reload();
+    await revealSettingsControl(page, '#team-quick');
     await page.locator('#team-quick').click();
     await settleSettings(page);
     assert.equal(
@@ -122,6 +138,7 @@ test(
     await mkdir('.cache/teams', { recursive: true });
     await page.screenshot({ path: '.cache/teams/editor-desktop.png' });
     await page.setViewportSize({ width: 390, height: 844 });
+    await revealSettingsControl(page, '#team-body');
     await page.locator('#team-body').scrollIntoViewIfNeeded();
     assert.ok(
       await page.locator('#team-dialog').evaluate((d) => d.scrollWidth <= d.clientWidth + 1),
@@ -136,6 +153,7 @@ test(
     await page.keyboard.press('Escape');
     await page.setViewportSize({ width: 1440, height: 1000 });
     await openSettingsSection(page, 'Матч и управление');
+    await revealSettingsControl(page, '#away-team');
     await page.locator('#away-team').selectOption('robots');
     await settleSettings(page);
     assert.equal((await stored()).awayTeam, 'robots');

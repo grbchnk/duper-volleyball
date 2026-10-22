@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -11,12 +12,15 @@ test(
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await openSettingsSection(page, 'Матч и управление');
+    await revealSettingsControl(page, '#transferShotOnSwitch');
     await page.locator('#transferShotOnSwitch').uncheck();
     await openSettingsSection(page, 'Физика и помощь');
     assert.equal(await page.locator('#physics-neutralPassError').count(), 0);
     assert.equal(await page.locator('#physics-neutralPassSpeedError').count(), 0);
     await openSettingsSection(page, 'Мяч и графика');
+    await revealSettingsControl(page, '#passDirectionPreview');
     await page.locator('#passDirectionPreview').check();
+    await revealSettingsControl(page, 'dialog[open] .close');
     await page.locator('dialog[open] .close').click();
     await settleSettings(page);
     await page.reload();
@@ -31,6 +35,7 @@ test(
       ];
     });
     assert.deepEqual(saved, [false, 0, 0, true]);
+    await revealSettingsControl(page, '#start');
     await page.locator('#start').click();
     await page.evaluate(async () => {
       const { match: m } = await import('/src/main.js');

@@ -169,6 +169,7 @@ for (const [id, goal, threshold, jumpHeight] of [
               r2: !!g.fast,
               intent: g.soft ? 'soft' : g.fast ? 'fast' : 'manual',
             };
+      if (g.soft && m.controls[0].charge?.receiveHold) input[g.kind] = false;
       m.tick(1 / 120, input);
       t.observe(input);
     }

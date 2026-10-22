@@ -258,8 +258,8 @@ export const LIMITS = {
   modifierSpeedup: [0, 0.5],
   targetScore: [5, 25],
   releaseWindow: [0, 0.35],
-  lowReceiveHoldTime: [0, 0.25],
-  loftReceiveHoldTime: [0, 0.25],
+  lowReceiveHoldTime: [0, 0.5],
+  loftReceiveHoldTime: [0, 0.5],
   chargeSeconds: [0.15, 0.9],
   maxHold: [0.2, 1.5],
   chargeMove: [0, 1],
@@ -389,6 +389,7 @@ export function sanitizeConfig(value = {}) {
     if (TEAMS.some((team) => team.id === value[key])) result[key] = value[key];
   result.appearanceSeed = Math.round(result.appearanceSeed);
   if (!historical) {
+    result.randomArms = false;
     // Retired experiments cannot be reactivated by an old settings file.
     result.receiveMomentum = false;
     result.neutralPassError = 0;
@@ -420,6 +421,10 @@ export function sanitizeConfig(value = {}) {
         const low = variantKey(kind, variant, 'SpeedMin'),
           high = variantKey(kind, variant, 'SpeedMax');
         result[high] = Math.max(result[low], result[high]);
+        const minAngle = variantKey(kind, variant, 'ElevationMin');
+        const maxAngle = variantKey(kind, variant, 'ElevationMax');
+        if (kind === 'low') result[minAngle] = Math.max(0, result[minAngle]);
+        result[maxAngle] = Math.max(result[minAngle], result[maxAngle]);
         if (
           kind === 'drive' &&
           variant !== 'soft' &&

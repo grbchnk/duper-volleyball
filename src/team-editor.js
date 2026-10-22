@@ -69,22 +69,36 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
   dialog.innerHTML = `<div class="dialog-top"><div><p class="eyebrow">КЛУБ · ФОРМА · СОСТАВ</p><h2>Моя команда</h2></div><button class="close" aria-label="Закрыть мою команду">×</button></div>
   <div class="team-editor-layout"><details class="team-presets"><summary>Выбрать готовый клуб · 10 составов</summary><p class="hint">10 составов со своей внешностью. Можно взять готовый и настроить под себя.</p><div id="team-preset-grid"></div></details>
   <section class="team-custom"><div class="team-preview"><h3 id="team-current-name"></h3><canvas id="team-roster-preview" width="630" height="250" aria-label="Предпросмотр трёх игроков моей команды"></canvas><p id="team-current-description" class="hint"></p></div>
-  <h3>Цвет формы</h3><div id="team-uniform-colors" class="color-swatches" role="group" aria-label="Цвет формы"></div>
+  <button type="button" class="secondary" popovertarget="team-colors-popup">Цвета команды и игрока ▾</button>
   <label class="team-random"><input id="team-random-appearance" type="checkbox"> Случайная внешность</label><p class="hint">Меняются головы, причёски, форма, обувь и рисунки. Выбранный цвет команды сохраняется.</p><button id="team-reroll" class="secondary">Подобрать другую внешность ↻</button>
   <h3>Настроить игрока</h3><div id="team-player-tabs" class="team-player-tabs" role="group" aria-label="Игрок для настройки">${['1 · Задний', '2 · Связующий', '3 · Передний'].map((name, i) => `<button class="secondary" data-player="${i}">${name}</button>`).join('')}</div>
   <p id="team-edit-hint" class="hint" role="status"></p>
-  <fieldset id="team-player-fields"><h3>Голова / причёска</h3><div id="team-head-gallery" class="head-gallery" role="group" aria-label="Голова или причёска"></div>
-  <label>Цвет волос / шерсти</label><div id="team-hair-colors" class="color-swatches" role="group" aria-label="Цвет волос или шерсти"></div>
-  <label>Тон кожи</label><div id="team-skin-colors" class="color-swatches" role="group" aria-label="Тон кожи"></div>
-  <label for="team-body">Форма игрока</label><select id="team-body">${BODY_STYLES.map((id) => `<option value="${id}">${BODY_NAMES[id]}</option>`).join('')}</select>
-  <h3>Рисунок на форме</h3><p class="hint">Номер или рисунок выбирается отдельно от фасона формы.</p><div id="team-print-gallery" class="accessory-gallery" role="group" aria-label="Рисунок на форме"></div>
-  <label>Цвет рисунка</label><div id="team-print-colors" class="color-swatches" role="group" aria-label="Цвет рисунка на форме"></div>
-  <h3>Обувь</h3><div id="team-shoe-gallery" class="accessory-gallery" role="group" aria-label="Обувь игрока"></div>
-  <label>Цвет обуви</label><div id="team-shoe-colors" class="color-swatches" role="group" aria-label="Цвет обуви"></div>
+  <fieldset id="team-player-fields"><div class="appearance-pickers">
+  <button type="button" id="team-head-trigger" class="secondary" popovertarget="team-head-popup">Голова / причёска ▾</button>
+  <button type="button" id="team-body-trigger" class="secondary" popovertarget="team-body-popup">Форма ▾</button>
+  <button type="button" id="team-print-trigger" class="secondary" popovertarget="team-print-popup">Рисунок ▾</button>
+  <button type="button" id="team-shoe-trigger" class="secondary" popovertarget="team-shoe-popup">Обувь ▾</button></div>
+  <div popover="auto" id="team-head-popup" class="appearance-popup"><div class="picker-heading"><h3>Голова и причёска</h3><button type="button" popovertarget="team-head-popup" popovertargetaction="hide" aria-label="Закрыть выбор головы">×</button></div><div id="team-head-gallery" class="head-gallery" role="group" aria-label="Голова или причёска"></div></div>
+  <div popover="auto" id="team-body-popup" class="appearance-popup"><div class="picker-heading"><h3>Форма игрока</h3><button type="button" popovertarget="team-body-popup" popovertargetaction="hide" aria-label="Закрыть выбор формы">×</button></div><label for="team-body">Фасон</label><select id="team-body">${BODY_STYLES.map((id) => `<option value="${id}">${BODY_NAMES[id]}</option>`).join('')}</select><div id="team-body-gallery" class="accessory-gallery"></div></div>
+  <div popover="auto" id="team-print-popup" class="appearance-popup"><div class="picker-heading"><h3>Рисунок на форме</h3><button type="button" popovertarget="team-print-popup" popovertargetaction="hide">×</button></div><div id="team-print-gallery" class="accessory-gallery" role="group" aria-label="Рисунок на форме"></div></div>
+  <div popover="auto" id="team-shoe-popup" class="appearance-popup"><div class="picker-heading"><h3>Обувь</h3><button type="button" popovertarget="team-shoe-popup" popovertargetaction="hide">×</button></div><div id="team-shoe-gallery" class="accessory-gallery" role="group" aria-label="Обувь игрока"></div></div>
   </fieldset>
   <button id="team-restore-roster" class="secondary">Вернуть исходный состав клуба</button><p class="hint">Изменения применяются сразу и сохраняются в браузере и общем JSON.</p></section></div>`;
+  const colors = document.createElement('div');
+  colors.id = 'team-colors-popup';
+  colors.className = 'appearance-popup';
+  colors.setAttribute('popover', 'auto');
+  colors.innerHTML = `<div class="picker-heading"><h3>Цвета</h3><button type="button" popovertarget="team-colors-popup" popovertargetaction="hide" aria-label="Закрыть цвета">×</button></div><label for="team-color-part">Что покрасить</label><select id="team-color-part"><option value="uniform">Форма всей команды</option><option value="hair">Волосы / шерсть игрока</option><option value="skin">Кожа игрока</option><option value="print">Рисунок игрока</option><option value="shoe">Обувь игрока</option></select>${['uniform', 'hair', 'skin', 'print', 'shoe'].map((part) => '<div id="team-' + part + '-colors" class="color-swatches" data-color-part="' + part + '" role="group" aria-label="Палитра: ' + part + '"></div>').join('')}`;
+  dialog.querySelector('.team-custom').append(colors);
   const $ = (id) => dialog.querySelector('#team-' + id);
   let slot = 0;
+  const colorPart = $('color-part');
+  function showPalette() {
+    for (const palette of colors.querySelectorAll('[data-color-part]'))
+      palette.hidden = palette.dataset.colorPart !== colorPart.value;
+  }
+  colorPart.onchange = showPalette;
+  showPalette();
   const preview = new Match(getConfig());
   const changePlayer = (patch) => {
     const config = getConfig();
@@ -190,6 +204,7 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
   }
   const accessoryCards = [];
   for (const [gallery, property, catalogue, fallback, layer, scale, offsetY] of [
+    ['body', 'body', BODY_NAMES, 'classic', 'torso', 3, 106],
     ['print', 'jerseyPrint', JERSEY_PRINTS, 'none', 'torso', 4, 108],
     ['shoe', 'shoes', SHOE_STYLES, 'classic', 'feet', 4, 64],
   ]) {
@@ -284,6 +299,23 @@ export function createTeamEditor(dialog, getConfig, applyConfig) {
     }
     accessoryStamp = nextAccessoryStamp;
     $('body').value = p.body;
+    $('head-trigger').textContent = 'Голова: ' + HEAD_NAMES[p.head] + ' ▾';
+    $('body-trigger').textContent = 'Форма: ' + BODY_NAMES[p.body] + ' ▾';
+    $('print-trigger').textContent =
+      'Рисунок: ' +
+      (JERSEY_PRINTS[p.jerseyPrint]?.name || JERSEY_PRINTS[p.jerseyPrint] || 'Нет') +
+      ' ▾';
+    $('shoe-trigger').textContent =
+      'Обувь: ' + (SHOE_STYLES[p.shoes]?.name || SHOE_STYLES[p.shoes] || 'Классика') + ' ▾';
+    for (const option of colorPart.options)
+      option.disabled = config.randomTeamAppearance && option.value !== 'uniform';
+    if (colorPart.selectedOptions[0]?.disabled) {
+      colorPart.value = 'uniform';
+      showPalette();
+    }
+    if (config.randomTeamAppearance)
+      for (const popup of dialog.querySelectorAll('fieldset [popover]:popover-open'))
+        popup.hidePopover();
     for (const [id, color] of [
       ['uniform-colors', config.homeColor],
       ['hair-colors', p.hair],

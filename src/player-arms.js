@@ -22,7 +22,7 @@ export function assignPlayerArms(players, enabled) {
 }
 
 export function playerArmConfig(player, config) {
-  if (!config.randomArms || !player?.armProfile) return config;
+  if (config.dynamic || !config.randomArms || !player?.armProfile) return config;
   const overrides = Object.fromEntries(
     Object.keys(ARM_PARAMETER_STEPS).map((key) => [key, player.armProfile[key] ?? config[key]]),
   );

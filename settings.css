@@ -485,3 +485,280 @@ dialog.settings-panel[open] {
     height: 150px;
   }
 }
+/* Compact settings: selectors stay outside the scrolling laboratory panes. */
+[hidden] {
+  display: none !important;
+}
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.settings-tabs button {
+  padding: 7px 10px;
+  font-size: 12px;
+  min-height: 32px;
+}
+.settings-tabs [aria-pressed='true'] {
+  background: #347f6b;
+  color: #fff;
+  border-color: #347f6b;
+}
+.settings-group-tabs {
+  position: sticky;
+  top: -1px;
+  z-index: 3;
+  background: var(--panel, #f7f6ed);
+  padding: 8px 0;
+}
+.contact-editor-tabs {
+  position: sticky;
+  top: 0;
+}
+.lab-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 0 0 12px;
+}
+.lab-toolbar label {
+  margin: 0;
+  font-size: 12px;
+}
+.lab-toolbar select {
+  width: auto;
+  min-width: 150px;
+  margin: 0;
+}
+.lab-toolbar .lab-kind-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lab-toolbar .lab-variant-picker {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.lab-toolbar .lab-variant-picker h3 {
+  display: none;
+}
+.lab-toolbar #shot-modifiers {
+  display: flex;
+  gap: 12px;
+}
+.lab-toolbar .shot-endpoint-buttons {
+  display: flex;
+  gap: 6px;
+}
+.lab-toolbar .shot-endpoint-buttons button {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.lab-conditions {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.lab-conditions summary {
+  cursor: pointer;
+  font-weight: 650;
+  font-size: 13px;
+}
+.lab-conditions > *:not(summary) {
+  margin-top: 10px;
+}
+.lab-conditions select,
+.lab-conditions input {
+  max-width: 100%;
+}
+#contact-wait-row {
+  font-size: 12px;
+  margin: 8px 0;
+}
+#contact-settings-hint {
+  font-size: 11px;
+  margin: 6px 0 10px;
+}
+.settings-panel .shot-profile-editor {
+  padding: 8px 0;
+}
+.settings-panel .shot-controls {
+  padding: 12px;
+}
+.settings-panel #team-preset-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.settings-panel .team-preset {
+  padding: 8px;
+}
+.settings-panel .team-preset canvas {
+  height: 75px;
+  object-fit: contain;
+}
+.settings-panel .team-preset small {
+  display: none;
+}
+.settings-panel #team-roster-preview {
+  height: 145px;
+}
+.appearance-pickers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.appearance-pickers button {
+  min-height: 50px;
+  text-align: left;
+  font-size: 12px;
+}
+.appearance-popup {
+  width: min(660px, calc(100vw - 32px));
+  max-height: min(650px, calc(100dvh - 48px));
+  padding: 20px;
+  overflow: auto;
+  color: #304e44;
+  background: var(--panel, #f7f6ed);
+  border: 1px solid #a9baaf;
+  border-radius: 16px;
+  box-shadow: 0 15px 80px #19382d44;
+}
+.appearance-popup::backdrop {
+  background: #19382d38;
+}
+.picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.picker-heading h3 {
+  margin: 0 !important;
+}
+.picker-heading button {
+  width: 36px;
+  height: 36px;
+  padding: 4px;
+}
+.appearance-popup .head-gallery,
+.appearance-popup .accessory-gallery {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.appearance-popup canvas {
+  max-height: 65px;
+  object-fit: contain;
+}
+#team-colors-popup {
+  width: min(420px, calc(100vw - 32px));
+}
+@media (max-width: 800px) {
+  .lab-toolbar {
+    gap: 6px 12px;
+    padding-bottom: 8px;
+  }
+  .lab-section-picker {
+    padding-bottom: 6px;
+  }
+  .lab-toolbar .shot-endpoint-buttons {
+    display: none;
+  }
+  .lab-toolbar .lab-kind-picker {
+    flex: 1 1 180px;
+  }
+  .lab-toolbar .lab-kind-picker select {
+    flex: 1;
+    min-width: 0;
+  }
+  .settings-panel .shot-layout {
+    grid-template-rows: minmax(100px, 26dvh) minmax(0, 1fr);
+  }
+  .appearance-popup .head-gallery,
+  .appearance-popup .accessory-gallery {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.setting-help {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin-left: auto;
+  border-radius: 50%;
+  font-size: 11px;
+  color: #60736c;
+}
+#contact-fields > .setting-label {
+  margin-top: 10px;
+  gap: 5px;
+}
+#contact-profile-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+#contact-profile-title + .hint {
+  font-size: 11px;
+  margin: 0 0 6px;
+}
+@media (min-width: 1000px) {
+  .settings-panel .team-custom {
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    gap: 8px 24px;
+    align-items: start;
+  }
+  .settings-panel .team-custom > * {
+    grid-column: 2;
+    margin: 0;
+  }
+  .settings-panel .team-custom > .team-preview {
+    grid-column: 1;
+    grid-row: 1 / span 9;
+  }
+  .settings-panel .team-custom > h3 {
+    margin: 10px 0 0;
+  }
+  .settings-panel .team-custom > button {
+    justify-self: start;
+  }
+  .settings-panel .team-custom .team-preview h3 {
+    margin-top: 0;
+  }
+  .settings-panel .team-custom #team-roster-preview {
+    height: 145px;
+  }
+  .settings-panel .team-custom .team-preview .hint {
+    margin-top: 12px;
+  }
+}
+@media (max-width: 800px) and (max-height: 520px) and (min-width: 560px) {
+  .settings-panel .shot-layout {
+    grid-template-columns: minmax(230px, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .settings-panel .shot-controls {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .settings-panel .shot-preview {
+    grid-row: 1;
+    grid-column: 2;
+  }
+  .settings-panel > .dialog-content {
+    padding: 8px 12px;
+  }
+  .lab-toolbar {
+    gap: 4px 10px;
+  }
+  .lab-section-picker select {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+}

@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import { openSettingsSection, settleSettings } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,6 +36,7 @@ test(
     assert.equal(await page.locator('#contact-settings-dialog').count(), 0);
     assert.equal(await page.locator('#shots-dialog #contact-fields').count(), 1);
     const initialStats = await page.locator('#shot-stats').innerText();
+    await revealSettingsControl(page, '#contact-number-SpeedMax');
     await page.locator('#contact-number-SpeedMax').fill('20');
     await settleSettings(page);
     assert.notEqual(await page.locator('#shot-stats').innerText(), initialStats);
@@ -43,11 +45,14 @@ test(
       20,
     );
     const previewBounds = await page.locator('#shot-canvas').boundingBox();
+    await revealSettingsControl(page, '#contact-range-Reach');
     await page.locator('#contact-range-Reach').scrollIntoViewIfNeeded();
     assert.deepEqual(await page.locator('#shot-canvas').boundingBox(), previewBounds);
+    await revealSettingsControl(page, '#contact-reset');
     await page.locator('#contact-reset').click();
     await settleSettings(page);
     for (const kind of ['loft', 'drive', 'low']) {
+      await revealSettingsControl(page, '#shot-kind');
       await page.locator('#shot-kind').selectOption(kind);
       await settleSettings(page);
       assert.equal(
@@ -60,46 +65,59 @@ test(
         ),
       );
       for (const player of ['1', '4']) {
+        await revealSettingsControl(page, '#shot-player');
         await page.locator('#shot-player').selectOption(player);
         await settleSettings(page);
+        await revealSettingsControl(page, '#shot-direction');
         await page.locator('#shot-direction').selectOption('manual');
         await settleSettings(page);
+        await revealSettingsControl(page, '#shot-angle');
         await page.locator('#shot-angle').fill(player === '1' ? '0' : '180');
         await settleSettings(page);
+        await revealSettingsControl(page, '#shot-max');
         await page.locator('#shot-max').click();
         await settleSettings(page);
         assert.doesNotMatch(await page.locator('#shot-stats').innerText(), /NaN|Infinity/);
       }
     }
     await openSettingsSection(page, 'Приёмы и подачи');
+    await revealSettingsControl(page, '#contact-number-SpeedMin');
     await page.locator('#contact-number-SpeedMin').fill('100');
     await settleSettings(page);
     assert.equal(await page.locator('#contact-number-SpeedMin').inputValue(), '40');
     assert.equal(await page.locator('#contact-number-SpeedMax').inputValue(), '40');
     await openSettingsSection(page, 'Физика и помощь');
+    await revealSettingsControl(page, '#physics-passAssist');
     await page.locator('#physics-passAssist').fill('0.5');
     await settleSettings(page);
     assert.equal(await page.locator('#value-passAssist').innerText(), '50%');
+    await revealSettingsControl(page, '#physics-gravity');
     await page.locator('#physics-gravity').fill('12');
     await settleSettings(page);
     assert.equal(await page.locator('#physics-gravity').inputValue(), '12');
     assert.equal(await page.locator('dialog[open]').count(), 1);
     await openSettingsSection(page, 'Приёмы и подачи');
+    await revealSettingsControl(page, '#shot-mode');
     await page.locator('#shot-mode').selectOption('serve');
     await settleSettings(page);
     for (const kind of ['low', 'back', 'loft', 'drive']) {
+      await revealSettingsControl(page, '#shot-kind');
       await page.locator('#shot-kind').selectOption(kind);
       await settleSettings(page);
       for (const player of ['0', '3']) {
+        await revealSettingsControl(page, '#shot-player');
         await page.locator('#shot-player').selectOption(player);
         await settleSettings(page);
+        await revealSettingsControl(page, '#shot-ideal');
         await page.locator('#shot-ideal').click();
         await settleSettings(page);
         assert.doesNotMatch(await page.locator('#shot-stats').innerText(), /NaN|Infinity/);
+        await revealSettingsControl(page, '#shot-contact-frame');
         await page.locator('#shot-contact-frame').click();
         await settleSettings(page);
       }
     }
+    await revealSettingsControl(page, '#shot-mode');
     await page.locator('#shot-mode').selectOption('rally');
     await settleSettings(page);
     assert.equal(
@@ -116,6 +134,7 @@ test(
     assert.ok(
       await page.locator('#shots-dialog').evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
     );
+    await revealSettingsControl(page, '#contact-number-SpeedMax');
     await page.locator('#contact-number-SpeedMax').scrollIntoViewIfNeeded();
     const mobileCanvas = await page.locator('#shot-canvas').boundingBox();
     const mobileControl = await page.locator('#contact-number-SpeedMax').boundingBox();
@@ -124,27 +143,34 @@ test(
     await page.screenshot({ path: '.cache/labs/shots-mobile.png' });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await openSettingsSection(page, 'Руки и анимация');
+    await revealSettingsControl(page, '#graphics-arm-preview summary');
     await page.locator('#graphics-arm-preview summary').click();
     await settleSettings(page);
+    await revealSettingsControl(page, '#graphics-arm-freeze');
     await page.locator('#graphics-arm-freeze').check();
     await settleSettings(page);
+    await revealSettingsControl(page, '#graphics-arm-frame');
     await page.locator('#graphics-arm-frame').fill('0.4');
     await settleSettings(page);
     const canvas = page.locator('#graphics-arm-cards canvas');
     await page.waitForTimeout(100);
     const before = await canvas.evaluate((c) => c.toDataURL());
+    await revealSettingsControl(page, '#physics-elbowHeight');
     await page.locator('#physics-elbowHeight').fill('10');
     await settleSettings(page);
     await page.waitForTimeout(100);
     assert.notEqual(await canvas.evaluate((c) => c.toDataURL()), before);
+    await revealSettingsControl(page, '#physics-armFollowThrough');
     await page.locator('#physics-armFollowThrough').fill('12');
     await settleSettings(page);
     assert.equal(await page.locator('#value-armFollowThrough').innerText(), '12.00 px');
+    await revealSettingsControl(page, '#graphics-arm-preview summary');
     await page.locator('#graphics-arm-preview summary').click();
     await settleSettings(page);
     await mkdir('.cache/labs', { recursive: true });
     await page.screenshot({ path: '.cache/labs/graphics-desktop.png' });
     await page.setViewportSize({ width: 390, height: 844 });
+    await revealSettingsControl(page, '#physics-armLength');
     await page.locator('#physics-armLength').scrollIntoViewIfNeeded();
     const bounds = await page.locator('#physics-armLength').boundingBox();
     assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= 844);

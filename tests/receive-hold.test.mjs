@@ -90,11 +90,15 @@ for (const kind of ['loft']) {
     });
   }
 
-  test(`${kind}: full charge automatically releases during accompaniment`, () => {
+  test(`${kind}: full charge waits for zone timeout while the button remains held`, () => {
     const { m, a, control } = ready(kind);
     a.power = 1;
     m.updateCharge(0.01, { [kind]: true }, () => false, control);
-    assert.equal(control.charge, null);
+    assert.ok(control.charge);
+    assert.equal(m.contacts, 0);
+    m.tryHeldContact();
+    m.time += 0.081;
+    m.tryHeldContact();
     assert.equal(m.contacts, 1);
     assert.equal(control.chargeLock, true);
     const instant = ready(kind, 0).m;
@@ -137,7 +141,7 @@ test('independent receive delays are bounded, migrate old settings and survive e
   for (const kind of ['low', 'loft']) {
     const key = kind + 'ReceiveHoldTime';
     assert.equal(sanitizeConfig({ [key]: -1 })[key], 0);
-    assert.equal(sanitizeConfig({ [key]: 3 })[key], 0.25);
+    assert.equal(sanitizeConfig({ [key]: 3 })[key], 0.5);
   }
   const migrated = sanitizeConfig({ receiveHoldTime: 0.1, lowReceiveHoldTime: 0 });
   assert.equal(migrated.lowReceiveHoldTime, 0);

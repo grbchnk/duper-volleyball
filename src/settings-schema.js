@@ -167,13 +167,13 @@ export const PHYSICS_FIELDS = {
   blockCooldown: ['Восстановление блока', 0.05, 'с', 'Блок'],
   blockDeflect: ['Скорость отскока от блока', 0.05, '×', 'Блок'],
   elbowHeight: ['Высота локтей', 0.5, 'px', 'Внешний вид рук'],
-  armRoundness: ['Толщина и округлость рук', 0.05, '×', 'Внешний вид рук'],
+  armRoundness: ['Толщина рук', 0.05, '×', 'Внешний вид рук'],
   armScale: [
-    'Размер кистей и толщина',
+    'Размер кистей',
     0.05,
     '×',
     'Внешний вид рук',
-    'Меняет размер кистей и толщину. Игровая досягаемость сохраняется.',
+    'Меняет только размер кистей. Толщина рук настраивается отдельно; игровая досягаемость сохраняется.',
   ],
   armLength: [
     'Длина рук',
@@ -219,6 +219,7 @@ for (const key of [
   'modifierSpeedup',
   'neutralPassAssist',
   'maxHold',
+  'loftReceiveHoldTime',
 ])
   delete PHYSICS_FIELDS[key];
 PHYSICS_FIELDS.passAssist = [
@@ -273,9 +274,9 @@ const fieldHints = {
     'Минимальный интервал между попытками блока. Следующий блок требует также приземления.',
   elbowHeight:
     'Смещает локти вверх или вниз. Досягаемость мяча не меняется; нижние подачи используют единый стандарт локтей.',
-  armRoundness: 'Меняет толщину силуэта рук. Зоны контакта сохраняются.',
+  armRoundness: 'Меняет только толщину силуэта рук. Размер кистей и зоны контакта сохраняются.',
   armSpring:
-    'Насколько быстро руки догоняют заданную позу. Влияет на анимацию, а не на момент касания.',
+    'Сглаживание кистей и локтей: выше — быстрее догоняют позу. Не меняет время подготовки, ожидание отпускания и момент удара.',
   armBend:
     'Насколько локти расходятся от прямой между плечом и кистью. Нижние подачи используют стандартный изгиб.',
   armPowerMotion: 'Насколько заряд усиливает видимый замах рук. Не добавляет скорости мячу.',
@@ -289,6 +290,43 @@ const fieldHints = {
   targetScore:
     'Для победы нужна разница в два очка; при затяжном сете действует потолок на два очка выше цели.',
 };
+PHYSICS_FIELDS.armSpring[0] = 'Скорость следования рук за позой';
+PHYSICS_FIELDS.armSpring[3] = 'Плавность анимации';
+PHYSICS_FIELDS.armSpring[4] =
+  'Сглаживание движения кистей и локтей: выше — быстрее догоняют позу. Не меняет подготовку, ожидание отпускания или момент удара.';
+PHYSICS_FIELDS.armWindup[0] = 'Время подготовки рук к контакту';
+PHYSICS_FIELDS.armFollowThrough[0] = 'Движение рук вслед за ударом';
+PHYSICS_FIELDS.neutralAttackAssist[3] = 'Помощь направлению';
+const regroup = {
+  gravity: 'Мяч',
+  drag: 'Мяч',
+  restitution: 'Мяч',
+  ballSize: 'Мяч',
+  ballSpeed: 'Мяч',
+  hitPower: 'Мяч',
+  playerSpeed: 'Движение',
+  airMoveSpeed: 'Движение',
+  jumpSpeed: 'Прыжок',
+  jumpWindup: 'Прыжок',
+  jumpRise: 'Прыжок',
+  jumpHang: 'Прыжок',
+  jumpBallHang: 'Прыжок',
+  jumpFall: 'Прыжок',
+  chargeSeconds: 'Подготовка удара',
+  armWindup: 'Подготовка удара',
+  releaseWindow: 'Подготовка удара',
+  chargeMove: 'Подготовка удара',
+  armScale: 'Размер и форма',
+  armLength: 'Размер и форма',
+  elbowHeight: 'Размер и форма',
+  armRoundness: 'Размер и форма',
+  armBend: 'Размер и форма',
+  armPowerMotion: 'Движение рук',
+  armJumpMotion: 'Движение рук',
+  armFollowThrough: 'Движение рук',
+};
+for (const [key, group] of Object.entries(regroup))
+  if (PHYSICS_FIELDS[key]) PHYSICS_FIELDS[key][3] = group;
 for (const [key, hint] of Object.entries(fieldHints))
   if (PHYSICS_FIELDS[key]) PHYSICS_FIELDS[key][4] = hint;
 

@@ -1,3 +1,5 @@
+import { openSettingsSection } from './settings-helpers.mjs';
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -25,19 +27,18 @@ test(
     t.after(() => browser.close());
     const page = await browser.newPage();
     await page.goto(base);
-    const slider = page.locator('#physics-loftReceiveHoldTime');
-    await slider.waitFor({ state: 'attached' });
-    assert.equal(await slider.inputValue(), String(DEFAULTS.loftReceiveHoldTime));
-    assert.equal(await slider.getAttribute('max'), '0.25');
-    await slider.evaluate((el) => {
-      el.value = '0.12';
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await page.waitForFunction(() =>
-      document.getElementById('value-loftReceiveHoldTime').textContent.includes('0.12'),
+    await openSettingsSection(page, 'Приёмы и подачи');
+    await page.locator('#shot-kind').selectOption('loft');
+    await page.locator('#contact-tabs [data-section="contact"]').click();
+    const slider = page.locator('#contact-range-ReceiveHoldTime');
+    assert.equal(
+      await slider.inputValue(),
+      String(Math.round(DEFAULTS.loftReceiveHoldTime * 1000)),
     );
-    assert.match(await page.locator('#value-loftReceiveHoldTime').textContent(), /0.12/);
-    assert.equal(await page.locator('#physics-lowReceiveHoldTime').count(), 0);
+    assert.equal(await slider.getAttribute('max'), '500');
+    await slider.fill('120');
+    assert.match(await page.locator('#contact-value-ReceiveHoldTime').textContent(), /120 мс/);
+    assert.equal(await page.locator('#physics-loftReceiveHoldTime').count(), 0);
     const results = await page.evaluate(async () => {
       const { Match } = await import('/src/engine.js');
       const { Renderer } = await import('/src/renderer.js');
@@ -45,7 +46,7 @@ test(
       const { TEAMS } = await import('/src/config.js');
       const results = [];
       for (const kind of ['loft']) {
-        const m = new Match({ lowReceiveHoldTime: 0.08, loftReceiveHoldTime: 0.08 });
+        const m = new Match({ lowReceiveHoldTime: 0.08, loftReceiveHoldTime: 0.2 });
         m.startDrill('receive');
         const p = m.active();
         const a = { kind, playerId: p.id, age: 0.2, power: 0.5, aim: { axis: 1 } };
@@ -125,7 +126,7 @@ test(
       gallery.fillRect(0, 0, 960, 400);
       const results = [];
       for (const [row, kind] of ['loft'].entries()) {
-        const m = new Match({ lowReceiveHoldTime: 0.08, loftReceiveHoldTime: 0.08 });
+        const m = new Match({ lowReceiveHoldTime: 0.08, loftReceiveHoldTime: 0.2 });
         m.reset('test');
         const p = m.active();
         Object.assign(m.ball, { x: p.x + 0.2, y: kind === 'low' ? 0.5 : 2.2, vx: 0, vy: 0 });

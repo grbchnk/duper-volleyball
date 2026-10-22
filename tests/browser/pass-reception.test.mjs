@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -11,14 +12,18 @@ test(
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
     await openSettingsSection(page, 'Приёмы и подачи');
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('low');
     await settleSettings(page);
     assert.equal(await page.locator('#shot-assistance').isVisible(), true);
     assert.match(await page.locator('#shot-assistance-label').innerText(), /Помощь направлению/);
+    await revealSettingsControl(page, '#shot-touch');
     await page.locator('#shot-touch').selectOption('2');
+    await revealSettingsControl(page, '#shot-power');
     await page.locator('#shot-power').fill('100');
     await settleSettings(page);
     assert.match(await page.locator('#shot-stats').innerText(), /Подъём над собой/);
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('loft');
     await settleSettings(page);
     assert.equal(await page.locator('#shot-assistance').isVisible(), true);

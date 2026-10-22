@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -29,49 +30,65 @@ test(
     await page.goto(base);
     await page.waitForSelector('#club-sidebar');
     await openSettingsSection(page, 'Приёмы и подачи');
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('loft');
     await settleSettings(page);
+    await revealSettingsControl(page, '#shot-soft');
     await page.locator('#shot-soft').check();
     await settleSettings(page);
     assert.match(await page.locator('#contact-profile-title').innerText(), /L2/);
+    await revealSettingsControl(page, '#contact-number-SpeedMax');
     await page.locator('#contact-number-SpeedMax').fill('9');
     await settleSettings(page);
     assert.equal(
       await page.evaluate(async () => (await import('/src/main.js')).match.config.loftSoftSpeedMax),
       9,
     );
+    await revealSettingsControl(page, '#shot-soft');
     await page.locator('#shot-soft').uncheck();
     await settleSettings(page);
     assert.notEqual(await page.locator('#contact-number-SpeedMax').inputValue(), '9');
+    await revealSettingsControl(page, '#shot-fast');
     await page.locator('#shot-fast').check();
     await settleSettings(page);
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('drive');
     await settleSettings(page);
     assert.equal(await page.locator('#contact-number-Dip').isEnabled(), true);
+    await revealSettingsControl(page, '#contact-number-Dip');
     await page.locator('#contact-number-Dip').fill('18');
     await settleSettings(page);
     assert.equal(
       await page.evaluate(async () => (await import('/src/main.js')).match.config.driveFastDip),
       18,
     );
+    await revealSettingsControl(page, '#shot-fast');
     await page.locator('#shot-fast').uncheck();
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('loft');
+    await revealSettingsControl(page, '#shot-direction');
     await page.locator('#shot-direction').selectOption('manual');
+    await revealSettingsControl(page, '#shot-angle');
     await page.locator('#shot-angle').fill('80');
+    await revealSettingsControl(page, '#shot-assistance');
     await page.locator('#shot-assistance').fill('0.5');
     await settleSettings(page);
     assert.match(await page.locator('#shot-stats').innerText(), /помощь 50%.*коррекция/);
     await mkdir('.cache/settings-review', { recursive: true });
     await page.screenshot({ path: '.cache/settings-review/shot-profiles.png' });
+    await revealSettingsControl(page, '#shot-mode');
     await page.locator('#shot-mode').selectOption('block');
     await settleSettings(page);
+    await revealSettingsControl(page, '#block-apex');
     await page.locator('#block-apex').click();
     await settleSettings(page);
     assert.match(await page.locator('#block-result').innerText(), /Закрытый блок/);
     assert.doesNotMatch(await page.locator('#block-result').innerText(), /NaN|undefined/);
+    await revealSettingsControl(page, '#block-dx');
     await page.locator('#block-dx').fill('0.9');
     await settleSettings(page);
     assert.match(await page.locator('#block-result').innerText(), /мяч вне зоны/);
+    await revealSettingsControl(page, '#block-dx');
     await page.locator('#block-dx').fill('0');
     await settleSettings(page);
     await page.screenshot({ path: '.cache/settings-review/block-lab.png' });

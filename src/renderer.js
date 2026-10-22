@@ -818,7 +818,7 @@ export class Renderer {
         constrainRenderedJoint(wrist, transform, this.project.bind(this), p.team, m.ball, over);
         constrainRenderedJoint(elbow, transform, this.project.bind(this), p.team, m.ball, over);
       }
-      const width = spec.width * config.armScale * config.armRoundness;
+      const width = spec.width * config.armRoundness;
       const contour = armContour(
         shoulder,
         elbow,

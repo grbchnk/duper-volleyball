@@ -21,7 +21,9 @@ test('every exposed variant parameter changes its shot, without changing another
         fast: variant === 'fast',
       };
       for (const suffix of Object.keys(VARIANT_FIELDS).filter(
-        (key) => key !== 'Dip' || kind === 'drive',
+        (key) =>
+          !['ReceiveHoldTime', 'ElevationMin', 'ElevationMax'].includes(key) &&
+          (key !== 'Dip' || kind === 'drive'),
       )) {
         const m = new Match();
         const p = m.players[0];

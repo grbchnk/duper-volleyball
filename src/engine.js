@@ -38,6 +38,7 @@ import { assistedJump } from './jump-assist.js';
 
 import { cpuSkill, planReception, chooseCPUShot } from './cpu.js';
 import { nextReceiver } from './receiver-selection.js';
+import { contactWaitTime } from './contact-wait.js';
 import { serveReceiver } from './serve-reception.js';
 import {
   isFeintDecoy,
@@ -1070,6 +1071,7 @@ export class Match {
       }
       const autoRelease =
         this.phase !== 'serve' &&
+        !contactWaitTime(this.config, a.kind, a.aim) &&
         (a.power >= 1 || (!this.config.dynamic && a.age >= this.config.maxHold));
       if (!input[a.kind] || autoRelease) {
         const run = this.teamRuns[p.team];

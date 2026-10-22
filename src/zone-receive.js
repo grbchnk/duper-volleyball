@@ -3,9 +3,16 @@ import { contactBounds, contactReason } from './contact-rules.js';
 import { clamp, integrateBall } from './physics.js';
 import { sampleJump } from './motion.js';
 import { shotImpulse } from './moves.js';
+import { contactWaitTime } from './contact-wait.js';
 
 export function isZoneReceive(match, action, player) {
-  return !!(match.config.dynamic && action && action.kind === 'loft' && player && !player.diving);
+  return !!(
+    match.config.dynamic &&
+    action &&
+    player &&
+    !player.diving &&
+    (action.kind === 'loft' || contactWaitTime(match.config, action.kind, action.aim) > 0)
+  );
 }
 
 export function zoneReceiveTarget(player, kind, ball, config) {
@@ -71,18 +78,22 @@ export function tryZoneReceive(match, previous, control, released = false, dt = 
   const middle = { ...match.ball, ...pointAt((interval.enter + interval.exit) / 2) };
   if (contactReason(match, p, a.kind, middle) !== null)
     return registered ? cancel(match, control) : false;
-  a.receiveZone ??= { playerId: p.id, serial: match.shotSerial };
+  a.receiveZone ??= {
+    playerId: p.id,
+    serial: match.shotSerial,
+    at: match.time - dt + interval.enter * dt,
+  };
   const inside = match.canContact(p, a.kind);
   const start = match.time - dt;
   const exitAt = inside ? Infinity : start + interval.exit * dt;
   if (a.receiveReadyAt > match.time + 1e-9 || a.receiveReadyAt > exitAt + 1e-9)
     return inside ? false : cancel(match, control);
   a.receiveHold ??= {
-    at: Math.max(a.receiveReadyAt, start + interval.enter * dt),
+    at: a.receiveZone.at,
     playerId: p.id,
     serial: match.shotSerial,
   };
-  const delay = match.config[a.kind + 'ReceiveHoldTime'] || 0;
+  const delay = contactWaitTime(match.config, a.kind, a.aim);
   const deadline = a.receiveHold.at + delay;
   if (!released && match.time + 1e-9 < deadline && inside && !outsideNextStep(match, p, a.kind, dt))
     return false;

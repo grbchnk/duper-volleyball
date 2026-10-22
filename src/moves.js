@@ -1,6 +1,6 @@
 import { LEGACY_SHOT } from './legacy-profile.js';
 import { SERVE_BASES } from './serve-settings.js';
-import { SHOT_BASES } from './shot-settings.js';
+import { SHOT_BASES, variantSettings } from './shot-settings.js';
 import { manualImpulse } from './manual-impulse.js';
 import { profileImpulse } from './profile-impulse.js';
 import { assistManualShot } from './manual-assistance.js';
@@ -31,6 +31,19 @@ export function shotImpulse(ball, player, kind, power, aim, players, config, ser
   const impulse = manual
     ? assistManualShot(source, player, kind, manual, aim, players, config)
     : profileImpulse(source, player, kind, power, aim, players, config, serving);
+  if (manual) {
+    const limits = variantSettings(config, kind, aim);
+    const speed = Math.hypot(impulse.vx, impulse.vy);
+    const elevation = (Math.atan2(impulse.vy, Math.abs(impulse.vx)) * 180) / Math.PI;
+    const bounded = Math.max(limits.ElevationMin, Math.min(limits.ElevationMax, elevation));
+    if (Math.abs(bounded - elevation) > 1e-9) {
+      const angle = (bounded * Math.PI) / 180;
+      impulse.vx =
+        (Math.sign(impulse.vx) || (player.team === 0 ? 1 : -1)) * speed * Math.cos(angle);
+      impulse.vy = speed * Math.sin(angle);
+      impulse.flightLaunchVy = impulse.vy;
+    }
+  }
   return {
     attackGravity: 0,
     requestedDirection: impulse.requestedDirection || {

@@ -5,7 +5,7 @@ import { drawBallDesign, pixelPresent, compositePixels } from './display.js';
 import { serveSettings } from './serve-settings.js';
 import { simulateServe } from './serve-lab.js';
 import { sampleJump } from './motion.js';
-import { shotSettings } from './shot-settings.js';
+import { shotSettings, variantSettings } from './shot-settings.js';
 import { Match } from './engine.js';
 import { Renderer } from './renderer.js';
 import { DEFAULTS, COURT, FIXED_DT } from './config.js';
@@ -142,7 +142,27 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
   variantTitle.textContent = 'Вариант удара';
   variantRow.append(variantTitle);
   variantRow.append($('modifiers'));
-  $('profile-editor').before(variantRow);
+  const toolbar = document.createElement('div');
+  toolbar.className = 'lab-toolbar';
+  sectionPicker.after(toolbar);
+  const kindPicker = document.createElement('div');
+  kindPicker.className = 'lab-kind-picker';
+  kindPicker.append(dialog.querySelector('label[for="shot-kind"]'), $('kind'));
+  const endpointsLabel = $('endpoints').closest('label');
+  toolbar.append(
+    kindPicker,
+    variantRow,
+    endpointsLabel,
+    dialog.querySelector('.shot-endpoint-buttons'),
+  );
+  const conditions = document.createElement('details');
+  conditions.className = 'lab-conditions';
+  conditions.innerHTML = '<summary>Условия примера: направление, мяч и игрок</summary>';
+  const controls = layout.querySelector('.shot-controls');
+  const editor = $('profile-editor');
+  const afterEditor = [...controls.children].slice([...controls.children].indexOf(editor) + 1);
+  conditions.append(...afterEditor);
+  editor.after(conditions);
   const assistControl = document.createElement('label');
   assistControl.className = 'setting-label';
   assistControl.htmlFor = 'shot-assistance';
@@ -178,7 +198,12 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
   }
   const serving = () => $('mode').value === 'serve';
   const settingsFor = (config, kind) =>
-    serving() ? serveSettings(config, kind) : shotSettings(config, kind);
+    serving()
+      ? serveSettings(config, kind)
+      : {
+          ...shotSettings(config, kind),
+          ...variantSettings(config, kind, { soft: $('soft').checked, fast: $('fast').checked }),
+        };
   $('open-physics').onclick = () => open('physics-dialog');
   const renderer = new Renderer($('canvas'), { scene: false });
   const profileEditor = createContactSettings(
@@ -235,7 +260,7 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
       data.hit === false ? [] : traceBall({ ...data.ball, ...data.impulse, spin: 0 }, config, 15);
     $('timing-preview').hidden = !serving();
     $('parameter-info').textContent = manual
-      ? 'S всегда поднимает мяч. W/D следуют направлению. Выбранный вариант L2/R2 имеет собственную скорость, угол, вращение и темп. Загиб атаки — в профиле D. Рамка контакта показывает высоту и дальность, ладони — точку приёма.'
+      ? '□ поднимает мяч; △ и ○ следуют направлению. Выбранный вариант L2/R2 имеет собственную скорость, угол, вращение и темп. Загиб атаки — в профиле D. Рамка контакта показывает высоту и дальность, ладони — точку приёма.'
       : serving()
         ? ''
         : 'Угол в воздухе действует при высоте игрока > 0.25 м. Ручной угол с влиянием 100% заменяет угол профиля; помощь тоже может его скорректировать. Вращение > 0 сильнее загибает мяч вниз, < 0 замедляет падение; эффект небольшой и накапливается в полёте. Область приёма — над стопами: рамка показывает допуск, кружки — рабочие ладони. Для касания нужны оба условия.';
@@ -329,7 +354,7 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
         : 'Мяч вне допуска контакта: показан условный запуск; в игре этот удар не достанет мяч.');
     if (manual)
       $('limits').textContent =
-        `Угол вылета: ${outgoing.toFixed(1)}°. ${validContact ? '' : 'Мяч вне допуска: показан условный запуск.'}`;
+        `Угол вылета: ${outgoing.toFixed(1)}°. Ограничения: ${settings.ElevationMin}…${settings.ElevationMax}°. ${validContact ? '' : 'Мяч вне допуска: показан условный запуск.'}`;
     if (data.impulse.neutralReceive)
       $('limits').textContent +=
         ' Без стика — подъём над собой. Боковое отклонение зависит от входящего мяча и положения рук.';
@@ -406,6 +431,7 @@ export function createShotLab(dialog, getConfig, applyConfig, open) {
   $('mode').oninput = () => {
     const blocking = $('mode').value === 'block';
     layout.hidden = blocking;
+    toolbar.hidden = blocking;
     blockRoot.hidden = !blocking;
     if (blocking) return;
     const isServe = serving();

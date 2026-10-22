@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import { openSettingsSection, settleSettings } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,16 +42,20 @@ test(
     assert.equal(await page.locator('#replay-toolbar').isVisible(), false);
     assert.equal(await page.locator('.play-ribbon, #charge-label').count(), 0);
     assert.equal(await page.locator('.keyboard-guide').count(), 1);
+    await revealSettingsControl(page, '#tutorial-start');
     await page.locator('#tutorial-start').click();
     await settleSettings(page);
     assert.equal(await page.locator('#tutorial-next').isVisible(), false);
     assert.equal(await page.locator('#tutorial-panel').getAttribute('data-phase'), 'practice');
+    await revealSettingsControl(page, '#tutorial-menu-toggle');
     await page.locator('#tutorial-menu-toggle').click();
+    await revealSettingsControl(page, '#tutorial-exit');
     await page.locator('#tutorial-exit').click();
     await settleSettings(page);
     await page.waitForFunction(() => document.querySelector('#start-overlay').hidden);
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
+    await revealSettingsControl(page, '#resume');
     await page.locator('#resume').click();
     await settleSettings(page);
     await page.waitForFunction(() => document.querySelector('#pause-overlay').hidden);
@@ -58,7 +63,9 @@ test(
     assert.doesNotMatch(await page.locator('#arena').innerText(), /Зажмите S, A, W или D/);
     await page.locator('#arena').screenshot({ path: '.cache/cleanup-audit/banner-removed.png' });
 
+    await revealSettingsControl(page, '#match-mode');
     await page.locator('#match-mode').click();
+    await revealSettingsControl(page, '#pause');
     await page.locator('#pause').click();
     await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
     assert.equal(await page.locator('#pause-overlay #dynamic-replay').isDisabled(), true);
@@ -74,11 +81,13 @@ test(
       match.replay.record(match);
     });
     await page.waitForFunction(() => !document.querySelector('#dynamic-replay').disabled);
+    await revealSettingsControl(page, '#dynamic-replay');
     await page.locator('#dynamic-replay').click();
     await page.waitForFunction(() => document.querySelector('#pause-overlay').hidden);
     assert.equal(await page.locator('#arena #replay-toolbar').isVisible(), true);
     assert.deepEqual(await page.locator('#arena').boundingBox(), arenaBeforeReplay);
     await page.locator('#arena').screenshot({ path: '.cache/cleanup-audit/replay-view.png' });
+    await revealSettingsControl(page, '#dynamic-close-replay');
     await page.locator('#dynamic-close-replay').click();
     await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
     assert.equal(await page.locator('#replay-toolbar').isVisible(), false);
@@ -91,6 +100,7 @@ test(
     }
     await page.screenshot({ path: '.cache/cleanup-audit/replay-pause-mobile.png' });
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await revealSettingsControl(page, '#dynamic-retry');
     await page.locator('#dynamic-retry').click();
     await page.waitForFunction(() => document.querySelector('#pause-overlay').hidden);
     assert.equal(await page.evaluate(async () => (await import('/src/main.js')).match.score[0]), 0);
@@ -101,18 +111,19 @@ test(
       'static',
     );
     await openSettingsSection(page, 'Мяч и графика');
+    await revealSettingsControl(page, '#ball-fire');
     await page.locator('#ball-fire').uncheck();
     await settleSettings(page);
+    await revealSettingsControl(page, '#lively-background');
     await page.locator('#lively-background').uncheck();
     await settleSettings(page);
     await openSettingsSection(page, 'Руки и анимация');
-    await page.locator('#random-arms').check();
+    assert.equal(await page.locator('#random-arms').count(), 0);
     await settleSettings(page);
     await page.keyboard.press('Escape');
     await page.reload();
     await openSettingsSection(page, 'Руки и анимация');
-    assert.equal(await page.locator('#random-arms').isChecked(), true);
-    await page.locator('#random-arms').uncheck();
+    assert.equal(await page.locator('#random-arms').count(), 0);
     await settleSettings(page);
     await openSettingsSection(page, 'Мяч и графика');
     assert.equal(await page.locator('#ball-fire').isChecked(), false);
@@ -161,11 +172,13 @@ test(
 
     await openSettingsSection(page, 'Физика и помощь');
     assert.equal(await page.locator('#receive-momentum').count(), 0);
+    await revealSettingsControl(page, '#physics-passAssist');
     await page.locator('#physics-passAssist').fill('0.5');
     await settleSettings(page);
     await page.keyboard.press('Escape');
 
     await openSettingsSection(page, 'Приёмы и подачи');
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('low');
     await settleSettings(page);
     await page.locator('#shot-incoming-speed').evaluate((input) => {
@@ -173,12 +186,15 @@ test(
     });
     await page.locator('#shot-incoming-speed').dispatchEvent('input');
     assert.doesNotMatch(await page.locator('#shot-stats').innerText(), /перенос/);
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('drive');
     await settleSettings(page);
+    await revealSettingsControl(page, '#shot-soft');
     await page.locator('#shot-soft').check();
     await settleSettings(page);
     assert.equal(await page.locator('#shot-number-SpeedMin').count(), 0);
     assert.equal(await page.locator('#shot-automatic-controls').count(), 0);
+    await revealSettingsControl(page, '#shot-mode');
     await page.locator('#shot-mode').selectOption('serve');
     await settleSettings(page);
     await page.waitForFunction(
@@ -186,6 +202,7 @@ test(
     );
     await page.keyboard.press('Escape');
 
+    await revealSettingsControl(page, '#test-mode');
     await page.locator('#test-mode').click();
     await settleSettings(page);
     await page.waitForFunction(async () => {
@@ -197,12 +214,15 @@ test(
       null,
     );
 
+    await revealSettingsControl(page, '#club-tour-mode');
     await page.locator('#club-tour-mode').click();
     await settleSettings(page);
     assert.match(await page.locator('#club-hud-title').innerText(), /Гул улиц/);
+    await revealSettingsControl(page, '#pause');
     await page.locator('#pause').click();
     await page.waitForFunction(() => !document.querySelector('#pause-overlay').hidden);
     assert.equal(await page.locator('#dynamic-retry').isVisible(), false);
+    await revealSettingsControl(page, '#resume');
     await page.locator('#resume').click();
     await page.evaluate(async () => {
       const { match } = await import('/src/main.js');
@@ -214,14 +234,17 @@ test(
     });
     await page.waitForFunction(() => !document.querySelector('#finish-overlay').hidden);
     assert.equal(await page.locator('#winner-label').innerText(), 'ЭТАП ПРОЙДЕН!');
+    await revealSettingsControl(page, '#club-next');
     await page.locator('#club-next').click();
     await settleSettings(page);
     await page.waitForFunction(
       () => document.querySelector('#club-hud-title').textContent === 'Стена мегаполиса',
     );
+    await revealSettingsControl(page, '#match-mode');
     await page.locator('#match-mode').click();
     await settleSettings(page);
     assert.equal(await page.locator('#club-hud').isVisible(), false);
+    await revealSettingsControl(page, '#fullscreen');
     await page.locator('#fullscreen').click();
     await settleSettings(page);
     await page.waitForFunction(
@@ -257,6 +280,7 @@ test(
       }));
       navigator.getGamepads = () => window.testPads;
     });
+    await revealSettingsControl(page, '#coop-mode');
     await page.locator('#coop-mode').click();
     await settleSettings(page);
     await page.waitForFunction(async () => (await import('/src/main.js')).match.mode === 'coop');

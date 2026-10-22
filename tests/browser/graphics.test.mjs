@@ -217,7 +217,7 @@ test(
         pixels(depthRenderer.actorContext, 0, 0, 180, 200),
       );
       depthMatch.updateConfig({ ...depthMatch.config, randomArms: true });
-      const profile = rightPlayer.armProfile;
+      const profile = (rightPlayer.armProfile = { armBend: 1.5, elbowHeight: -12 });
       profile.armBend = 1.5;
       profile.elbowHeight = -12;
       depthRenderer.armRigs.clear();
@@ -226,7 +226,7 @@ test(
       profile.elbowHeight = 12;
       depthRenderer.armRigs.clear();
       depthRenderer.draw(depthMatch, teams);
-      const individualArmsVisible = !equal(
+      const individualArmsIgnored = equal(
         lowElbows,
         pixels(depthRenderer.actorContext, 0, 0, 180, 200),
       );
@@ -234,7 +234,7 @@ test(
       for (let frame = 0; frame < 10; frame++) depthRenderer.draw(depthMatch, teams);
       const individualArmsStable = JSON.stringify(rightPlayer.armProfile) === stableProfile;
       return {
-        individualArmsVisible,
+        individualArmsIgnored,
         individualArmsStable,
         leftInFront,
         rightBehind,

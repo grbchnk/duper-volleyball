@@ -1,3 +1,4 @@
+import { revealSettingsControl } from './settings-helpers.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -28,18 +29,23 @@ test(
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(base);
     await openSettingsSection(page, 'Приёмы и подачи');
+    await revealSettingsControl(page, '#shot-mode');
     await page.locator('#shot-mode').selectOption('serve');
+    await revealSettingsControl(page, '#shot-kind');
     await page.locator('#shot-kind').selectOption('loft');
+    await revealSettingsControl(page, '#contact-number-ContactReach');
     await page.locator('#contact-number-ContactReach').fill('1.2');
     await page.locator('#shot-timing').evaluate((el) => {
       el.value = '0.18';
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
     await settleSettings(page);
-    const quality = async () =>
-      Number(
+    const quality = async () => {
+      await revealSettingsControl(page, '#shot-timing-info');
+      return Number(
         (await page.locator('#shot-timing-info').innerText()).match(/качество касания (\d+)%/)[1],
       );
+    };
     const ordinary = await quality();
     assert.ok(ordinary > 0 && ordinary < 100);
     const colors = await page
@@ -54,6 +60,7 @@ test(
       ['HitWindow', '0.4'],
       ['PerfectWindow', '0.2'],
     ]) {
+      await revealSettingsControl(page, '#contact-number-' + field);
       await page.locator('#contact-number-' + field).fill(value);
       await settleSettings(page);
       assert.ok((await quality()) > ordinary, field);
@@ -65,13 +72,16 @@ test(
         Number(value),
       );
     }
+    await revealSettingsControl(page, '#contact-number-ContactReach');
     await page.locator('#contact-number-ContactReach').fill('0.1');
     await settleSettings(page);
     assert.equal(await quality(), 0);
+    await revealSettingsControl(page, '#shot-ideal');
     await page.locator('#shot-ideal').click();
     await settleSettings(page);
     assert.equal(await quality(), 100);
     assert.deepEqual(errors, []);
+    await revealSettingsControl(page, '#contact-reset');
     await page.locator('#contact-reset').click();
     await page.locator('#shot-timing').evaluate((el) => {
       el.value = '0.08';

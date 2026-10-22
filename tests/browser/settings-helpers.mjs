@@ -35,3 +35,48 @@ export async function openBrowserGame(t, viewport = { width: 1440, height: 1000 
   await page.waitForSelector('#club-sidebar');
   return { browser, page, base };
 }
+// Follow the same tabs, disclosure buttons and popovers as a settings user.
+export async function revealSettingsControl(page, selector) {
+  const target = page.locator(selector).first();
+  const context = await target.evaluate((el) => {
+    const popup = el.closest('[popover]');
+    const group = el.closest('.flat-settings');
+    return {
+      popup: popup?.id,
+      color: el.closest('[data-color-part]')?.dataset.colorPart,
+      section: el.dataset.section,
+      group: group?.querySelector('h3')?.textContent,
+      groupParent: group?.parentElement.id,
+      details: [
+        ...(function* () {
+          for (let p = el.parentElement; p; p = p.parentElement)
+            if (p.tagName === 'DETAILS' && el.tagName !== 'SUMMARY') yield p;
+        })(),
+      ].map((el) => [...document.querySelectorAll('details')].indexOf(el)),
+    };
+  });
+  const openPopup = page.locator('[popover]:popover-open');
+  if ((await openPopup.count()) && (await openPopup.first().getAttribute('id')) !== context.popup)
+    await page.keyboard.press('Escape');
+  if (context.group && context.groupParent) {
+    const button = page
+      .locator('#' + context.groupParent + ' .settings-group-tabs')
+      .getByRole('button', { name: context.group, exact: true });
+    if (await button.count()) await button.click();
+  }
+  if (context.section)
+    await page.locator('#contact-tabs [data-section="' + context.section + '"]').click();
+  for (const index of context.details.reverse()) {
+    const details = page.locator('details').nth(index);
+    if ((await details.count()) && (await details.first().getAttribute('open')) === null)
+      await details.first().locator('summary').first().click();
+  }
+  if (context.popup) {
+    if (!(await page.locator('#' + context.popup).evaluate((el) => el.matches(':popover-open'))))
+      await page
+        .locator('[popovertarget="' + context.popup + '"]')
+        .first()
+        .click();
+    if (context.color) await page.locator('#team-color-part').selectOption(context.color);
+  }
+}
